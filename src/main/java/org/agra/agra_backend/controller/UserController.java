@@ -26,4 +26,12 @@ public class UserController {
         List<User> users = userService.getAllUsers();
         return ResponseEntity.ok(users);
     }
+
+
+
+        @GetMapping("/ping")
+        public ResponseEntity<String> ping() {
+            return ResponseEntity.ok("pong");
+        }
+
 }
