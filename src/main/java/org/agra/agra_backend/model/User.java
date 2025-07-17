@@ -19,7 +19,7 @@ public class User {
     private String name;
     private String email;
     private String phone;
-    private String passwordHash;
+    private String password;
     private String country;
     private String language;
     private String domain;

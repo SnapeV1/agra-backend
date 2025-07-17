@@ -1,6 +1,7 @@
 package org.agra.agra_backend.service;
 
 import org.agra.agra_backend.model.User;
+import org.agra.agra_backend.payload.RegisterRequest;
 
 import java.util.List;
 
@@ -9,4 +10,5 @@ public interface UserServiceInterface {
     List<User> getAllUsers();
     User updateUser(User user);
     void deleteUser(Long id);
+    User registerUser(RegisterRequest request);
 }
