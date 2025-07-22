@@ -49,22 +49,5 @@ public class UserService implements UserServiceInterface {
             throw new RuntimeException("User with id " + id + " not found");
         }
     }
-    public User registerUser(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email is already in use");
-        }
 
-        User user = new User();
-        user.setName(request.getName());
-        user.setEmail(request.getEmail());
-        user.setPhone(request.getPhone());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setCountry(request.getCountry());
-        user.setLanguage(request.getLanguage());
-        user.setDomain(request.getDomain());
-        user.setRole(request.getRole());
-        user.setRegisteredAt(new Date());
-
-        return userRepository.save(user);
-    }
 }

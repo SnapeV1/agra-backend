@@ -10,5 +10,5 @@ public interface UserServiceInterface {
     List<User> getAllUsers();
     User updateUser(User user);
     void deleteUser(Long id);
-    User registerUser(RegisterRequest request);
+
 }
