@@ -7,6 +7,8 @@ import org.agra.agra_backend.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -24,7 +26,7 @@ public class AuthController {
     public ResponseEntity<?> registerUser(@RequestBody RegisterRequest request) {
         try {
             authService.registerUser(request);
-            return ResponseEntity.ok("User registered successfully");
+            return ResponseEntity.ok(Map.of("message", "User registered successfully"));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -33,6 +35,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+        System.out.println("login phase");
         return ResponseEntity.ok(authService.login(request));
     }
 }
