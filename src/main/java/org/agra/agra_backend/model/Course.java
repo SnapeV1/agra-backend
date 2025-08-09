@@ -24,6 +24,7 @@ public class Course {
     private List<String> languagesAvailable;
     private Date createdAt;
     private Date updatedAt;
+    private boolean archived = false;
 
 
     // Cloudinary image fields

@@ -65,9 +65,9 @@ public class CourseController {
     }
 
     // Delete a course
-    @DeleteMapping("delete/{id}")
+    @PutMapping("ArchiveCourse/{id}")
     public ResponseEntity<Void> ArchiveCourse(@PathVariable String id) {
-        courseService.archiveCourse(id);
+        courseService.ArchiveCourse(id);
         return ResponseEntity.noContent().build();
     }
     @DeleteMapping("delete/{id}")

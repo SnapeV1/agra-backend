@@ -6,6 +6,7 @@ import org.agra.agra_backend.model.Course;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,6 +47,19 @@ public class CourseService {
 
     public void deleteCourse(String id) {
         courseRepository.deleteById(id);
+    }
+
+
+    public void ArchiveCourse(String id) {
+        Optional<Course> courseOpt = courseRepository.findById(id);
+        if (courseOpt.isPresent()) {
+            Course course = courseOpt.get();
+            course.setArchived(!course.isArchived());
+            course.setUpdatedAt(new Date());
+            courseRepository.save(course);
+        } else {
+            throw new RuntimeException("Course not found with id: " + id);
+        }
     }
 
 
