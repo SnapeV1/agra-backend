@@ -24,4 +24,11 @@ public class Course {
     private List<String> languagesAvailable;
     private Date createdAt;
     private Date updatedAt;
+
+
+    // Cloudinary image fields
+    private String imagePublicId;  // Store Cloudinary public_id
+    private String imageUrl;       // Generated optimized URL for course cards
+    private String thumbnailUrl;   // Generated thumbnail URL
+    private String detailImageUrl; // Generated high-res URL for course details
 }
