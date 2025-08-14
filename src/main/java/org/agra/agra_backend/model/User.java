@@ -24,7 +24,7 @@ public class User {
     private String language;
     private String domain;
     private String role;
-
+    private String picture;
     private Date registeredAt;
     private List<CourseProgress> progress;
 }
