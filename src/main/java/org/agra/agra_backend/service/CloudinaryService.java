@@ -26,51 +26,59 @@ public class CloudinaryService {
 
     @PostConstruct
     public void init() {
-        cloudinary = new Cloudinary(ObjectUtils.asMap(
+        this.cloudinary = new Cloudinary(ObjectUtils.asMap(
                 "cloud_name", cloudName,
                 "api_key", apiKey,
                 "api_secret", apiSecret
         ));
+
+        System.out.println("Cloudinary initialized successfully!");
+        System.out.println("Cloud name: " + cloudName);
     }
 
-    public String uploadFile(MultipartFile file) throws IOException {
-        Map<String, Object> uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.emptyMap());
-        return uploadResult.get("url").toString();
+    public Map<String, Object> uploadImage(MultipartFile file) throws IOException {
+        return uploadImage(file, "hkpcvcr8"); // Use your upload preset by default
     }
 
-    public String uploadFile(MultipartFile file, String folder) throws IOException {
-        Map<String, Object> uploadResult = cloudinary.uploader().upload(
-                file.getBytes(),
-                ObjectUtils.asMap("folder", folder)
-        );
-        return uploadResult.get("url").toString();
+    public Map<String, Object> uploadImage(MultipartFile file, String uploadPreset) throws IOException {
+        try {
+            Map<String, Object> uploadResult = cloudinary.uploader().upload(
+                    file.getBytes(),
+                    ObjectUtils.asMap(
+                            "upload_preset", uploadPreset,
+                            "resource_type", "image"
+                    )
+            );
+
+            System.out.println("Image uploaded successfully: " + uploadResult.get("secure_url"));
+            return uploadResult;
+
+        } catch (IOException e) {
+            System.err.println("Error uploading image to Cloudinary: " + e.getMessage());
+            throw e;
+        }
     }
 
-    public String uploadFileWithTransformation(MultipartFile file, Map<String, Object> transformations) throws IOException {
-        Map<String, Object> uploadResult = cloudinary.uploader().upload(file.getBytes(), transformations);
-        return uploadResult.get("url").toString();
+    public String deleteImage(String publicId) throws IOException {
+        try {
+            Map<String, Object> result = cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
+            System.out.println("Image deleted: " + result.get("result"));
+            return result.get("result").toString();
+        } catch (IOException e) {
+            System.err.println("Error deleting image from Cloudinary: " + e.getMessage());
+            throw e;
+        }
     }
 
-    public void deleteFile(String publicId) throws IOException {
-        cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
-    }
-
-    public String getOptimizedUrl(String publicId, int width, int height) {
-        return cloudinary.url()
-                .transformation(new com.cloudinary.Transformation()
-                        .width(width)
-                        .height(height)
-                        .crop("fill")
-                        .quality("auto")
-                        .fetchFormat("auto"))
-                .generate(publicId);
-    }
-
-    public String getOptimizedUrl(String publicId) {
-        return cloudinary.url()
-                .transformation(new com.cloudinary.Transformation()
-                        .quality("auto")
-                        .fetchFormat("auto"))
-                .generate(publicId);
+    // Test method to verify connection
+    public boolean testConnection() {
+        try {
+            Map<String, Object> result = cloudinary.api().ping(ObjectUtils.emptyMap());
+            System.out.println("Cloudinary connection test successful: " + result);
+            return true;
+        } catch (Exception e) {
+            System.err.println("Cloudinary connection test failed: " + e.getMessage());
+            return false;
+        }
     }
 }

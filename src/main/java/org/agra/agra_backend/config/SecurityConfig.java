@@ -38,6 +38,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/courses/**").permitAll()
                         .requestMatchers("/api/users/**").permitAll()
                         .requestMatchers("/api/posts/**").permitAll()
+                        .requestMatchers("/api/cloudinary/**").permitAll()
+
 
                         .anyRequest().authenticated()
                 )

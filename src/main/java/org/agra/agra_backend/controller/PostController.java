@@ -6,7 +6,6 @@ import org.agra.agra_backend.model.User;
 import org.agra.agra_backend.service.PostService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,7 +27,7 @@ public class PostController {
             @RequestParam String userId,
             @RequestBody Map<String, Object> payload
     ) {
-        User userInfo = new User(); // In a real app, you'd fetch this from the DB or auth
+        User userInfo = new User();
         userInfo.setId(userId);
         userInfo.setName((String) payload.get("username"));
 
@@ -61,8 +60,7 @@ public class PostController {
         return ResponseEntity.ok("Post deleted successfully!");
     }
 
-    // ================= COMMENT APIs =================
-
+//comments
 
     @PostMapping("/{postId}/comments")
     public ResponseEntity<Comment> addComment(
