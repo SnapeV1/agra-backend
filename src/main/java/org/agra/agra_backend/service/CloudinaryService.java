@@ -81,4 +81,52 @@ public class CloudinaryService {
             return false;
         }
     }
+
+    // Create user folder in Cloudinary
+    public void createUserFolder(String folderName) throws Exception {
+        try {
+            // Create the main user folder
+            cloudinary.api().createFolder(folderName, ObjectUtils.emptyMap());
+            System.out.println("Created folder: " + folderName);
+
+            // Create subfolders for organization
+            cloudinary.api().createFolder(folderName + "/profile", ObjectUtils.emptyMap());
+            cloudinary.api().createFolder(folderName + "/posts", ObjectUtils.emptyMap());
+            System.out.println("Created subfolders: profile and posts");
+
+        } catch (Exception e) {
+            System.err.println("Error creating Cloudinary folder: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    // Upload image to user's specific folder
+    public Map<String, Object> uploadImageToUserFolder(MultipartFile file, String userEmail) throws IOException {
+        String folderName = "users/" + userEmail.toLowerCase()
+                .replace("@", "_")
+                .replace(".", "_") + "/posts";
+
+        return uploadImageToFolder(file, folderName);
+    }
+
+    // Upload image to specific folder with preset
+    public Map<String, Object> uploadImageToFolder(MultipartFile file, String folderPath) throws IOException {
+        try {
+            Map<String, Object> uploadResult = cloudinary.uploader().upload(
+                    file.getBytes(),
+                    ObjectUtils.asMap(
+                            "upload_preset", "hkpcvcr8",
+                            "folder", folderPath,
+                            "resource_type", "image"
+                    )
+            );
+
+            System.out.println("Image uploaded successfully to " + folderPath + ": " + uploadResult.get("secure_url"));
+            return uploadResult;
+
+        } catch (IOException e) {
+            System.err.println("Error uploading image to folder " + folderPath + ": " + e.getMessage());
+            throw e;
+        }
+    }
 }

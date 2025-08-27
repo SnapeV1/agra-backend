@@ -1,4 +1,4 @@
 package org.agra.agra_backend.service;
 
-public interface PostServiceInterface {
+public interface IPostService {
 }

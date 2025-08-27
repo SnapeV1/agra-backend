@@ -5,7 +5,7 @@ import org.agra.agra_backend.payload.LoginRequest;
 import org.agra.agra_backend.payload.LoginResponse;
 import org.agra.agra_backend.payload.RegisterRequest;
 
-public interface AuthServiceInterface {
+public interface IAuthService {
     User registerUser(RegisterRequest request);
     LoginResponse login(LoginRequest request);
 

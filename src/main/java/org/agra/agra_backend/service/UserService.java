@@ -3,7 +3,6 @@ package org.agra.agra_backend.service;
 import org.agra.agra_backend.model.User;
 import org.agra.agra_backend.dao.UserRepository;
 
-import org.agra.agra_backend.payload.RegisterRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -11,7 +10,7 @@ import java.util.Date;
 import java.util.List;
 
 @Service
-public class UserService implements UserServiceInterface {
+public class UserService implements IUserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
