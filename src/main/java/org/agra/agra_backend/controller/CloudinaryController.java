@@ -99,7 +99,6 @@ public class CloudinaryController {
                 return ResponseEntity.badRequest().body(response);
             }
 
-            // Upload to Cloudinary with custom preset
             Map<String, Object> uploadResult = cloudinaryService.uploadImage(file, uploadPreset);
 
             response.put("status", "success");
@@ -124,4 +123,6 @@ public class CloudinaryController {
         response.put("status", "UP");
         return ResponseEntity.ok(response);
     }
+
+
 }

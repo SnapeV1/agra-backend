@@ -2,9 +2,7 @@ package org.agra.agra_backend.controller;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
+import org.agra.agra_backend.Misc.JwtUtil;
 import org.agra.agra_backend.dao.UserRepository;
 import org.agra.agra_backend.model.User;
 import org.agra.agra_backend.payload.LoginRequest;
@@ -15,10 +13,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.nio.charset.StandardCharsets;
-import java.security.Key;
 import java.util.Map;
 import java.util.Optional;
+
 
 @RestController
 @RequestMapping("/api/auth")
@@ -28,11 +25,13 @@ public class AuthController {
     private final UserService userService;
     private final AuthService authService;
 
+    private final JwtUtil jwtUtil;
 
-    public AuthController(UserRepository userRepository, UserService userService, AuthService authService) {
+    public AuthController(UserRepository userRepository, UserService userService, AuthService authService, JwtUtil jwtUtil) {
         this.userRepository = userRepository;
         this.userService = userService;
         this.authService = authService;
+        this.jwtUtil = jwtUtil;
     }
 
     @PostMapping("/register")
@@ -45,7 +44,6 @@ public class AuthController {
         }
     }
 
-
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         System.out.println("login phase");
@@ -53,49 +51,30 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<Optional<User>> getCurrentUser(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<?> getCurrentUser(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Missing or invalid Authorization header");
         }
 
-        String token = authHeader.replace("Bearer ", "").trim();
+        String token = authHeader.substring(7);
 
-        Key key;
-        boolean signatureOk = false;
-        Claims claims = null;
-
-        // Try parsing with Base64-decoded key first
         try {
-            key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(System.getenv("JWT_SECRET")));
-            claims = Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-            signatureOk = true;
+            Claims claims = jwtUtil.extractAllClaims(token);
+
+            String userId = claims.getSubject();
+            Optional<User> userOptional = userRepository.findById(userId);
+
+            return userOptional
+                    .<ResponseEntity<?>>map(ResponseEntity::ok)
+                    .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found"));
+
         } catch (JwtException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired token");
         }
-
-        if (!signatureOk) {
-            try {
-                key = Keys.hmacShaKeyFor(System.getenv("JWT_SECRET").getBytes(StandardCharsets.UTF_8));
-                claims = Jwts.parserBuilder()
-                        .setSigningKey(key)
-                        .build()
-                        .parseClaimsJws(token)
-                        .getBody();
-                signatureOk = true;
-            } catch (JwtException e) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-            }
-        }
-
-        String userId = claims.getSubject();
-        Optional<User> user = userRepository.findById(userId);
-
-        return ResponseEntity.ok(user);
     }
+
 
 
 }
