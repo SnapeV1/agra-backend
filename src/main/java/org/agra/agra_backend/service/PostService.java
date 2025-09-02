@@ -13,7 +13,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -24,6 +26,8 @@ public class PostService {
 
 
     private final PostRepository postRepository;
+    private final CloudinaryService cloudinaryService;
+
 
     private final CommentRepository commentRepository;
 
@@ -31,14 +35,15 @@ public class PostService {
 
     public static final String TARGET_TYPE_POST = "POST";
     public static final String TARGET_TYPE_COMMENT = "COMMENT";
+
     public PostService(PostRepository postRepository,
-                       CommentRepository commentRepository,
+                       CloudinaryService cloudinaryService, CommentRepository commentRepository,
                        LikeRepository likeRepository) {
         this.postRepository = postRepository;
+        this.cloudinaryService = cloudinaryService;
         this.commentRepository = commentRepository;
         this.likeRepository = likeRepository;
     }
-
 
 
     public List<Post> getPostsWithDetails(String currentUserId, boolean loadComments, int commentLimit) {
@@ -62,7 +67,6 @@ public class PostService {
 
         return posts;
     }
-
 
 
     public Page<Post> getPostsPaginated(String currentUserId, Pageable pageable) {
@@ -279,5 +283,46 @@ public class PostService {
         likeRepository.deleteByTargetTypeAndTargetId(TARGET_TYPE_POST, postId);
 
         postRepository.delete(postOpt.get());
+    }
+
+    public List<Post> getAllPostsSortedByDate() {
+        return postRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    public Post createPostWithImage(String userId, User userInfo, String content, MultipartFile imageFile, boolean isCoursePost, String courseId) throws IOException {
+        Post post = new Post();
+        post.setUserInfo(userInfo);
+        post.setUserId(userId);
+        post.setContent(content);
+        post.setIsCoursePost(isCoursePost);
+        post.setCourseId(courseId);
+        post = postRepository.save(post);
+
+        if (imageFile != null && !imageFile.isEmpty()) {
+            // Sanitize the user's email to create a clean folder name
+            String sanitizedEmail = createUserFolderName(userInfo.getEmail());
+
+            // Construct the Cloudinary path: posts/{sanitizedEmail}/{postId}
+            String publicId = "posts/" + sanitizedEmail + "/" + post.getId();
+
+            // Upload the image to Cloudinary
+            Map<String, Object> uploadResult = cloudinaryService.uploadImageToFolder(imageFile, publicId);
+
+            // Extract the secure image URL from Cloudinary's response
+            String imageUrl = (String) uploadResult.get("secure_url");
+
+            // Save the image URL in the Post entity
+            post.setImageUrl(imageUrl);
+            post = postRepository.save(post);
+        }
+
+        return post;
+    }
+
+    private String createUserFolderName(String email) {
+        // Sanitize email for folder naming: john.doe@gmail.com -> john_doe_gmail_com
+        return email.toLowerCase()
+                .replace("@", "_")
+                .replace(".", "_");
     }
 }

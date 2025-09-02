@@ -13,5 +13,7 @@ public interface PostRepository extends MongoRepository<Post, String> {
     List<Post> findByCourseIdOrderByCreatedAtDesc(String courseId);
 
     Page<Post> findByIsCoursePostOrderByCreatedAtDesc(boolean isCoursePost, Pageable pageable);
-    Page<Post> findAllByOrderByCreatedAtDesc(Pageable pageable);
+    List<Post> findAllByOrderByCreatedAtDesc();
+
+
 }

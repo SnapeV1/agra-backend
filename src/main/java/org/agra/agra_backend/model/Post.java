@@ -1,8 +1,6 @@
 package org.agra.agra_backend.model;
 
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -16,6 +14,8 @@ import java.util.List;
 @Document(collection = "posts")
 @Data
 @NoArgsConstructor
+@Getter
+@Setter
 @AllArgsConstructor
 public class Post {
     @Id
@@ -40,7 +40,6 @@ public class Post {
     @Field("updated_at")
     private LocalDateTime updatedAt;
 
-    // Course-related fields
     @Field("is_course_post")
     private Boolean isCoursePost = false;
 

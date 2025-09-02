@@ -100,14 +100,6 @@ public class CloudinaryService {
         }
     }
 
-    // Upload image to user's specific folder
-    public Map<String, Object> uploadImageToUserFolder(MultipartFile file, String userEmail) throws IOException {
-        String folderName = "users/" + userEmail.toLowerCase()
-                .replace("@", "_")
-                .replace(".", "_") + "/posts";
-
-        return uploadImageToFolder(file, folderName);
-    }
 
     // Upload image to specific folder with preset
     public Map<String, Object> uploadImageToFolder(MultipartFile file, String folderPath) throws IOException {
@@ -129,4 +121,26 @@ public class CloudinaryService {
             throw e;
         }
     }
+    public Map<String, Object> uploadImageWithPublicId(MultipartFile file, String publicId) throws IOException {
+        try {
+            Map<String, Object> uploadResult = cloudinary.uploader().upload(
+                    file.getBytes(),
+                    ObjectUtils.asMap(
+                            "upload_preset", "hkpcvcr8",
+                            "public_id", publicId,
+                            "folder", "posts",
+                            "overwrite", true,
+                            "resource_type", "image"
+                    )
+            );
+
+            System.out.println("Image uploaded successfully to /posts/: " + uploadResult.get("secure_url"));
+            return uploadResult;
+
+        } catch (IOException e) {
+            System.err.println("Error uploading image to Cloudinary: " + e.getMessage());
+            throw e;
+        }
+    }
+
 }
