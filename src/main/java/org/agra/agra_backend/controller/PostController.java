@@ -38,7 +38,7 @@ PostController(PostService postService, UserService userService){
     ) {
         try {
             User userInfo = (User) authentication.getPrincipal();
-            String userId = userInfo.getId(); // Get the actual ID
+            String userId = userInfo.getId();
 
             ObjectMapper mapper = new ObjectMapper();
             Map<String, Object> payload = mapper.readValue(postJson, Map.class);

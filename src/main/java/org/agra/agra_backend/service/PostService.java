@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.*;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -296,6 +297,7 @@ public class PostService {
         post.setContent(content);
         post.setIsCoursePost(isCoursePost);
         post.setCourseId(courseId);
+        post.setCreatedAt(LocalDateTime.now(ZoneOffset.UTC));
         post = postRepository.save(post);
 
         if (imageFile != null && !imageFile.isEmpty()) {
