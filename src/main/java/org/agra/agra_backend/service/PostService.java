@@ -86,20 +86,6 @@ public class PostService {
     }
 
 
-    public Post createPost(String userId, User userInfo, String content, String imageUrl,
-                           Boolean isCoursePost, String courseId) {
-        Post post = new Post();
-        post.setUserId(userId);
-        post.setUserInfo(userInfo);
-        post.setContent(content);
-        post.setImageUrl(imageUrl);
-        post.setIsCoursePost(isCoursePost != null ? isCoursePost : false);
-        post.setCourseId(courseId);
-        post.setLikesCount(0L);
-        post.setCommentsCount(0L);
-
-        return postRepository.save(post);
-    }
 
 
     public List<Comment> getCommentsForPost(String postId, String currentUserId, int limit) {
@@ -301,19 +287,14 @@ public class PostService {
         post = postRepository.save(post);
 
         if (imageFile != null && !imageFile.isEmpty()) {
-            // Sanitize the user's email to create a clean folder name
             String sanitizedEmail = createUserFolderName(userInfo.getEmail());
 
-            // Construct the Cloudinary path: posts/{sanitizedEmail}/{postId}
             String publicId = "posts/" + sanitizedEmail + "/" + post.getId();
 
-            // Upload the image to Cloudinary
             Map<String, Object> uploadResult = cloudinaryService.uploadImageToFolder(imageFile, publicId);
 
-            // Extract the secure image URL from Cloudinary's response
             String imageUrl = (String) uploadResult.get("secure_url");
 
-            // Save the image URL in the Post entity
             post.setImageUrl(imageUrl);
             post = postRepository.save(post);
         }

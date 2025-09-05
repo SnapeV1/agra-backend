@@ -69,9 +69,7 @@ public class AuthService implements IAuthService {
         return new LoginResponse(token, user);
     }
 
-    // Helper method to sanitize email for folder name
     private String createUserFolderName(String email) {
-        // Replace @ and . with underscores, and convert to lowercase
         return "users/" + email.toLowerCase()
                 .replace("@", "_")
                 .replace(".", "_");

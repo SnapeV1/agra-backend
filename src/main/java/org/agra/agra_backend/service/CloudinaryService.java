@@ -91,8 +91,8 @@ public class CloudinaryService {
 
             // Create subfolders for organization
             cloudinary.api().createFolder(folderName + "/profile", ObjectUtils.emptyMap());
-            cloudinary.api().createFolder(folderName + "/posts", ObjectUtils.emptyMap());
-            System.out.println("Created subfolders: profile and posts");
+           // cloudinary.api().createFolder(folderName + "/posts", ObjectUtils.emptyMap());
+           // System.out.println("Created subfolders: profile and posts");
 
         } catch (Exception e) {
             System.err.println("Error creating Cloudinary folder: " + e.getMessage());
@@ -121,26 +121,31 @@ public class CloudinaryService {
             throw e;
         }
     }
-    public Map<String, Object> uploadImageWithPublicId(MultipartFile file, String publicId) throws IOException {
+    public Map<String, Object> uploadProfilePicture(MultipartFile file, String userEmail) throws IOException {
         try {
+            String sanitizedEmail = userEmail.replaceAll("[^a-zA-Z0-9]", "_").toLowerCase();
+            String folderPath = "users/" + sanitizedEmail;
+
             Map<String, Object> uploadResult = cloudinary.uploader().upload(
                     file.getBytes(),
                     ObjectUtils.asMap(
                             "upload_preset", "hkpcvcr8",
-                            "public_id", publicId,
-                            "folder", "posts",
+                            "folder", folderPath,
+                            "public_id", "profilepic",
+                            "resource_type", "image",
                             "overwrite", true,
-                            "resource_type", "image"
+                            "unique_filename", false,
+                            "use_filename", false
                     )
             );
 
-            System.out.println("Image uploaded successfully to /posts/: " + uploadResult.get("secure_url"));
+            System.out.println("Profile picture uploaded successfully for user: " + userEmail +
+                    " -> " + uploadResult.get("secure_url"));
             return uploadResult;
 
         } catch (IOException e) {
-            System.err.println("Error uploading image to Cloudinary: " + e.getMessage());
+            System.err.println("Error uploading profile picture for user " + userEmail + ": " + e.getMessage());
             throw e;
         }
     }
-
 }
