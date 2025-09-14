@@ -85,7 +85,6 @@ public class CloudinaryService {
     // Create user folder in Cloudinary
     public void createUserFolder(String folderName) throws Exception {
         try {
-            // Create the main user folder
             cloudinary.api().createFolder(folderName, ObjectUtils.emptyMap());
             System.out.println("Created folder: " + folderName);
 
@@ -104,22 +103,48 @@ public class CloudinaryService {
     // Upload image to specific folder with preset
     public Map<String, Object> uploadImageToFolder(MultipartFile file, String folderPath) throws IOException {
         try {
-            Map<String, Object> uploadResult = cloudinary.uploader().upload(
-                    file.getBytes(),
-                    ObjectUtils.asMap(
-                            "upload_preset", "hkpcvcr8",
-                            "folder", folderPath,
-                            "resource_type", "image"
-                    )
+            // Normalize folder path (remove leading/trailing slashes, handle null/empty)
+            String normalizedFolderPath = normalizeFolderPath(folderPath);
+
+            Map<String, Object> uploadParams = ObjectUtils.asMap(
+                    "upload_preset", "hkpcvcr8",
+                    "resource_type", "image"
             );
 
-            System.out.println("Image uploaded successfully to " + folderPath + ": " + uploadResult.get("secure_url"));
+            // Only add folder parameter if we have a valid folder path
+            if (normalizedFolderPath != null && !normalizedFolderPath.isEmpty()) {
+                uploadParams.put("folder", normalizedFolderPath);
+            }
+
+            Map<String, Object> uploadResult = cloudinary.uploader().upload(
+                    file.getBytes(),
+                    uploadParams
+            );
+
+            System.out.println("Image uploaded successfully to " +
+                    (normalizedFolderPath != null ? normalizedFolderPath : "root") +
+                    ": " + uploadResult.get("secure_url"));
+
             return uploadResult;
 
         } catch (IOException e) {
             System.err.println("Error uploading image to folder " + folderPath + ": " + e.getMessage());
             throw e;
         }
+    }
+
+    private String normalizeFolderPath(String folderPath) {
+        if (folderPath == null || folderPath.trim().isEmpty()) {
+            return null;
+        }
+
+        // Remove leading and trailing slashes, replace multiple slashes with single ones
+        String normalized = folderPath.trim()
+                .replaceAll("^/+", "")  // Remove leading slashes
+                .replaceAll("/+$", "")  // Remove trailing slashes
+                .replaceAll("/+", "/"); // Replace multiple slashes with single slash
+
+        return normalized.isEmpty() ? null : normalized;
     }
     public Map<String, Object> uploadProfilePicture(MultipartFile file, String userEmail) throws IOException {
         try {

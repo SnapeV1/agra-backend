@@ -1,13 +1,18 @@
 package org.agra.agra_backend.controller;
 
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.agra.agra_backend.model.Course;
 import org.agra.agra_backend.service.CloudinaryService;
 import org.agra.agra_backend.service.CourseService;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -25,21 +30,19 @@ public class CourseController {
         this.courseService = courseService;
     }
 
-    @PostMapping("/addCourse")
-    public ResponseEntity<Course> createCourse(@RequestBody Course course) {
-        if (course.getId() == null || course.getId().isEmpty()) {
-            course.setId(null);
+    @PostMapping(value="/addCourse", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Course> createCourse(
+            @RequestPart("course") Course course,
+            @RequestPart(value = "image", required = false) MultipartFile courseImage) {
+        try {
+
+            Course createdCourse = courseService.createCourse(course, courseImage);
+            return ResponseEntity.ok(createdCourse);
+        } catch (IOException e) {
+            return ResponseEntity.badRequest().build();
         }
-        Course savedCourse = courseService.createCourse(course);
-        return ResponseEntity.ok(savedCourse);
     }
-    @PostMapping("/addCourses")
-    public ResponseEntity<List<Course>> createCourses(@RequestBody List<Course> courses) {
-        List<Course> savedCourses = courses.stream()
-                .map(courseService::createCourse)
-                .toList();
-        return ResponseEntity.ok(savedCourses);
-    }
+
 
 
     @GetMapping("/getAllCourses")
@@ -55,16 +58,31 @@ public class CourseController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // Update a course
-    @PutMapping("update/{id}")
-    public ResponseEntity<Course> updateCourse(@PathVariable String id, @RequestBody Course course) {
-        System.out.println("updating course");
-        return courseService.updateCourse(id, course)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @PutMapping(value = "updateCourse/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Course> updateCourse(
+            @PathVariable String id,
+            @RequestPart("course") String courseJson,
+            @RequestPart(value = "image", required = false) MultipartFile courseImage) {
+
+
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            Course course = objectMapper.readValue(courseJson, Course.class);
+
+            return courseService.updateCourse(id, course, courseImage)
+                    .map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+
+        } catch (JsonProcessingException e) {
+            System.err.println("Error parsing course JSON: " + e.getMessage());
+            return ResponseEntity.badRequest().build();
+        } catch (IOException e) {
+            System.err.println("Error uploading image: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
-    // Delete a course
+
     @PutMapping("ArchiveCourse/{id}")
     public ResponseEntity<Void> ArchiveCourse(@PathVariable String id) {
         courseService.ArchiveCourse(id);
@@ -76,13 +94,11 @@ public class CourseController {
         return ResponseEntity.noContent().build();
     }
 
-    // Filter by country
     @GetMapping("/country/{country}")
     public ResponseEntity<List<Course>> getCoursesByCountry(@PathVariable String country) {
         return ResponseEntity.ok(courseService.getCoursesByCountry(country));
     }
 
-    // Filter by domain
     @GetMapping("/domain/{domain}")
     public ResponseEntity<List<Course>> getCoursesByDomain(@PathVariable String domain) {
         return ResponseEntity.ok(courseService.getCoursesByDomain(domain));
@@ -91,7 +107,6 @@ public class CourseController {
     @GetMapping("/test-connection")
     public ResponseEntity<?> testCloudinaryConnection() {
         try {
-            // Test connection by getting account details
             Map<String, Object> config = Map.of(
                     "cloudinaryConfigured", true,
                     "message", "Cloudinary service is properly configured",

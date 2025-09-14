@@ -2,11 +2,7 @@ package org.agra.agra_backend.controller;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
+
 import org.agra.agra_backend.dao.UserRepository;
 import org.agra.agra_backend.model.User;
 import org.agra.agra_backend.service.UserService;
@@ -17,10 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.nio.charset.StandardCharsets;
-import java.security.Key;
 import java.util.List;
-import java.util.Optional;
 
 
 @RestController
@@ -63,7 +56,6 @@ public class UserController {
             Authentication authentication) {
 
         try {
-            System.out.println("RAW User JSON Received: " + userJson);
 
             User userInfo = (User) authentication.getPrincipal();
             User existingUser = userService.findById(userInfo.getId());

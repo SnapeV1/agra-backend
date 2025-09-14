@@ -31,6 +31,7 @@ public class Comment {
     @Field("user_info")
     private User userInfo;
 
+    @Field("content")
     private String content;
 
     @CreatedDate

@@ -32,4 +32,11 @@ public class Course {
     private String imageUrl;       // Generated optimized URL for course cards
     private String thumbnailUrl;   // Generated thumbnail URL
     private String detailImageUrl; // Generated high-res URL for course details
+
+
+
+    private String videoUrl;
+    private String videoPublicId;
+    private List<CourseFile> files;
+    private List<TextContent> textContent;
 }
