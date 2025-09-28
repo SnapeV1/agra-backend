@@ -68,7 +68,9 @@ public class UserController {
                 existingUser.setName(incomingData.getName());
             }
             if (incomingData.getEmail() != null) {
-                existingUser.setEmail(incomingData.getEmail());
+                // Normalize email to lowercase for consistency
+                String normalizedEmail = incomingData.getEmail().toLowerCase().trim();
+                existingUser.setEmail(normalizedEmail);
             }
             if (incomingData.getPhone() != null) {
                 existingUser.setPhone(incomingData.getPhone());

@@ -7,7 +7,7 @@ import org.agra.agra_backend.payload.LoginRequest;
 import org.agra.agra_backend.payload.LoginResponse;
 import org.agra.agra_backend.payload.RegisterRequest;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.crypto.bcrypt.BCrypt;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -30,37 +30,48 @@ public class AuthService implements IAuthService {
     }
 
     public User registerUser(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
+        // Normalize email to lowercase for case-insensitive handling
+        String normalizedEmail = request.getEmail().toLowerCase().trim();
+        
+        if (userRepository.existsByEmail(normalizedEmail)) {
             throw new RuntimeException("Email is already in use");
         }
 
         User user = new User();
         user.setName(request.getName());
-        user.setEmail(request.getEmail());
+        user.setEmail(normalizedEmail); // Store normalized email
         user.setPhone(request.getPhone());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setCountry(request.getCountry());
         user.setLanguage(request.getLanguage());
         user.setDomain(request.getDomain());
-        user.setRole(request.getRole());
+        // Set role with default fallback
+        String userRole = request.getRole();
+        if (userRole == null || userRole.trim().isEmpty()) {
+            userRole = "FARMER"; 
+        }
+        user.setRole(userRole);
         user.setRegisteredAt(new Date());
         user.setPicture("https://res.cloudinary.com/dmumvupow/image/upload/v1756311755/defaultPicture_bqiivg.jpg");
         User savedUser = userRepository.save(user);
 
         try {
-            String folderName = createUserFolderName(savedUser.getEmail());
+            String folderName = createUserFolderName(normalizedEmail);
             cloudinaryService.createUserFolder(folderName);
             System.out.println("Created Cloudinary folder for user: " + folderName);
         } catch (Exception e) {
-            System.err.println("Warning: Failed to create Cloudinary folder for user " + savedUser.getEmail() + ": " + e.getMessage());
+            System.err.println("Warning: Failed to create Cloudinary folder for user " + normalizedEmail + ": " + e.getMessage());
         }
 
         return savedUser;
     }
 
     public LoginResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail());
-        if (user == null || !BCrypt.checkpw(request.getPassword(), user.getPassword())) {
+        // Normalize email to lowercase for case-insensitive handling
+        String normalizedEmail = request.getEmail().toLowerCase().trim();
+        
+        User user = userRepository.findByEmail(normalizedEmail);
+        if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
         }
 

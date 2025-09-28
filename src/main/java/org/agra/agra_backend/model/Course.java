@@ -17,6 +17,7 @@ public class Course {
 
     private String title;
     private String description;
+    private List<String> goals;
     private String domain;
     private String country;
     private String trainerId;

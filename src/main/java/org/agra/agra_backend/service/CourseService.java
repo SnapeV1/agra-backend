@@ -12,9 +12,12 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class CourseService {
+    private static final String DEFAULT_COURSE_IMAGE_URL = "https://res.cloudinary.com/dmumvupow/image/upload/v1759008723/Default_Can_you_name_the_type_of_farming_Rinjhasfamily_is_enga_2_ciduil.webp";
+    
     private CloudinaryService cloudinaryService;
 
     private final CourseRepository courseRepository;
@@ -27,11 +30,20 @@ public CourseService(CourseRepository courseRepository,CloudinaryService cloudin
     public Course createCourse(Course course, MultipartFile courseImage) throws IOException {
         course.setCreatedAt(new java.util.Date());
         course.setUpdatedAt(new java.util.Date());
+        
+        // Generate IDs for TextContent objects if they don't have them
+        generateTextContentIds(course);
 
         course = courseRepository.save(course);
         System.out.println(course.getImageUrl());
         if (courseImage != null && !courseImage.isEmpty()) {
             course = getCourse(courseImage, course);
+        } else {
+            // Set default image when no course image is provided
+            course.setImageUrl(DEFAULT_COURSE_IMAGE_URL);
+            course.setThumbnailUrl(DEFAULT_COURSE_IMAGE_URL);
+            course.setDetailImageUrl(DEFAULT_COURSE_IMAGE_URL);
+            course = courseRepository.save(course);
         }
 
         return course;
@@ -53,10 +65,19 @@ public CourseService(CourseRepository courseRepository,CloudinaryService cloudin
 
             existingCourse.setTitle(updatedCourse.getTitle());
             existingCourse.setDescription(updatedCourse.getDescription());
+            existingCourse.setGoals(updatedCourse.getGoals());
             existingCourse.setDomain(updatedCourse.getDomain());
             existingCourse.setCountry(updatedCourse.getCountry());
-            existingCourse.setUpdatedAt(new java.util.Date());
+            existingCourse.setTrainerId(updatedCourse.getTrainerId());
+            existingCourse.setSessionIds(updatedCourse.getSessionIds());
             existingCourse.setLanguagesAvailable(updatedCourse.getLanguagesAvailable());
+            existingCourse.setFiles(updatedCourse.getFiles());
+            existingCourse.setTextContent(updatedCourse.getTextContent());
+            
+            // Generate IDs for TextContent objects if they don't have them
+            generateTextContentIds(existingCourse);
+            
+            existingCourse.setUpdatedAt(new java.util.Date());
             System.out.println(existingCourse.getLanguagesAvailable());
             existingCourse = courseRepository.save(existingCourse);
             if (courseImage != null && !courseImage.isEmpty()) {
@@ -66,6 +87,12 @@ public CourseService(CourseRepository courseRepository,CloudinaryService cloudin
                     System.err.println("Error uploading image: " + e.getMessage());
                     throw new RuntimeException("Failed to upload image", e);
                 }
+            } else if (existingCourse.getImageUrl() == null || existingCourse.getImageUrl().isEmpty()) {
+                // Set default image if course doesn't have any image
+                existingCourse.setImageUrl(DEFAULT_COURSE_IMAGE_URL);
+                existingCourse.setThumbnailUrl(DEFAULT_COURSE_IMAGE_URL);
+                existingCourse.setDetailImageUrl(DEFAULT_COURSE_IMAGE_URL);
+                existingCourse = courseRepository.save(existingCourse);
             }
 
             return existingCourse;
@@ -115,5 +142,18 @@ public CourseService(CourseRepository courseRepository,CloudinaryService cloudin
 
     public List<Course> getCoursesByDomain(String domain) {
         return courseRepository.findByDomain(domain);
+    }
+    
+    /**
+     * Generates unique IDs for TextContent objects that don't have them
+     */
+    private void generateTextContentIds(Course course) {
+        if (course.getTextContent() != null) {
+            course.getTextContent().forEach(textContent -> {
+                if (textContent.getId() == null || textContent.getId().isEmpty()) {
+                    textContent.setId(UUID.randomUUID().toString());
+                }
+            });
+        }
     }
 }

@@ -35,6 +35,10 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/courses/*/enrollment-status").authenticated()
+                        .requestMatchers("/api/courses/*/enroll").authenticated()
+                        .requestMatchers("/api/courses/enrolled").authenticated()
+                        .requestMatchers("/api/progress/**").authenticated()
                         .requestMatchers("/api/courses/**").permitAll()
                         .requestMatchers("/api/users/**").permitAll()
                         .requestMatchers("/api/posts/**").permitAll()

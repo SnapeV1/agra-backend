@@ -46,8 +46,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             User user = userRepository.findById(userId).orElse(null);
             if (user != null && jwtUtil.isTokenValid(token, user)) {
+                // Handle null or empty role by providing a default role
+                String userRole = user.getRole();
+                if (userRole == null || userRole.trim().isEmpty()) {
+                    userRole = "FARMER"; 
+                }
+                
                 UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(user, null, List.of(new SimpleGrantedAuthority(user.getRole())));
+                        new UsernamePasswordAuthenticationToken(user, null, List.of(new SimpleGrantedAuthority("ROLE_" + userRole)));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }
         }
