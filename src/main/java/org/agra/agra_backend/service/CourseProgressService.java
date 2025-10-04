@@ -183,4 +183,33 @@ public class CourseProgressService {
         
         throw new RuntimeException("User is not enrolled in this course");
     }
+
+    /**
+     * Cleanup method to remove orphaned enrollments (enrollments for deleted courses)
+     * This should be called periodically or after course deletions
+     */
+    public int cleanupOrphanedEnrollments(CourseService courseService) {
+        System.out.println("CourseProgressService: Starting cleanup of orphaned enrollments");
+        
+        List<CourseProgress> allEnrollments = courseProgressRepository.findAll();
+        int deletedCount = 0;
+        
+        for (CourseProgress progress : allEnrollments) {
+            try {
+                // Check if the course still exists
+                if (!courseService.getCourseById(progress.getCourseId()).isPresent()) {
+                    System.out.println("CourseProgressService: Found orphaned enrollment - CourseId: " + 
+                                     progress.getCourseId() + ", UserId: " + progress.getUserId());
+                    courseProgressRepository.delete(progress);
+                    deletedCount++;
+                }
+            } catch (Exception e) {
+                System.err.println("CourseProgressService: Error checking course " + progress.getCourseId() + 
+                                 ": " + e.getMessage());
+            }
+        }
+        
+        System.out.println("CourseProgressService: Cleanup completed. Deleted " + deletedCount + " orphaned enrollments");
+        return deletedCount;
+    }
 }

@@ -3,6 +3,7 @@ package org.agra.agra_backend.service;
 
 import org.agra.agra_backend.dao.CourseRepository;
 import org.agra.agra_backend.model.Course;
+import org.agra.agra_backend.model.CourseProgress;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,12 +20,14 @@ public class CourseService {
     private static final String DEFAULT_COURSE_IMAGE_URL = "https://res.cloudinary.com/dmumvupow/image/upload/v1759008723/Default_Can_you_name_the_type_of_farming_Rinjhasfamily_is_enga_2_ciduil.webp";
     
     private CloudinaryService cloudinaryService;
+    private CourseProgressService courseProgressService;
 
     private final CourseRepository courseRepository;
 
-public CourseService(CourseRepository courseRepository,CloudinaryService cloudinaryService){
+public CourseService(CourseRepository courseRepository, CloudinaryService cloudinaryService, CourseProgressService courseProgressService){
     this.cloudinaryService=cloudinaryService;
     this.courseRepository=courseRepository;
+    this.courseProgressService=courseProgressService;
 
 }
     public Course createCourse(Course course, MultipartFile courseImage) throws IOException {
@@ -56,7 +59,16 @@ public CourseService(CourseRepository courseRepository,CloudinaryService cloudin
 
 
     public Optional<Course> getCourseById(String id) {
-        return courseRepository.findById(id);
+        System.out.println("CourseService: getCourseById called with id: " + id);
+        Optional<Course> result = courseRepository.findById(id);
+        if (result.isPresent()) {
+            Course course = result.get();
+            System.out.println("CourseService: Found course - Title: " + course.getTitle() + 
+                             ", Archived: " + course.isArchived());
+        } else {
+            System.out.println("CourseService: Course not found with id: " + id);
+        }
+        return result;
     }
 
 
@@ -118,7 +130,25 @@ public CourseService(CourseRepository courseRepository,CloudinaryService cloudin
     }
 
     public void deleteCourse(String id) {
+        System.out.println("CourseService: Deleting course with id: " + id);
+        
+        // First, delete all enrollments for this course to prevent orphaned records
+        try {
+            List<CourseProgress> enrollments = courseProgressService.getCourseEnrollments(id);
+            System.out.println("CourseService: Found " + enrollments.size() + " enrollments to delete");
+            
+            for (CourseProgress enrollment : enrollments) {
+                courseProgressService.unenrollUser(enrollment.getUserId(), id);
+                System.out.println("CourseService: Deleted enrollment for user: " + enrollment.getUserId());
+            }
+        } catch (Exception e) {
+            System.err.println("CourseService: Error deleting enrollments for course " + id + ": " + e.getMessage());
+            // Continue with course deletion even if enrollment cleanup fails
+        }
+        
+        // Then delete the course
         courseRepository.deleteById(id);
+        System.out.println("CourseService: Successfully deleted course: " + id);
     }
 
 

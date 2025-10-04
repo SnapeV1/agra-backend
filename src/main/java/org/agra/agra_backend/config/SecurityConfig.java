@@ -43,6 +43,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/**").permitAll()
                         .requestMatchers("/api/posts/**").permitAll()
                         .requestMatchers("/api/cloudinary/**").permitAll()
+                        .requestMatchers("/api/jitsi/**").permitAll()
 
 
                         .anyRequest().authenticated()

@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -177,27 +179,119 @@ public class CourseController {
 
     @GetMapping("/enrolled")
     public ResponseEntity<?> getEnrolledCourses(Authentication authentication) {
+        System.out.println("GET /api/courses/enrolled - Request received");
+        
         try {
             if (authentication == null || authentication.getPrincipal() == null) {
+                System.err.println("GET /api/courses/enrolled - Authentication failed");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(Map.of("error", "Authentication required"));
             }
 
             User user = (User) authentication.getPrincipal();
-            List<CourseProgress> enrollments = courseProgressService.getUserEnrollments(user.getId());
+            String userId = user.getId();
             
-            // Get the actual course details for each enrollment
-            List<Course> enrolledCourses = enrollments.stream()
-                    .map(enrollment -> courseService.getCourseById(enrollment.getCourseId()))
-                    .filter(Optional::isPresent)
-                    .map(Optional::get)
-                    .toList();
+            System.out.println("GET /api/courses/enrolled - User: " + userId);
 
-            return ResponseEntity.ok(enrolledCourses);
+            // Get all user enrollments
+            List<CourseProgress> enrollments = courseProgressService.getUserEnrollments(userId);
+            System.out.println("GET /api/courses/enrolled - Found " + enrollments.size() + " enrollments");
+            
+            // Log all enrollment details for debugging
+            for (int i = 0; i < enrollments.size(); i++) {
+                CourseProgress enrollment = enrollments.get(i);
+                System.out.println("GET /api/courses/enrolled - Enrollment " + (i+1) + ":");
+                System.out.println("  - CourseId: " + enrollment.getCourseId());
+                System.out.println("  - UserId: " + enrollment.getUserId());
+                System.out.println("  - EnrolledAt: " + enrollment.getEnrolledAt());
+                System.out.println("  - Progress: " + enrollment.getProgressPercentage() + "%");
+            }
+
+            // Build response with course details and progress data
+            List<Map<String, Object>> coursesWithProgress = new ArrayList<>();
+            
+            for (CourseProgress progress : enrollments) {
+                System.out.println("GET /api/courses/enrolled - Processing courseId: " + progress.getCourseId());
+                Optional<Course> courseOpt = courseService.getCourseById(progress.getCourseId());
+                
+                if (courseOpt.isPresent()) {
+                    Course course = courseOpt.get();
+                    
+                    // Skip archived courses
+                    if (course.isArchived()) {
+                        System.out.println("GET /api/courses/enrolled - Skipping archived course: " + course.getTitle() + 
+                                         " (ID: " + course.getId() + ")");
+                        continue;
+                    }
+                    
+                    Map<String, Object> courseData = new HashMap<>();
+                    
+                    // Course basic info
+                    courseData.put("id", course.getId());
+                    courseData.put("title", course.getTitle());
+                    courseData.put("description", course.getDescription());
+                    courseData.put("domain", course.getDomain());
+                    courseData.put("country", course.getCountry());
+                    courseData.put("trainerId", course.getTrainerId());
+                    courseData.put("imageUrl", course.getImageUrl());
+                    courseData.put("createdAt", course.getCreatedAt());
+                    courseData.put("updatedAt", course.getUpdatedAt());
+                    
+                    // Progress data
+                    courseData.put("enrolledAt", progress.getEnrolledAt());
+                    courseData.put("startedAt", progress.getStartedAt());
+                    courseData.put("progressPercentage", progress.getProgressPercentage());
+                    courseData.put("completed", progress.isCompleted());
+                    courseData.put("currentLessonId", progress.getCurrentLessonId());
+                    courseData.put("completedLessons", progress.getCompletedLessons() != null ? progress.getCompletedLessons() : new ArrayList<>());
+                    courseData.put("lessonCompletionDates", progress.getLessonCompletionDates() != null ? progress.getLessonCompletionDates() : new HashMap<>());
+                    courseData.put("certificateUrl", progress.getCertificateUrl());
+                    
+                    coursesWithProgress.add(courseData);
+                    
+                    System.out.println("GET /api/courses/enrolled - Added course: " + course.getTitle() + 
+                                     " (Progress: " + progress.getProgressPercentage() + "%)");
+                } else {
+                    System.err.println("GET /api/courses/enrolled - Course not found: " + progress.getCourseId());
+                }
+            }
+            
+            System.out.println("GET /api/courses/enrolled - Returning " + coursesWithProgress.size() + " courses");
+            
+            return ResponseEntity.ok(Map.of(
+                    "courses", coursesWithProgress,
+                    "totalEnrollments", enrollments.size()
+            ));
 
         } catch (Exception e) {
+            System.err.println("GET /api/courses/enrolled - Error: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Failed to retrieve enrolled courses"));
+                    .body(Map.of("error", "Failed to retrieve enrolled courses: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Admin endpoint to cleanup orphaned enrollments
+     * This removes enrollments for courses that no longer exist
+     */
+    @PostMapping("/admin/cleanup-orphaned-enrollments")
+    public ResponseEntity<?> cleanupOrphanedEnrollments() {
+        try {
+            System.out.println("POST /api/courses/admin/cleanup-orphaned-enrollments - Request received");
+            
+            int deletedCount = courseProgressService.cleanupOrphanedEnrollments(courseService);
+            
+            return ResponseEntity.ok(Map.of(
+                    "message", "Cleanup completed successfully",
+                    "deletedEnrollments", deletedCount
+            ));
+
+        } catch (Exception e) {
+            System.err.println("POST /api/courses/admin/cleanup-orphaned-enrollments - Error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to cleanup orphaned enrollments: " + e.getMessage()));
         }
     }
 
@@ -214,11 +308,7 @@ public class CourseController {
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(
-                            "cloudinaryConfigured", false,
-                            "error", "Cloudinary configuration error",
-                            "details", e.getMessage()
-                    ));
+                    .body(Map.of("error", "Cloudinary configuration error: " + e.getMessage()));
         }
     }
 }
