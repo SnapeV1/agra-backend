@@ -9,6 +9,7 @@ import org.agra.agra_backend.model.User;
 import org.agra.agra_backend.service.CloudinaryService;
 import org.agra.agra_backend.service.CourseService;
 import org.agra.agra_backend.service.CourseProgressService;
+import org.agra.agra_backend.service.CourseLikeService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -32,11 +33,13 @@ public class CourseController {
     private final CloudinaryService cloudinaryService;
     private final CourseService courseService;
     private final CourseProgressService courseProgressService;
+    private final CourseLikeService courseLikeService;
 
-    public CourseController(CloudinaryService cloudinaryService, CourseService courseService, CourseProgressService courseProgressService) {
+    public CourseController(CloudinaryService cloudinaryService, CourseService courseService, CourseProgressService courseProgressService, CourseLikeService courseLikeService) {
         this.cloudinaryService = cloudinaryService;
         this.courseService = courseService;
         this.courseProgressService = courseProgressService;
+        this.courseLikeService = courseLikeService;
     }
 
     @PostMapping(value="/addCourse", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -55,16 +58,33 @@ public class CourseController {
 
 
     @GetMapping("/getAllCourses")
-    public ResponseEntity<List<Course>> getAllCourses() {
-        return ResponseEntity.ok(courseService.getAllCourses());
+    public ResponseEntity<List<Course>> getAllCourses(Authentication authentication) {
+        List<Course> courses = courseService.getAllCourses();
+        if (authentication != null && authentication.getPrincipal() != null) {
+            User user = (User) authentication.getPrincipal();
+            String userId = user.getId();
+            java.util.Set<String> likedIds = new java.util.HashSet<>(courseLikeService.listLikedCourseIds(userId));
+            for (Course c : courses) {
+                if (c != null && c.getId() != null) {
+                    c.setLiked(likedIds.contains(c.getId()));
+                }
+            }
+        }
+        return ResponseEntity.ok(courses);
     }
 
 
     @GetMapping("/{id}")
-    public ResponseEntity<Course> getCourseById(@PathVariable String id) {
-        return courseService.getCourseById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<Course> getCourseById(@PathVariable String id, Authentication authentication) {
+        Optional<Course> courseOpt = courseService.getCourseById(id);
+        if (courseOpt.isEmpty()) return ResponseEntity.notFound().build();
+        Course course = courseOpt.get();
+        if (authentication != null && authentication.getPrincipal() != null) {
+            User user = (User) authentication.getPrincipal();
+            String userId = user.getId();
+            course.setLiked(courseLikeService.isLiked(userId, id));
+        }
+        return ResponseEntity.ok(course);
     }
 
     @PutMapping(value = "updateCourse/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -142,6 +162,78 @@ public class CourseController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to check enrollment status", "enrolled", false));
         }
+    }
+
+    @GetMapping("/{id}/unenrolled-others")
+    public ResponseEntity<List<Course>> getOtherUnenrolledCourses(@PathVariable String id, Authentication authentication) {
+        try {
+            if (authentication == null || authentication.getPrincipal() == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(null);
+            }
+
+            User user = (User) authentication.getPrincipal();
+            String userId = user.getId();
+
+            List<CourseProgress> enrollments = courseProgressService.getUserEnrollments(userId);
+            java.util.Set<String> enrolledCourseIds = new java.util.HashSet<>();
+            for (CourseProgress p : enrollments) {
+                enrolledCourseIds.add(p.getCourseId());
+            }
+
+            List<Course> allCourses = courseService.getAllCourses();
+            List<Course> result = new ArrayList<>();
+            for (Course c : allCourses) {
+                if (c.getId() == null) continue;
+                if (c.isArchived()) continue;
+                if (c.getId().equals(id)) continue;
+                if (enrolledCourseIds.contains(c.getId())) continue;
+                result.add(c);
+            }
+
+            // Set liked flag if authenticated
+            java.util.Set<String> likedIds = new java.util.HashSet<>(courseLikeService.listLikedCourseIds(userId));
+            for (Course c : result) {
+                c.setLiked(likedIds.contains(c.getId()));
+            }
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .build();
+        }
+    }
+
+    @PostMapping("/{id}/like")
+    public ResponseEntity<?> likeCourse(@PathVariable String id, Authentication authentication) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Authentication required"));
+        }
+        User user = (User) authentication.getPrincipal();
+        String userId = user.getId();
+        boolean ok = courseLikeService.likeCourse(userId, id);
+        if (!ok) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "Course not found"));
+        }
+        return ResponseEntity.ok(Map.of("liked", true));
+    }
+
+    @DeleteMapping("/{id}/like")
+    public ResponseEntity<?> unlikeCourse(@PathVariable String id, Authentication authentication) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Authentication required"));
+        }
+        User user = (User) authentication.getPrincipal();
+        String userId = user.getId();
+        boolean ok = courseLikeService.unlikeCourse(userId, id);
+        if (!ok) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "Course not found"));
+        }
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/enroll")

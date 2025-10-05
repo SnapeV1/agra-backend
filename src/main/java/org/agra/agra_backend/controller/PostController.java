@@ -127,14 +127,28 @@ PostController(PostService postService, UserService userService){
     @PostMapping("/{postId}/like")
     public ResponseEntity<String> togglePostLike(
             @PathVariable String postId,
-            @RequestParam String userId,
-            @RequestParam String username
+            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) String username,
+            Authentication authentication
     ) {
-        User userInfo = new User();
-        userInfo.setId(userId);
-        userInfo.setName(username);
+        User userInfo;
+        String effectiveUserId;
 
-        boolean isLiked = postService.togglePostLike(postId, userId, userInfo);
+        if (authentication != null && authentication.getPrincipal() instanceof User) {
+            userInfo = (User) authentication.getPrincipal();
+            effectiveUserId = userInfo.getId();
+        } else {
+            if (userId == null || userId.trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body("Missing required parameter: userId");
+            }
+            userInfo = new User();
+            userInfo.setId(userId);
+            userInfo.setName(username);
+            effectiveUserId = userId;
+        }
+
+        boolean isLiked = postService.togglePostLike(postId, effectiveUserId, userInfo);
         return ResponseEntity.ok(isLiked ? "Post liked!" : "Post unliked!");
     }
 
@@ -142,14 +156,28 @@ PostController(PostService postService, UserService userService){
     @PostMapping("/comments/{commentId}/like")
     public ResponseEntity<String> toggleCommentLike(
             @PathVariable String commentId,
-            @RequestParam String userId,
-            @RequestParam String username
+            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) String username,
+            Authentication authentication
     ) {
-        User userInfo = new User();
-        userInfo.setId(userId);
-        userInfo.setName(username);
+        User userInfo;
+        String effectiveUserId;
 
-        boolean isLiked = postService.toggleCommentLike(commentId, userId, userInfo);
+        if (authentication != null && authentication.getPrincipal() instanceof User) {
+            userInfo = (User) authentication.getPrincipal();
+            effectiveUserId = userInfo.getId();
+        } else {
+            if (userId == null || userId.trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body("Missing required parameter: userId");
+            }
+            userInfo = new User();
+            userInfo.setId(userId);
+            userInfo.setName(username);
+            effectiveUserId = userId;
+        }
+
+        boolean isLiked = postService.toggleCommentLike(commentId, effectiveUserId, userInfo);
         return ResponseEntity.ok(isLiked ? "Comment liked!" : "Comment unliked!");
     }
     @GetMapping("/paginated")

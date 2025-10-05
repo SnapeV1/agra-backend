@@ -3,6 +3,7 @@ package org.agra.agra_backend.model;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.Date;
@@ -26,6 +27,10 @@ public class Course {
     private Date createdAt;
     private Date updatedAt;
     private boolean archived = false;
+    private boolean activeCall = false;
+
+    @Transient
+    private boolean liked = false;
 
 
     // Cloudinary image fields

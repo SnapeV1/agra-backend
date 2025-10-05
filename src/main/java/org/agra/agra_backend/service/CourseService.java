@@ -85,6 +85,8 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
             existingCourse.setLanguagesAvailable(updatedCourse.getLanguagesAvailable());
             existingCourse.setFiles(updatedCourse.getFiles());
             existingCourse.setTextContent(updatedCourse.getTextContent());
+            // also update activeCall flag
+            existingCourse.setActiveCall(updatedCourse.isActiveCall());
             
             // Generate IDs for TextContent objects if they don't have them
             generateTextContentIds(existingCourse);
