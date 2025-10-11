@@ -62,9 +62,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 }
             }
         } catch (SignatureException se) {
-            log.warn("JWT signature mismatch for request path={}. This often means a token signed with a different secret (e.g., Jitsi JWT) was sent as Authorization.", request.getRequestURI());
+            log.warn("JWT signature mismatch for path={}. Authorization='{}' token='{}'", request.getRequestURI(), authHeader, token);
         } catch (JwtException je) {
-            log.warn("JWT parsing/validation failed for path={}: {}", request.getRequestURI(), je.getMessage());
+            log.warn("JWT parsing/validation failed for path={}: {}. token='{}'", request.getRequestURI(), je.getMessage(), token);
         } catch (Exception e) {
             log.error("Unexpected error during JWT authentication for path={}: {}", request.getRequestURI(), e.getMessage());
         }

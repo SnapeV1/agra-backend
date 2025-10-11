@@ -15,7 +15,7 @@ public interface UserRepository extends MongoRepository<User,String> {
     // Case-insensitive email queries (backup methods if needed)
     @Query("{'email': {$regex: ?0, $options: 'i'}}")
     Boolean existsByEmailIgnoreCase(String email);
-    
+
     @Query("{'email': {$regex: ?0, $options: 'i'}}")
-    User findByEmailIgnoreCase(String email);
+    Optional<User> findByEmailIgnoreCase(String email);
 }

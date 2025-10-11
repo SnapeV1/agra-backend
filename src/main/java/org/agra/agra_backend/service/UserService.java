@@ -3,9 +3,14 @@ package org.agra.agra_backend.service;
 import org.agra.agra_backend.model.User;
 import org.agra.agra_backend.dao.UserRepository;
 
+import org.agra.agra_backend.model.UserRole;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.util.Date;
@@ -13,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-public class        UserService implements IUserService {
+public class UserService implements IUserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -82,5 +87,51 @@ public class        UserService implements IUserService {
         return this.userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
     }
+
+
+
+
+    public User getCurrentUserOrThrow() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || auth.getPrincipal() == null
+                || "anonymousUser".equals(auth.getPrincipal())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated");
+        }
+
+        Object principal = auth.getPrincipal();
+
+        // Your JwtAuthFilter sets the DB User as principal
+        if (principal instanceof User u) {
+            return u;
+        }
+
+        // Fallbacks if something else set a different principal type (rare in your setup)
+        if (principal instanceof org.springframework.security.core.userdetails.User springUser) {
+            // springUser.getUsername() could be email or id depending on your Auth setup
+            // Try id first, then email (case-insensitive)
+            return userRepository.findById(springUser.getUsername())
+                    .or(() -> userRepository.findByEmailIgnoreCase(springUser.getUsername()))
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+        }
+        if (principal instanceof String name) {
+            return userRepository.findById(name)
+                    .or(() -> userRepository.findByEmailIgnoreCase(name))
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+        }
+
+        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unsupported principal type");
+    }
+
+
+    /** Convenience: return null instead of throwing. */
+    public User getCurrentUserOrNull() {
+        try { return getCurrentUserOrThrow(); }
+        catch (ResponseStatusException ex) { return null; }
+    }
+
+
+
+
+
 
 }
