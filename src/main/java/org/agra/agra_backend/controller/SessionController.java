@@ -36,7 +36,7 @@ public class SessionController {
     @PreAuthorize("isAuthenticated()")
     public List<Session> upcoming(@PathVariable String courseId) {
         var user = userService.getCurrentUserOrThrow();
-        boolean moderator = "ADMIN".equals(user.getRole());
+        boolean moderator = isAdmin(user.getRole());
         return service.upcoming(courseId, user.getId(), moderator);
     }
 
@@ -50,10 +50,17 @@ public class SessionController {
     @PreAuthorize("isAuthenticated()")
     public JoinResponse join(@PathVariable String sessionId) {
         var user = userService.getCurrentUserOrThrow();
-        boolean moderator = "ADMIN".equals(user.getRole());
+        boolean moderator = isAdmin(user.getRole());
+        System.out.println("moderator: '" + moderator + " " + user.getRole());
         var resp = service.join(sessionId, user, moderator);
-        resp.setDomain(jitsiDomain); // Injected directly from application.properties
+        resp.setDomain(jitsiDomain); 
         return resp;
+    }
+
+    private static boolean isAdmin(String role) {
+        if (role == null) return false;
+        String r = role.trim();
+        return "ADMIN".equalsIgnoreCase(r) || "ROLE_ADMIN".equalsIgnoreCase(r);
     }
 
     @PostMapping("/{sessionId}/events")

@@ -3,43 +3,48 @@ package org.agra.agra_backend.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.agra.agra_backend.model.Course;
-import org.agra.agra_backend.model.CourseProgress;
-import org.agra.agra_backend.model.User;
+import org.agra.agra_backend.dao.NotificationRepository;
+import org.agra.agra_backend.model.*;
 import org.agra.agra_backend.service.CloudinaryService;
 import org.agra.agra_backend.service.CourseService;
 import org.agra.agra_backend.service.CourseProgressService;
 import org.agra.agra_backend.service.CourseLikeService;
+import org.agra.agra_backend.service.NotificationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.time.LocalDateTime;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/courses")
 @CrossOrigin(origins = "*")
 
 public class CourseController {
+    private SimpMessagingTemplate messagingTemplate;
 
     private final CloudinaryService cloudinaryService;
     private final CourseService courseService;
     private final CourseProgressService courseProgressService;
     private final CourseLikeService courseLikeService;
+    private NotificationRepository notificationRepository;
+    private final NotificationService notificationService;
 
-    public CourseController(CloudinaryService cloudinaryService, CourseService courseService, CourseProgressService courseProgressService, CourseLikeService courseLikeService) {
+    public CourseController(SimpMessagingTemplate messagingTemplate,CloudinaryService cloudinaryService, CourseService courseService, CourseProgressService courseProgressService, CourseLikeService courseLikeService
+    , NotificationRepository notificationRepository, NotificationService notificationService) {
         this.cloudinaryService = cloudinaryService;
         this.courseService = courseService;
         this.courseProgressService = courseProgressService;
         this.courseLikeService = courseLikeService;
+        this.messagingTemplate = messagingTemplate;
+        this.notificationRepository = notificationRepository;
+        this.notificationService = notificationService;
     }
 
     @PostMapping(value="/addCourse", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -47,8 +52,20 @@ public class CourseController {
             @RequestPart("course") Course course,
             @RequestPart(value = "image", required = false) MultipartFile courseImage) {
         try {
-
+            Notification notification = new Notification(
+                    UUID.randomUUID().toString(),
+                    "New post published: " + course.getTitle(),
+                    NotificationType.COURSE,
+                    LocalDateTime.now()
+            );
             Course createdCourse = courseService.createCourse(course, courseImage);
+            notificationRepository.save(notification);
+            // create unseen status for all users
+            notificationService.createStatusesForAllUsers(notification);
+
+            messagingTemplate.convertAndSend("/topic/notifications", notification);
+
+
             return ResponseEntity.ok(createdCourse);
         } catch (IOException e) {
             return ResponseEntity.badRequest().build();
@@ -70,6 +87,7 @@ public class CourseController {
                 }
             }
         }
+
         return ResponseEntity.ok(courses);
     }
 

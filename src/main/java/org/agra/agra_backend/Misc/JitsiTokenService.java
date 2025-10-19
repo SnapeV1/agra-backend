@@ -40,9 +40,10 @@ public class JitsiTokenService {
         userCtx.put("id", user.getId());
         if (user.getEmail() != null) userCtx.put("email", user.getEmail());
         if (user.getPicture() != null) userCtx.put("avatar", user.getPicture());
-        if (moderator) userCtx.put("moderator", true);
 
-        Map<String, Object> context = Map.of("user", userCtx);
+        Map<String, Object> context = new HashMap<>();
+        context.put("user", userCtx);
+        context.put("moderator", moderator);
 
         return Jwts.builder()
                 .setHeaderParam("typ", "JWT")

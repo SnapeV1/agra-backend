@@ -1,22 +1,25 @@
 package org.agra.agra_backend.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.agra.agra_backend.model.Post;
-import org.agra.agra_backend.model.Comment;
-import org.agra.agra_backend.model.User;
+import org.agra.agra_backend.dao.NotificationRepository;
+import org.agra.agra_backend.model.*;
 import org.agra.agra_backend.service.PostService;
+import org.agra.agra_backend.service.NotificationService;
 import org.agra.agra_backend.service.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/posts")
@@ -24,10 +27,15 @@ public class PostController {
 
     private final PostService postService;
     private final UserService userService;
-
-PostController(PostService postService, UserService userService){
+    private final SimpMessagingTemplate messagingTemplate;
+    private final NotificationRepository notificationRepository;
+    private final NotificationService notificationService;
+PostController(PostService postService, UserService userService, SimpMessagingTemplate messagingTemplate, NotificationRepository notificationRepository, NotificationService notificationService) {
     this.postService=postService;
     this.userService = userService;
+    this.notificationRepository=notificationRepository;
+    this.notificationService = notificationService;
+    this.messagingTemplate=messagingTemplate;
 }
 
     @PostMapping(value = "/CreatePost", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -50,6 +58,19 @@ PostController(PostService postService, UserService userService){
             Post createdPost = postService.createPostWithImage(
                     userId, userInfo, content, imageFile, isCoursePost, courseId
             );
+            Notification notification = new Notification(
+                    UUID.randomUUID().toString(),
+                    "New post published: " + createdPost.getContent(),
+                    NotificationType.POST,
+                    LocalDateTime.now()
+            );
+            notificationRepository.save(notification);
+            // create unseen status for all users
+            notificationService.createStatusesForAllUsers(notification);
+
+            messagingTemplate.convertAndSend("/topic/notifications", notification);
+
+
             return ResponseEntity.ok(createdPost);
         } catch (Exception e) {
             e.printStackTrace();

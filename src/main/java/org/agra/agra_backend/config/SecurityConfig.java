@@ -2,6 +2,7 @@ package org.agra.agra_backend.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -45,6 +46,16 @@ public class SecurityConfig {
                         .requestMatchers("/api/cloudinary/**").permitAll()
                         .requestMatchers("/api/sessions/**").permitAll()
                         .requestMatchers("/api/news/**").permitAll()
+                        // WebSocket/STOMP endpoints
+                        .requestMatchers("/ws/**", "/ws-sockjs/**").permitAll()
+                        // Notifications: public list, but unseen/mark-seen require auth
+                        .requestMatchers(HttpMethod.DELETE, "/api/notifications").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/notifications/delete").authenticated()
+                        .requestMatchers("/api/notifications/me").authenticated()
+                        .requestMatchers("/api/notifications/unseen").authenticated()
+                        .requestMatchers("/api/notifications/*/seen").authenticated()
+                        .requestMatchers("/api/notifications/mark-all-seen").authenticated()
+                        .requestMatchers("/api/notifications/**").permitAll()
 
 
                         .anyRequest().authenticated()

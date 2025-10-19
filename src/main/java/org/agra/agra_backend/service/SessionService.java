@@ -48,7 +48,10 @@ public class SessionService {
         Session s = repo.findById(sessionId).orElseThrow(() -> notFound("Session"));
         enforceCourseAccess(s.getCourseId(), user.getId(), moderator);
         String jwt = tokenService.mintUserToken(user, s, moderator);
+        System.out.println("jwttttt  "+jwt);
+
         return new JoinResponse(s.getRoomName(), /*domain*/ null, jwt, user.getName(), user.getPicture());
+
     }
 
     private void enforceCourseAccess(String courseId, String userId, boolean moderator) {
