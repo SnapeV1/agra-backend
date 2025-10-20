@@ -11,6 +11,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 import org.springframework.data.mongodb.core.index.Indexed;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Document(collection = "comments")
 @Data
@@ -65,6 +66,8 @@ public class Comment {
         this.userInfo = userInfo;
         this.content = content;
         this.likesCount = 0L;
+        this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
+        this.updatedAt = this.createdAt;
     }
 
     public Comment(String postId, String userId, User userInfo, String content,

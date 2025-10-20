@@ -130,6 +130,23 @@ PostController(PostService postService, UserService userService, SimpMessagingTe
 
         String content = body.get("content");
         Comment comment = postService.addComment(postId, principal.getId(), userInfo, content);
+        // Notify post owner about new comment (except when commenter is the owner)
+        java.util.Optional<Post> postOpt = postService.getPostById(postId);
+        if (postOpt.isPresent()) {
+            Post post = postOpt.get();
+            String ownerId = post.getUserId();
+            if (ownerId != null && !ownerId.equals(principal.getId())) {
+                Notification notification = new Notification(
+                        java.util.UUID.randomUUID().toString(),
+                        (userInfo != null && userInfo.getName() != null ? userInfo.getName() : "Someone") + " commented on your post",
+                        NotificationType.POST,
+                        java.time.LocalDateTime.now()
+                );
+                notificationRepository.save(notification);
+                notificationService.createStatusForUser(ownerId, notification);
+                messagingTemplate.convertAndSendToUser(ownerId, "/queue/notifications", notification);
+            }
+        }
         return ResponseEntity.ok(comment);
     }
 
@@ -153,6 +170,23 @@ PostController(PostService postService, UserService userService, SimpMessagingTe
         String replyToUserId = body.get("replyToUserId");
 
         Comment reply = postService.addReply(postId, commentId, principal.getId(), userInfo, content, replyToUserId);
+        // Notify post owner about new reply (except when replier is the owner)
+        java.util.Optional<Post> postOpt = postService.getPostById(postId);
+        if (postOpt.isPresent()) {
+            Post post = postOpt.get();
+            String ownerId = post.getUserId();
+            if (ownerId != null && !ownerId.equals(principal.getId())) {
+                Notification notification = new Notification(
+                        java.util.UUID.randomUUID().toString(),
+                        (userInfo != null && userInfo.getName() != null ? userInfo.getName() : "Someone") + " commented on your post",
+                        NotificationType.POST,
+                        java.time.LocalDateTime.now()
+                );
+                notificationRepository.save(notification);
+                notificationService.createStatusForUser(ownerId, notification);
+                messagingTemplate.convertAndSendToUser(ownerId, "/queue/notifications", notification);
+            }
+        }
         return ResponseEntity.ok(reply);
     }
 
