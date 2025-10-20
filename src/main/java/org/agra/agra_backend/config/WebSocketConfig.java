@@ -10,12 +10,19 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
+    private final WebSocketAuthChannelInterceptor authChannelInterceptor;
+
+    public WebSocketConfig(WebSocketAuthChannelInterceptor authChannelInterceptor) {
+        this.authChannelInterceptor = authChannelInterceptor;
+    }
+
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
-        // /topic -> for broadcasts (notifications)
-        // /queue -> for private messages (optional)
+        // /topic -> broadcasts
+        // /queue -> per-user destinations via "/user"
         config.enableSimpleBroker("/topic", "/queue");
         config.setApplicationDestinationPrefixes("/app");
+        config.setUserDestinationPrefix("/user");
     }
 
     @Override
@@ -28,5 +35,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.addEndpoint("/ws-sockjs")
                 .setAllowedOriginPatterns("*")
                 .withSockJS();
+    }
+
+    @Override
+    public void configureClientInboundChannel(org.springframework.messaging.simp.config.ChannelRegistration registration) {
+        registration.interceptors(authChannelInterceptor);
     }
 }

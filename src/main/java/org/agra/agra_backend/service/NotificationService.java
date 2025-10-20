@@ -105,4 +105,14 @@ public class NotificationService {
     public void deleteAllForUser(String userId) {
         notificationStatusRepository.deleteByUserId(userId);
     }
+
+    public void createStatusForUser(String userId, Notification notification) {
+        if (userId == null || notification == null || notification.getId() == null) return;
+        NotificationStatus status = new NotificationStatus();
+        status.setUserId(userId);
+        status.setNotificationId(notification.getId());
+        status.setSeen(false);
+        status.setSeenAt(null);
+        notificationStatusRepository.save(status);
+    }
 }

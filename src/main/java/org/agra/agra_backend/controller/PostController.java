@@ -92,26 +92,44 @@ PostController(PostService postService, UserService userService, SimpMessagingTe
     @DeleteMapping("/{postId}")
     public ResponseEntity<String> deletePost(
             @PathVariable String postId,
-            @RequestParam String userId
+            Authentication authentication
     ) {
-        postService.deletePost(postId, userId);
+        if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        User principal = (User) authentication.getPrincipal();
+        postService.deletePost(postId, principal.getId());
         return ResponseEntity.ok("Post deleted successfully!");
     }
 
 //comments
 
+    @GetMapping("/{postId}/comments")
+    public ResponseEntity<List<Comment>> getComments(
+            @PathVariable String postId,
+            @RequestParam(required = false) String currentUserId,
+            @RequestParam(defaultValue = "10") int limit
+    ) {
+        List<Comment> comments = postService.getCommentsForPost(postId, currentUserId, limit);
+        return ResponseEntity.ok(comments);
+    }
+
     @PostMapping("/{postId}/comments")
     public ResponseEntity<Comment> addComment(
             @PathVariable String postId,
-            @RequestParam String userId,
-            @RequestBody Map<String, String> body
+            @RequestBody Map<String, String> body,
+            Authentication authentication
     ) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        User principal = (User) authentication.getPrincipal();
         User userInfo = new User();
-        userInfo.setId(userId);
-        userInfo.setName(body.get("username"));
+        userInfo.setId(principal.getId());
+        userInfo.setName(principal.getName() != null ? principal.getName() : body.get("username"));
 
         String content = body.get("content");
-        Comment comment = postService.addComment(postId, userId, userInfo, content);
+        Comment comment = postService.addComment(postId, principal.getId(), userInfo, content);
         return ResponseEntity.ok(comment);
     }
 
@@ -120,17 +138,21 @@ PostController(PostService postService, UserService userService, SimpMessagingTe
     public ResponseEntity<Comment> addReply(
             @PathVariable String postId,
             @PathVariable String commentId,
-            @RequestParam String userId,
-            @RequestBody Map<String, String> body
+            @RequestBody Map<String, String> body,
+            Authentication authentication
     ) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        User principal = (User) authentication.getPrincipal();
         User userInfo = new User();
-        userInfo.setId(userId);
-        userInfo.setName(body.get("username"));
+        userInfo.setId(principal.getId());
+        userInfo.setName(principal.getName() != null ? principal.getName() : body.get("username"));
 
         String content = body.get("content");
         String replyToUserId = body.get("replyToUserId");
 
-        Comment reply = postService.addReply(postId, commentId, userId, userInfo, content, replyToUserId);
+        Comment reply = postService.addReply(postId, commentId, principal.getId(), userInfo, content, replyToUserId);
         return ResponseEntity.ok(reply);
     }
 
@@ -138,9 +160,13 @@ PostController(PostService postService, UserService userService, SimpMessagingTe
     @DeleteMapping("/comments/{commentId}")
     public ResponseEntity<String> deleteComment(
             @PathVariable String commentId,
-            @RequestParam String userId
+            Authentication authentication
     ) {
-        postService.deleteComment(commentId, userId);
+        if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        User principal = (User) authentication.getPrincipal();
+        postService.deleteComment(commentId, principal.getId());
         return ResponseEntity.ok("Comment deleted successfully!");
     }
 
@@ -169,8 +195,27 @@ PostController(PostService postService, UserService userService, SimpMessagingTe
             effectiveUserId = userId;
         }
 
-        boolean isLiked = postService.togglePostLike(postId, effectiveUserId, userInfo);
-        return ResponseEntity.ok(isLiked ? "Post liked!" : "Post unliked!");
+        PostService.ToggleLikeResult result = postService.togglePostLike(postId, effectiveUserId, userInfo);
+        if (result.isLiked) {
+            java.util.Optional<Post> postOpt = postService.getPostById(postId);
+            if (postOpt.isPresent()) {
+                Post post = postOpt.get();
+                String ownerId = post.getUserId();
+                if (ownerId != null && !ownerId.equals(effectiveUserId) && result.shouldNotify) {
+                    Notification notification = new Notification(
+                            java.util.UUID.randomUUID().toString(),
+                            (userInfo != null && userInfo.getName() != null ? userInfo.getName() : "Someone") + " has liked your post",
+                            NotificationType.POST,
+                            java.time.LocalDateTime.now()
+                    );
+                    notificationRepository.save(notification);
+                    notificationService.createStatusForUser(ownerId, notification);
+                    // Deliver per-user via user destinations: clients subscribe to /user/queue/notifications
+                    messagingTemplate.convertAndSendToUser(ownerId, "/queue/notifications", notification);
+                }
+            }
+        }
+        return ResponseEntity.ok(result.isLiked ? "Post liked!" : "Post unliked!");
     }
 
 

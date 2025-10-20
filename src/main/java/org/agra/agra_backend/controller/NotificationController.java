@@ -51,7 +51,7 @@ public class NotificationController {
     @DeleteMapping({"", "/delete"})
     public void deleteAllForCurrentUser() {
         String userId = getCurrentUserId();
-        notificationService.deleteAllForUser(userId);
+        notificationService.deleteAllForUser (userId);
     }
 
     private String getCurrentUserId() {

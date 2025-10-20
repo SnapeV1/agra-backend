@@ -1,12 +1,7 @@
 package org.agra.agra_backend.service;
 
-import org.agra.agra_backend.dao.CommentRepository;
-import org.agra.agra_backend.dao.LikeRepository;
-import org.agra.agra_backend.dao.PostRepository;
-import org.agra.agra_backend.model.Like;
-import org.agra.agra_backend.model.User;
-import org.agra.agra_backend.model.Post;
-import org.agra.agra_backend.model.Comment;
+import org.agra.agra_backend.dao.*;
+import org.agra.agra_backend.model.*;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -33,17 +28,21 @@ public class PostService {
     private final CommentRepository commentRepository;
 
     private final LikeRepository likeRepository;
+    private final PostLikeRepository postLikeRepository;
+    private final CommentLikeRepository commentLikeRepository;
 
     public static final String TARGET_TYPE_POST = "POST";
     public static final String TARGET_TYPE_COMMENT = "COMMENT";
 
     public PostService(PostRepository postRepository,
                        CloudinaryService cloudinaryService, CommentRepository commentRepository,
-                       LikeRepository likeRepository) {
+                       LikeRepository likeRepository, PostLikeRepository postLikeRepository, CommentLikeRepository commentLikeRepository) {
         this.postRepository = postRepository;
         this.cloudinaryService = cloudinaryService;
         this.commentRepository = commentRepository;
         this.likeRepository = likeRepository;
+        this.postLikeRepository = postLikeRepository;
+        this.commentLikeRepository = commentLikeRepository;
     }
 
 
@@ -52,7 +51,7 @@ public class PostService {
 
         if (currentUserId != null) {
             List<String> postIds = posts.stream().map(Post::getId).collect(Collectors.toList());
-            Map<String, Boolean> likeStatusMap = getLikeStatusForTargets(currentUserId, TARGET_TYPE_POST, postIds);
+            Map<String, Boolean> likeStatusMap = getPostLikeStatusMap(currentUserId, postIds);
 
             posts.forEach(post ->
                     post.setIsLikedByCurrentUser(likeStatusMap.getOrDefault(post.getId(), false))
@@ -75,7 +74,7 @@ public class PostService {
 
         if (currentUserId != null) {
             List<String> postIds = posts.getContent().stream().map(Post::getId).collect(Collectors.toList());
-            Map<String, Boolean> likeStatusMap = getLikeStatusForTargets(currentUserId, TARGET_TYPE_POST, postIds);
+            Map<String, Boolean> likeStatusMap = getPostLikeStatusMap(currentUserId, postIds);
 
             posts.getContent().forEach(post ->
                     post.setIsLikedByCurrentUser(likeStatusMap.getOrDefault(post.getId(), false))
@@ -89,12 +88,15 @@ public class PostService {
 
 
     public List<Comment> getCommentsForPost(String postId, String currentUserId, int limit) {
-        Pageable pageable = PageRequest.of(0, limit);
-        List<Comment> comments = commentRepository
-                .findByPostIdAndParentCommentIdIsNullOrderByCreatedAtDesc(postId);
-
-        if (limit > 0 && comments.size() > limit) {
-            comments = comments.subList(0, limit);
+        List<Comment> comments;
+        if (limit > 0) {
+            Pageable pageable = PageRequest.of(0, limit);
+            comments = commentRepository
+                    .findByPostIdAndParentCommentIdIsNullOrderByCreatedAtDesc(postId, pageable)
+                    .getContent();
+        } else {
+            comments = commentRepository
+                    .findByPostIdAndParentCommentIdIsNullOrderByCreatedAtDesc(postId);
         }
 
         if (currentUserId != null && !comments.isEmpty()) {
@@ -177,10 +179,14 @@ public class PostService {
 
         List<Comment> replies = commentRepository.findByParentCommentIdOrderByCreatedAtAsc(commentId);
         for (Comment reply : replies) {
+            // Clean up likes stored in both collections for backward compatibility
+            commentLikeRepository.deleteByCommentId(reply.getId());
             likeRepository.deleteByTargetTypeAndTargetId(TARGET_TYPE_COMMENT, reply.getId());
         }
         commentRepository.deleteAll(replies);
 
+        // Delete likes for the main comment as well (both collections)
+        commentLikeRepository.deleteByCommentId(commentId);
         likeRepository.deleteByTargetTypeAndTargetId(TARGET_TYPE_COMMENT, commentId);
 
         commentRepository.delete(comment);
@@ -194,19 +200,58 @@ public class PostService {
     }
 
 
-    @Transactional
-    public boolean togglePostLike(String postId, String userId, User userInfo) {
-        boolean isLiked = toggleLike(userId, userInfo, TARGET_TYPE_POST, postId);
+    public static class ToggleLikeResult {
+        public final boolean isLiked;
+        public final boolean shouldNotify;
+        public ToggleLikeResult(boolean isLiked, boolean shouldNotify) {
+            this.isLiked = isLiked;
+            this.shouldNotify = shouldNotify;
+        }
+    }
 
-        Optional<Post> postOpt = postRepository.findById(postId);
+    @Transactional
+    public ToggleLikeResult togglePostLike(String postId, String userId, User userInfo) {
+        java.util.Optional<PostLike> existingOpt = postLikeRepository.findByUserIdAndPostId(userId, postId);
+        boolean isLiked;
+        boolean shouldNotify = false;
+
+        if (existingOpt.isPresent()) {
+            PostLike existing = existingOpt.get();
+            boolean currentlyActive = (existing.getActive() == null) || Boolean.TRUE.equals(existing.getActive());
+            if (currentlyActive) {
+                existing.setActive(false);
+                isLiked = false;
+            } else {
+                existing.setActive(true);
+                isLiked = true;
+                boolean alreadyNotified = Boolean.TRUE.equals(existing.getNotified());
+                shouldNotify = !alreadyNotified;
+                if (shouldNotify) {
+                    existing.setNotified(true);
+                }
+            }
+            postLikeRepository.save(existing);
+        } else {
+            PostLike like = new PostLike();
+            like.setUserId(userId);
+            like.setPostId(postId);
+            like.setActive(true);
+            // first ever like -> notify once
+            like.setNotified(true);
+            postLikeRepository.save(like);
+            isLiked = true;
+            shouldNotify = true;
+        }
+
+        java.util.Optional<Post> postOpt = postRepository.findById(postId);
         if (postOpt.isPresent()) {
             Post post = postOpt.get();
-            long actualCount = likeRepository.countByTargetTypeAndTargetId(TARGET_TYPE_POST, postId);
+            long actualCount = postLikeRepository.countActiveByPostId(postId);
             post.setLikesCount(actualCount);
             postRepository.save(post);
         }
 
-        return isLiked;
+        return new ToggleLikeResult(isLiked, shouldNotify);
     }
 
 
@@ -267,6 +312,9 @@ public class PostService {
             deleteComment(comment.getId(), comment.getUserId());
         }
 
+        // Remove all likes tied directly to this post
+        postLikeRepository.deleteByPostId(postId);
+        // Also remove any legacy/alternative like entries stored in the generic likes collection
         likeRepository.deleteByTargetTypeAndTargetId(TARGET_TYPE_POST, postId);
 
         postRepository.delete(postOpt.get());
@@ -308,4 +356,29 @@ public class PostService {
                 .replace("@", "_")
                 .replace(".", "_");
     }
-}
+
+    public java.util.Optional<Post> getPostById(String postId) {
+        return postRepository.findById(postId);
+    }
+
+    private java.util.Map<String, Boolean> getPostLikeStatusMap(String userId, java.util.List<String> postIds) {
+        if (userId == null || postIds == null || postIds.isEmpty()) {
+            return postIds == null ? java.util.Collections.emptyMap() :
+                postIds.stream().collect(java.util.stream.Collectors.toMap(id -> id, id -> false));
+        }
+        java.util.List<PostLike> likes = postLikeRepository.findActiveByUserIdAndPostIdIn(userId, postIds);
+        java.util.Set<String> likedPostIds = likes.stream()
+                .map(PostLike::getPostId)
+                .collect(java.util.stream.Collectors.toSet());
+        return postIds.stream()
+                .collect(java.util.stream.Collectors.toMap(id -> id, likedPostIds::contains));
+    }
+    private java.util.Map<String, Boolean> getCommentLikeStatusMap(String userId, java.util.List<String> commentIds) {
+        if (userId == null || commentIds == null || commentIds.isEmpty()) {
+            return commentIds == null ? java.util.Collections.emptyMap() :
+                commentIds.stream().collect(java.util.stream.Collectors.toMap(id -> id, id -> false));
+        }
+        java.util.List<CommentLike> likes = commentLikeRepository.findByUserIdAndCommentIdIn(userId, commentIds);
+        java.util.Set<String> likedIds = likes.stream().map(CommentLike::getCommentId).collect(java.util.stream.Collectors.toSet());
+        return commentIds.stream().collect(java.util.stream.Collectors.toMap(id -> id, likedIds::contains));
+    }}
