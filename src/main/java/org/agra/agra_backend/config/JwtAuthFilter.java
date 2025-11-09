@@ -45,6 +45,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         String token = authHeader.substring(7);
+        if (token == null || token.isBlank() || "null".equalsIgnoreCase(token)) {
+            log.warn("JWT header provided but token missing/blank for path={}. Authorization='{}' token='{}'", request.getRequestURI(), authHeader, token);
+            filterChain.doFilter(request, response);
+            return;
+        }
         try {
             String userId = jwtUtil.extractUserId(token);
             if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {

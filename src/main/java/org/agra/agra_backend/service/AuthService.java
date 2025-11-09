@@ -47,18 +47,18 @@ public class AuthService implements IAuthService {
         String reqLang = request.getLanguage();
         user.setLanguage((reqLang == null || reqLang.trim().isEmpty()) ? "en" : reqLang.trim());
         user.setDomain(request.getDomain());
-        // Set role with default fallback
-        String userRole = request.getRole();
-        if (userRole == null || userRole.trim().isEmpty()) {
-            userRole = "FARMER"; 
-        }
-        user.setRole(userRole);
+        // Enforce default role for signups to prevent privilege escalation
+        user.setRole("USER");
         // Default theme preference if not provided elsewhere
         if (user.getThemePreference() == null || user.getThemePreference().isBlank()) {
             user.setThemePreference("light");
         }
         user.setRegisteredAt(new Date());
-        user.setPicture("https://res.cloudinary.com/dmumvupow/image/upload/v1756311755/defaultPicture_bqiivg.jpg");
+        if (request.getPicture() != null && !request.getPicture().trim().isEmpty()) {
+            user.setPicture(request.getPicture().trim());
+        } else {
+            user.setPicture("https://res.cloudinary.com/dmumvupow/image/upload/v1756311755/defaultPicture_bqiivg.jpg");
+        }
         User savedUser = userRepository.save(user);
 
         try {
@@ -83,6 +83,8 @@ public class AuthService implements IAuthService {
 
         String token = jwtUtil.generateToken(user);
         LoginResponse response = new LoginResponse(token, user);
+        // Debug: print JWT token for login
+        System.out.println("JWT Token (password login): " + token);
         System.out.println("Logged in user: " + user.getEmail() + ", profileCompleted=" + response.isProfileCompleted());
         return response;
     }

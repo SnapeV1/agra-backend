@@ -22,6 +22,9 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Service
 @RequiredArgsConstructor
 public class PasswordResetService {
@@ -30,6 +33,8 @@ public class PasswordResetService {
     private final PasswordResetTokenRepository tokenRepository;
     private final JavaMailSender mailSender;
     private final PasswordEncoder passwordEncoder;
+
+    private static final Logger log = LoggerFactory.getLogger(PasswordResetService.class);
 
     @Value("${app.frontend.base-url:http://localhost:4200}")
     private String frontendBaseUrl;
@@ -98,24 +103,34 @@ public class PasswordResetService {
 
     public void resetPassword(String rawToken, String newPassword) {
         String tokenHash = sha256(rawToken);
+        log.info("PasswordReset: Attempting password reset. tokenHash={}", tokenHash);
         Optional<PasswordResetToken> opt = tokenRepository.findByTokenHash(tokenHash);
-        PasswordResetToken resetToken = opt.orElseThrow(() -> new RuntimeException("Invalid token"));
+        if (opt.isEmpty()) {
+            log.warn("PasswordReset: No reset token found for tokenHash={}", tokenHash);
+            throw new RuntimeException("Invalid token");
+        }
+        PasswordResetToken resetToken = opt.get();
 
         if (resetToken.isExpired()) {
+            log.warn("PasswordReset: Token expired for userId={} createdAt={} expiresAt={}",
+                    resetToken.getUserId(), resetToken.getCreatedAt(), resetToken.getExpirationDate());
             tokenRepository.delete(resetToken);
             throw new RuntimeException("Token expired");
         }
 
         User user = userRepository.findById(resetToken.getUserId()).orElse(null);
         if (user == null) {
+            log.error("PasswordReset: User not found for tokenHash={} userId={}", tokenHash, resetToken.getUserId());
             tokenRepository.delete(resetToken);
             throw new RuntimeException("User not found for token");
         }
 
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
+        log.info("PasswordReset: Password updated for userId={}", user.getId());
 
         tokenRepository.delete(resetToken);
+        log.debug("PasswordReset: Reset token deleted for userId={}", user.getId());
     }
 
     private static String generateSecureToken() {

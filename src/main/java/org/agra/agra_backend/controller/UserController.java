@@ -13,6 +13,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.List;
 
 @RestController
@@ -22,6 +25,8 @@ public class UserController {
 
     private final CourseLikeService courseLikeService;
     private final UserService userService;
+
+    private static final Logger log = LoggerFactory.getLogger(UserController.class);
 
 
     public UserController(CourseLikeService courseLikeService, UserService userService) {
@@ -65,9 +70,17 @@ public class UserController {
     public ResponseEntity<?> updateUserProfile(
             @RequestPart("user") String userJson,
             @RequestPart(value = "profilePicture", required = false) MultipartFile profilePicture,
-            Authentication authentication) {
+            Authentication authentication,
+            HttpServletRequest request) {
 
         try {
+            String authHeader = request.getHeader("Authorization");
+            log.info("PUT /api/users/updateUser (multipart) - Authorization present={}, Content-Type={}, Origin={}",
+                    (authHeader != null && !authHeader.isBlank()), request.getContentType(), request.getHeader("Origin"));
+            if (authentication == null || authentication.getPrincipal() == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Authentication required");
+            }
 
             User userInfo = (User) authentication.getPrincipal();
             User existingUser = userService.findById(userInfo.getId());
@@ -127,9 +140,13 @@ public class UserController {
     @PutMapping(value = "/updateUser", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> updateUserProfileJson(
             @RequestBody User incomingData,
-            Authentication authentication) {
+            Authentication authentication,
+            HttpServletRequest request) {
 
         try {
+            String authHeader = request.getHeader("Authorization");
+            log.info("PUT /api/users/updateUser (json) - Authorization present={}, Content-Type={}, Origin={}",
+                    (authHeader != null && !authHeader.isBlank()), request.getContentType(), request.getHeader("Origin"));
             if (authentication == null || authentication.getPrincipal() == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(java.util.Map.of("error", "Authentication required"));

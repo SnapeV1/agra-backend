@@ -76,7 +76,8 @@ public class GoogleAuthService {
                 user.setDomain(hostedDomain);
                 user.setPhone(phone);
                 user.setCountry(country);
-                user.setRole("FARMER");
+                // Enforce default application role for Google signups
+                user.setRole("USER");
                 // Default theme to light on first creation
                 user.setThemePreference("light");
                 user.setRegisteredAt(new Date());
@@ -102,13 +103,27 @@ public class GoogleAuthService {
                     }
                 }
             } else {
-                // Existing user: do not overwrite any fields. Only authenticate.
-                // We intentionally avoid updating name, picture, phone, country, etc.
+                // Existing user: only enhance if picture is missing, to "use the Google picture as well".
+                if ((user.getPicture() == null || user.getPicture().isBlank()) && picture != null && !picture.isBlank()) {
+                    try {
+                        var upload = cloudinaryService.uploadProfilePictureFromUrl(picture, email);
+                        String uploadedUrl = upload.get("secure_url").toString();
+                        user.setPicture(uploadedUrl);
+                        user = userRepository.save(user);
+                    } catch (Exception e) {
+                        // Fall back to using Google's URL directly if Cloudinary mirror fails
+                        user.setPicture(picture);
+                        user = userRepository.save(user);
+                        System.err.println("Warning: Failed to mirror Google avatar for existing user " + email + ": " + e.getMessage());
+                    }
+                }
             }
 
             // Generate JWT for your app
             String jwt = jwtService.generateToken(user);
             LoginResponse response = new LoginResponse(jwt, user);
+            // Debug: print JWT token for Google login
+            System.out.println("JWT Token (google login): " + jwt);
             System.out.println("Logged in (Google) user: " + user.getEmail() + ", profileCompleted=" + response.isProfileCompleted());
             return response;
         } catch (Exception e) {
