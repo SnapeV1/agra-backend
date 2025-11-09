@@ -28,6 +28,7 @@ public class NewsController {
     }
 
     @PostMapping("/fetch-weekly")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> fetchWeeklyNews() {
         try {
             log.info("POST /api/news/fetch-weekly - start");

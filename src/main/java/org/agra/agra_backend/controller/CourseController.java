@@ -48,6 +48,7 @@ public class CourseController {
     }
 
     @PostMapping(value="/addCourse", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Course> createCourse(
             @RequestPart("course") Course course,
             @RequestPart(value = "image", required = false) MultipartFile courseImage) {
@@ -106,6 +107,7 @@ public class CourseController {
     }
 
     @PutMapping(value = "updateCourse/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Course> updateCourse(
             @PathVariable String id,
             @RequestPart("course") String courseJson,
@@ -131,11 +133,13 @@ public class CourseController {
 
 
     @PutMapping("ArchiveCourse/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> ArchiveCourse(@PathVariable String id) {
         courseService.ArchiveCourse(id);
         return ResponseEntity.noContent().build();
     }
     @DeleteMapping("delete/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteCourse(@PathVariable String id) {
         courseService.deleteCourse(id);
         return ResponseEntity.noContent().build();
@@ -386,6 +390,7 @@ public class CourseController {
      * This removes enrollments for courses that no longer exist
      */
     @PostMapping("/admin/cleanup-orphaned-enrollments")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> cleanupOrphanedEnrollments() {
         try {
             System.out.println("POST /api/courses/admin/cleanup-orphaned-enrollments - Request received");
@@ -421,4 +426,154 @@ public class CourseController {
                     .body(Map.of("error", "Cloudinary configuration error: " + e.getMessage()));
         }
     }
+
+    @PostMapping(value = "/{id}/files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> uploadCourseFile(
+            @PathVariable String id,
+            @RequestParam("file") MultipartFile file) {
+        try {
+            if (file == null || file.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "File is required"));
+            }
+
+            Optional<Course> courseOpt = courseService.getCourseById(id);
+            if (courseOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "Course not found"));
+            }
+
+            Course course = courseOpt.get();
+
+            String folderPath = "courses/" + id + "/files";
+            System.out.println("[CourseController] Uploading file as image - courseId=" + id
+                    + ", name=" + file.getOriginalFilename()
+                    + ", contentType=" + file.getContentType()
+                    + ", size=" + file.getSize() + " bytes"
+                    + ", targetFolder=" + folderPath + ")");
+            Map<String, Object> uploadResult = cloudinaryService.uploadImageToFolder(file, folderPath);
+
+            String url = (String) uploadResult.get("secure_url");
+            String publicId = (String) uploadResult.get("public_id");
+            String originalName = file.getOriginalFilename();
+            long size = file.getSize();
+            String formatFromCloudinary = uploadResult.get("format") != null ? uploadResult.get("format").toString() : null;
+            String inferredType = inferFileExtension(originalName, formatFromCloudinary, url, publicId);
+
+            System.out.println("[CourseController] Cloudinary result (image) - resource_type=" + uploadResult.get("resource_type")
+                    + ", format=" + uploadResult.get("format")
+                    + ", secure_url=" + uploadResult.get("secure_url")
+                    + ", public_id=" + uploadResult.get("public_id") + 
+                    ", bytes=" + uploadResult.get("bytes") + ")");
+
+            CourseFile courseFile = new CourseFile(
+                    java.util.UUID.randomUUID().toString(),
+                    originalName,
+                    inferredType != null ? inferredType : "file",
+                    url,
+                    publicId,
+                    size,
+                    new java.util.Date()
+            );
+
+            if (course.getFiles() == null) {
+                course.setFiles(new ArrayList<>());
+            }
+            course.getFiles().add(courseFile);
+            course.setUpdatedAt(new java.util.Date());
+            courseService.save(course);
+
+            System.out.println("[CourseController] Saved CourseFile - id=" + courseFile.getId()
+                    + ", name=" + courseFile.getName()
+                    + ", type=" + courseFile.getType()
+                    + ", size=" + courseFile.getSize()
+                    + ", url=" + courseFile.getUrl()
+                    + ", publicId=" + courseFile.getPublicId() + ")");
+
+            return ResponseEntity.ok(courseFile);
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to upload file: " + e.getMessage()));
+        }
+    }
+
+    private String inferFileExtension(String originalName, String formatFromCloudinary, String secureUrl, String publicId) {
+        // Prefer explicit Cloudinary format if provided
+        if (formatFromCloudinary != null && !formatFromCloudinary.isBlank()) {
+            return formatFromCloudinary.toLowerCase();
+        }
+        // From original filename
+        String ext = extractExt(originalName);
+        if (ext != null) return ext;
+        // From secure URL
+        ext = extractExt(secureUrl);
+        if (ext != null) return ext;
+        // From publicId
+        ext = extractExt(publicId);
+        return ext;
+    }
+
+    private String extractExt(String nameOrUrl) {
+        if (nameOrUrl == null || nameOrUrl.isBlank()) return null;
+        String s = nameOrUrl;
+        int q = s.indexOf('?');
+        if (q >= 0) s = s.substring(0, q);
+        int slash = s.lastIndexOf('/');
+        if (slash >= 0 && slash < s.length() - 1) s = s.substring(slash + 1);
+        int dot = s.lastIndexOf('.');
+        if (dot > 0 && dot < s.length() - 1) {
+            String ext = s.substring(dot + 1).toLowerCase();
+            // Basic sanity: avoid extremely long or suspicious extensions
+            if (ext.length() <= 10) return ext;
+        }
+        return null;
+    }
+
+    
+
+    @DeleteMapping("/{id}/files/{fileId}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> deleteCourseFile(@PathVariable String id, @PathVariable String fileId) {
+        try {
+            Optional<Course> courseOpt = courseService.getCourseById(id);
+            if (courseOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "Course not found"));
+            }
+
+            Course course = courseOpt.get();
+            if (course.getFiles() == null || course.getFiles().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "File not found"));
+            }
+
+            CourseFile target = null;
+            for (CourseFile f : course.getFiles()) {
+                if (f != null && fileId.equals(f.getId())) {
+                    target = f;
+                    break;
+                }
+            }
+
+            if (target == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "File not found"));
+            }
+
+            if (target.getPublicId() != null && !target.getPublicId().isEmpty()) {
+                cloudinaryService.deleteRaw(target.getPublicId());
+            }
+
+            course.getFiles().removeIf(f -> f != null && fileId.equals(f.getId()));
+            course.setUpdatedAt(new java.util.Date());
+            courseService.save(course);
+
+            return ResponseEntity.noContent().build();
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to delete file: " + e.getMessage()));
+        }
+    }
+
+    
 }

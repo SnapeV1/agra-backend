@@ -8,6 +8,7 @@ import org.agra.agra_backend.model.User;
 import org.agra.agra_backend.payload.LoginRequest;
 import org.agra.agra_backend.payload.RegisterRequest;
 import org.agra.agra_backend.service.AuthService;
+import org.agra.agra_backend.service.GoogleAuthService;
 import org.agra.agra_backend.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,13 +25,15 @@ public class AuthController {
     private final UserRepository userRepository;
     private final UserService userService;
     private final AuthService authService;
+    private final GoogleAuthService googleAuthService;
 
     private final JwtUtil jwtUtil;
 
-    public AuthController(UserRepository userRepository, UserService userService, AuthService authService, JwtUtil jwtUtil) {
+    public AuthController(UserRepository userRepository, UserService userService, AuthService authService, GoogleAuthService googleAuthService, JwtUtil jwtUtil) {
         this.userRepository = userRepository;
         this.userService = userService;
         this.authService = authService;
+        this.googleAuthService = googleAuthService;
         this.jwtUtil = jwtUtil;
     }
 
@@ -75,6 +78,19 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/google")
+    public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> body) {
+        String token = body.get("token");
+        if (token == null || token.isBlank()) {
+            token = body.get("credential"); // Support GSI default field name
+        }
+        if (token == null || token.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Missing Google ID token (token/credential)"));
+        }
+        org.agra.agra_backend.payload.LoginResponse response = googleAuthService.verifyGoogleToken(token
+        );
+        return ResponseEntity.ok(response);
+    }
 
 
 }

@@ -83,7 +83,40 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
             existingCourse.setTrainerId(updatedCourse.getTrainerId());
             existingCourse.setSessionIds(updatedCourse.getSessionIds());
             existingCourse.setLanguagesAvailable(updatedCourse.getLanguagesAvailable());
-            existingCourse.setFiles(updatedCourse.getFiles());
+            // Merge files: preserve existing files and add/update from payload
+            if (updatedCourse.getFiles() != null) {
+                if (existingCourse.getFiles() == null || existingCourse.getFiles().isEmpty()) {
+                    existingCourse.setFiles(updatedCourse.getFiles());
+                } else {
+                    java.util.Map<String, org.agra.agra_backend.model.CourseFile> byId = new java.util.HashMap<>();
+                    for (org.agra.agra_backend.model.CourseFile f : existingCourse.getFiles()) {
+                        if (f != null && f.getId() != null) byId.put(f.getId(), f);
+                    }
+                    for (org.agra.agra_backend.model.CourseFile nf : updatedCourse.getFiles()) {
+                        if (nf == null) continue;
+                        if (nf.getId() != null && byId.containsKey(nf.getId())) {
+                            byId.put(nf.getId(), nf);
+                        } else {
+                            // avoid duplicates by publicId if present
+                            boolean duplicate = false;
+                            if (nf.getPublicId() != null) {
+                                for (org.agra.agra_backend.model.CourseFile ex : byId.values()) {
+                                    if (nf.getPublicId().equals(ex.getPublicId())) { duplicate = true; break; }
+                                }
+                            }
+                            if (!duplicate) {
+                                String fileId = nf.getId();
+                                if (fileId == null || fileId.isEmpty()) {
+                                    fileId = java.util.UUID.randomUUID().toString();
+                                    nf.setId(fileId);
+                                }
+                                byId.put(fileId, nf);
+                            }
+                        }
+                    }
+                    existingCourse.setFiles(new java.util.ArrayList<>(byId.values()));
+                }
+            }
             existingCourse.setTextContent(updatedCourse.getTextContent());
             // also update activeCall flag
             existingCourse.setActiveCall(updatedCourse.isActiveCall());
@@ -98,7 +131,7 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
                 try {
                     existingCourse = getCourse(courseImage, existingCourse);
                 } catch (IOException e) {
-                    System.err.println("Error uploading image: " + e.getMessage());
+                    System.err.println("Error uploading image: " + e.getMessage()); 
                     throw new RuntimeException("Failed to upload image", e);
                 }
             } else if (existingCourse.getImageUrl() == null || existingCourse.getImageUrl().isEmpty()) {
@@ -174,6 +207,10 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
 
     public List<Course> getCoursesByDomain(String domain) {
         return courseRepository.findByDomain(domain);
+    }
+    
+    public Course save(Course course) {
+        return courseRepository.save(course);
     }
     
     /**

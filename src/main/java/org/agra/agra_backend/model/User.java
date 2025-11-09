@@ -25,6 +25,7 @@ public class User {
     private String domain;
     private String role;
     private String picture;
+    private String themePreference = "light";
     private Date registeredAt;
     private List<CourseProgress> progress;
 }

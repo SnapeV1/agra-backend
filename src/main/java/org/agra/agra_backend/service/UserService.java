@@ -40,19 +40,67 @@ public class UserService implements IUserService {
     }
 
     public User saveUser(User user) {
+        // Ensure password is encoded if provided as plain text
+        if (user.getPassword() != null && !user.getPassword().isBlank() && !isBcrypt(user.getPassword())) {
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
+        }
+        // Ensure language is set (default to 'en' if missing)
+        if (user.getLanguage() == null || user.getLanguage().trim().isEmpty()) {
+            user.setLanguage("en");
+        }
+        // Ensure theme is set (default to 'light' if missing)
+        if (user.getThemePreference() == null || user.getThemePreference().trim().isEmpty()) {
+            user.setThemePreference("light");
+        }
         user.setRegisteredAt(new Date());
         return userRepository.save(user);
     }
 
 
     public User updateUser(User user) {
+        User existingUser = findById(user.getId());
+
+        // Log requested updates (no profile picture in this overload)
+        logUserUpdateRequested(existingUser, user, false);
+
+        // Preserve phone if not provided
+        if (user.getPhone() == null) {
+            user.setPhone(existingUser.getPhone());
+        }
+
+        // Preserve language if not provided
+        if (user.getLanguage() == null || user.getLanguage().trim().isEmpty()) {
+            user.setLanguage(existingUser.getLanguage());
+        }
+
+        // Preserve themePreference if not provided
+        if (user.getThemePreference() == null || user.getThemePreference().trim().isEmpty()) {
+            user.setThemePreference(existingUser.getThemePreference());
+        }
+
+        // Encode password if provided raw; keep existing if not provided
+        if (user.getPassword() != null && !user.getPassword().isBlank()) {
+            if (!isBcrypt(user.getPassword()) && !user.getPassword().equals(existingUser.getPassword())) {
+                user.setPassword(passwordEncoder.encode(user.getPassword()));
+            }
+        } else {
+            user.setPassword(existingUser.getPassword());
+        }
+
+        // Preserve immutable fields
+        if (user.getRegisteredAt() == null) {
+            user.setRegisteredAt(existingUser.getRegisteredAt());
+        }
+
         return userRepository.save(user);
     }
 
     public User updateUser(User user, MultipartFile profilePicture) throws IOException {
         User existingUser = findById(user.getId());
-        System.out.println("email "+user.getEmail());
-        System.out.println(user);
+
+        // Log requested updates (including if a profile picture is present)
+        boolean profilePicProvided = profilePicture != null && !profilePicture.isEmpty();
+        logUserUpdateRequested(existingUser, user, profilePicProvided);
         if (profilePicture != null && !profilePicture.isEmpty()) {
             try {
                 Map<String, Object> uploadResult = cloudinaryService.uploadProfilePicture(profilePicture, user.getEmail());
@@ -70,10 +118,73 @@ public class UserService implements IUserService {
             user.setPicture(existingUser.getPicture());
         }
 
+        // Ensure password is encrypted like during registration
+        if (user.getPassword() != null && !user.getPassword().isBlank()) {
+            // Only encode if it's changed (avoid double-encoding an already hashed password)
+            if (!user.getPassword().equals(existingUser.getPassword())) {
+                user.setPassword(passwordEncoder.encode(user.getPassword()));
+            }
+        } else {
+            // Preserve existing hashed password when no new password provided
+            user.setPassword(existingUser.getPassword());
+        }
+
+        // Ensure phone is preserved if not explicitly provided
+        if (user.getPhone() == null) {
+            user.setPhone(existingUser.getPhone());
+        }
+
+        // Preserve language if not explicitly provided
+        if (user.getLanguage() == null || user.getLanguage().trim().isEmpty()) {
+            user.setLanguage(existingUser.getLanguage());
+        }
+
 
         user.setRegisteredAt(existingUser.getRegisteredAt());
 
         return userRepository.save(user);
+    }
+
+    private void logUserUpdateRequested(User oldUser, User newUser, boolean profilePicProvided) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("User update request for ")
+                .append(oldUser.getId()).append(" /")
+                .append(oldUser.getEmail() == null ? "<no-email>" : oldUser.getEmail())
+                .append("\n");
+
+        appendChange(sb, "name", oldUser.getName(), newUser.getName());
+        appendChange(sb, "email", oldUser.getEmail(), newUser.getEmail());
+        appendChange(sb, "phone", oldUser.getPhone(), newUser.getPhone());
+        appendChange(sb, "country", oldUser.getCountry(), newUser.getCountry());
+        appendChange(sb, "language", oldUser.getLanguage(), newUser.getLanguage());
+        appendChange(sb, "domain", oldUser.getDomain(), newUser.getDomain());
+        appendChange(sb, "role", oldUser.getRole(), newUser.getRole());
+        appendChange(sb, "picture", oldUser.getPicture(), newUser.getPicture());
+
+        boolean passwordProvided = newUser.getPassword() != null && !newUser.getPassword().isBlank();
+        if (passwordProvided) {
+            sb.append(" - password: [updated]\n");
+        }
+
+        sb.append(" - profilePictureProvided: ").append(profilePicProvided).append("\n");
+        System.out.print(sb.toString());
+    }
+
+    private void appendChange(StringBuilder sb, String field, String oldVal, String newVal) {
+        if (newVal == null) return; // only log when client provided a value
+        String oldDisplay = oldVal == null ? "<null>" : oldVal;
+        String newDisplay = newVal;
+        if ((oldVal == null && newVal != null) || (oldVal != null && !oldVal.equals(newVal))) {
+            sb.append(" - ").append(field).append(": ")
+              .append(oldDisplay).append(" -> ").append(newDisplay).append("\n");
+        }
+    }
+
+    private boolean isBcrypt(String value) {
+        if (value == null) return false;
+        // Typical BCrypt hashes are 60 chars and start with $2a$, $2b$, or $2y$
+        if (value.length() < 60) return false;
+        return value.startsWith("$2a$") || value.startsWith("$2b$") || value.startsWith("$2y$");
     }
 
     public void deleteUser(Long id) {
@@ -134,4 +245,22 @@ public class UserService implements IUserService {
 
 
 
+    /**
+     * Change the authenticated user's password.
+     * Validates the current password before updating to the new encoded password.
+     */
+    public void changePassword(String userId, String currentPassword, String newPassword) {
+        if (newPassword == null || newPassword.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password must not be empty");
+        }
+
+        User user = findById(userId);
+
+        if (user.getPassword() == null || !passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Current password is incorrect");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
 }

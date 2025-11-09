@@ -17,7 +17,7 @@ import java.util.function.Function;
 public class JwtUtil {
 
     private final SecretKey secretKey;
-    private static final long EXPIRATION_TIME = 1000 * 60 * 60 * 24; // 24 hours
+    private static final long EXPIRATION_TIME = 1000 * 60 * 60 * 2; // 2 hours
 
     public JwtUtil(JwtConfig jwtConfig) {
         this.secretKey = Keys.hmacShaKeyFor(jwtConfig.getSecret().getBytes(StandardCharsets.UTF_8));

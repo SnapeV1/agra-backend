@@ -40,9 +40,10 @@ public class CloudinaryService {
         return uploadImage(file, "hkpcvcr8"); // Use your upload preset by default
     }
 
+    @SuppressWarnings("unchecked")
     public Map<String, Object> uploadImage(MultipartFile file, String uploadPreset) throws IOException {
         try {
-            Map<String, Object> uploadResult = cloudinary.uploader().upload(
+            Map<String, Object> uploadResult = (Map<String, Object>) cloudinary.uploader().upload(
                     file.getBytes(),
                     ObjectUtils.asMap(
                             "upload_preset", uploadPreset,
@@ -59,9 +60,10 @@ public class CloudinaryService {
         }
     }
 
+    @SuppressWarnings("unchecked")
     public String deleteImage(String publicId) throws IOException {
         try {
-            Map<String, Object> result = cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
+            Map<String, Object> result = (Map<String, Object>) cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
             System.out.println("Image deleted: " + result.get("result"));
             return result.get("result").toString();
         } catch (IOException e) {
@@ -71,9 +73,10 @@ public class CloudinaryService {
     }
 
     // Test method to verify connection
+    @SuppressWarnings("unchecked")
     public boolean testConnection() {
         try {
-            Map<String, Object> result = cloudinary.api().ping(ObjectUtils.emptyMap());
+            Map<String, Object> result = (Map<String, Object>) cloudinary.api().ping(ObjectUtils.emptyMap());
             System.out.println("Cloudinary connection test successful: " + result);
             return true;
         } catch (Exception e) {
@@ -101,6 +104,7 @@ public class CloudinaryService {
 
 
     // Upload image to specific folder with preset
+    @SuppressWarnings("unchecked")
     public Map<String, Object> uploadImageToFolder(MultipartFile file, String folderPath) throws IOException {
         try {
             // Normalize folder path (remove leading/trailing slashes, handle null/empty)
@@ -116,7 +120,7 @@ public class CloudinaryService {
                 uploadParams.put("folder", normalizedFolderPath);
             }
 
-            Map<String, Object> uploadResult = cloudinary.uploader().upload(
+            Map<String, Object> uploadResult = (Map<String, Object>) cloudinary.uploader().upload(
                     file.getBytes(),
                     uploadParams
             );
@@ -146,12 +150,13 @@ public class CloudinaryService {
 
         return normalized.isEmpty() ? null : normalized;
     }
+    @SuppressWarnings("unchecked")
     public Map<String, Object> uploadProfilePicture(MultipartFile file, String userEmail) throws IOException {
         try {
             String sanitizedEmail = userEmail.replaceAll("[^a-zA-Z0-9]", "_").toLowerCase();
             String folderPath = "users/" + sanitizedEmail;
 
-            Map<String, Object> uploadResult = cloudinary.uploader().upload(
+            Map<String, Object> uploadResult = (Map<String, Object>) cloudinary.uploader().upload(
                     file.getBytes(),
                     ObjectUtils.asMap(
                             "upload_preset", "hkpcvcr8",
@@ -170,6 +175,162 @@ public class CloudinaryService {
 
         } catch (IOException e) {
             System.err.println("Error uploading profile picture for user " + userEmail + ": " + e.getMessage());
+            throw e;
+        }
+    }
+
+    // Upload raw file (documents, zips, etc.) to specific folder
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> uploadRawToFolder(MultipartFile file, String folderPath) throws IOException {
+        try {
+            String normalizedFolderPath = normalizeFolderPath(folderPath);
+
+            String originalName = file.getOriginalFilename();
+            String sanitized = sanitizeFilenameKeepingExtension(originalName, file.getContentType());
+
+            Map<String, Object> uploadParams = ObjectUtils.asMap(
+                    "upload_preset", "hkpcvcr8",
+                    "resource_type", "raw",
+                    // Preserve original filename (including extension) in the public_id
+                    "use_filename", true,
+                    "unique_filename", false,
+                    // public_id applies within the provided folder
+                    "public_id", sanitized
+            );
+
+            if (normalizedFolderPath != null && !normalizedFolderPath.isEmpty()) {
+                uploadParams.put("folder", normalizedFolderPath);
+            }
+
+            System.out.println("[CloudinaryService] RAW upload - folder=" + normalizedFolderPath
+                    + ", name=" + file.getOriginalFilename()
+                    + ", contentType=" + file.getContentType()
+                    + ", size=" + file.getSize() + " bytes");
+            Map<String, Object> uploadResult = (Map<String, Object>) cloudinary.uploader().upload(
+                    file.getBytes(),
+                    uploadParams
+            );
+
+            System.out.println("Raw file uploaded successfully to " +
+                    (normalizedFolderPath != null ? normalizedFolderPath : "root") +
+                    ": " + uploadResult.get("secure_url"));
+            System.out.println("[CloudinaryService] RAW result - resource_type=" + uploadResult.get("resource_type")
+                    + ", format=" + uploadResult.get("format")
+                    + ", public_id=" + uploadResult.get("public_id")
+                    + ", bytes=" + uploadResult.get("bytes") + ")");
+
+            return uploadResult;
+
+        } catch (IOException e) {
+            System.err.println("Error uploading raw file to folder " + folderPath + ": " + e.getMessage());
+            throw e;
+        }
+    }
+
+    private String sanitizeFilenameKeepingExtension(String originalName, String contentType) {
+        String base = originalName;
+        if (base == null || base.isBlank()) {
+            base = "file";
+        }
+        // Strip any path parts
+        int slash = Math.max(base.lastIndexOf('/'), base.lastIndexOf('\\'));
+        if (slash >= 0 && slash < base.length() - 1) {
+            base = base.substring(slash + 1);
+        }
+        // Sanitize characters
+        base = base.replaceAll("[^a-zA-Z0-9._-]", "_");
+        // Ensure PDF extension when contentType indicates PDF and no extension present
+        if (!base.contains(".") && contentType != null && contentType.equalsIgnoreCase("application/pdf")) {
+            base = base + ".pdf";
+        }
+        // Guard against empty name after sanitization
+        if (base.isBlank()) {
+            base = "file" + System.currentTimeMillis();
+            if (contentType != null && contentType.equalsIgnoreCase("application/pdf")) {
+                base += ".pdf";
+            }
+        }
+        // Cloudinary public_id should not start with a dot
+        if (base.startsWith(".")) {
+            base = "file" + base;
+        }
+        return base;
+    }
+
+    // Upload any file type (auto detect) to specific folder
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> uploadAutoToFolder(MultipartFile file, String folderPath) throws IOException {
+        try {
+            String normalizedFolderPath = normalizeFolderPath(folderPath);
+
+            Map<String, Object> uploadParams = ObjectUtils.asMap(
+                    "upload_preset", "hkpcvcr8",
+                    "resource_type", "auto"
+            );
+
+            if (normalizedFolderPath != null && !normalizedFolderPath.isEmpty()) {
+                uploadParams.put("folder", normalizedFolderPath);
+            }
+
+            Map<String, Object> uploadResult = (Map<String, Object>) cloudinary.uploader().upload(
+                    file.getBytes(),
+                    uploadParams
+            );
+
+            System.out.println("Auto resource uploaded successfully to " +
+                    (normalizedFolderPath != null ? normalizedFolderPath : "root") +
+                    ": " + uploadResult.get("secure_url"));
+
+            return uploadResult;
+
+        } catch (IOException e) {
+            System.err.println("Error uploading (auto) file to folder " + folderPath + ": " + e.getMessage());
+            throw e;
+        }
+    }
+
+    // Delete a raw file by publicId
+    @SuppressWarnings("unchecked")
+    public String deleteRaw(String publicId) throws IOException {
+        try {
+            Map<String, Object> result = (Map<String, Object>) cloudinary.uploader().destroy(
+                    publicId,
+                    ObjectUtils.asMap("resource_type", "raw")
+            );
+            System.out.println("Raw file deleted: " + result.get("result"));
+            return result.get("result").toString();
+        } catch (IOException e) {
+            System.err.println("Error deleting raw file from Cloudinary: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    // Upload a profile picture from a remote URL into the user's folder
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> uploadProfilePictureFromUrl(String imageUrl, String userEmail) throws IOException {
+        try {
+            String sanitizedEmail = userEmail.replaceAll("[^a-zA-Z0-9]", "_").toLowerCase();
+            String folderPath = "users/" + sanitizedEmail;
+
+            Map<String, Object> uploadResult = (Map<String, Object>) cloudinary.uploader().upload(
+                    imageUrl,
+                    ObjectUtils.asMap(
+                            "upload_preset", "hkpcvcr8",
+                            "folder", folderPath,
+                            "public_id", "profilepic",
+                            "resource_type", "image",
+                            "overwrite", true,
+                            "unique_filename", false,
+                            "use_filename", false
+                    )
+            );
+
+            System.out.println("Profile picture (URL) uploaded successfully for user: " + userEmail +
+                    " -> " + uploadResult.get("secure_url"));
+            return uploadResult;
+
+        } catch (IOException e) {
+            System.err.println("Error uploading profile picture from URL for user " + userEmail + ": " + e.getMessage());
             throw e;
         }
     }

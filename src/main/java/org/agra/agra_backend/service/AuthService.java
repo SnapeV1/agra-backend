@@ -43,7 +43,9 @@ public class AuthService implements IAuthService {
         user.setPhone(request.getPhone());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setCountry(request.getCountry());
-        user.setLanguage(request.getLanguage());
+        // Ensure language is set; default to 'en' when not provided
+        String reqLang = request.getLanguage();
+        user.setLanguage((reqLang == null || reqLang.trim().isEmpty()) ? "en" : reqLang.trim());
         user.setDomain(request.getDomain());
         // Set role with default fallback
         String userRole = request.getRole();
@@ -51,6 +53,10 @@ public class AuthService implements IAuthService {
             userRole = "FARMER"; 
         }
         user.setRole(userRole);
+        // Default theme preference if not provided elsewhere
+        if (user.getThemePreference() == null || user.getThemePreference().isBlank()) {
+            user.setThemePreference("light");
+        }
         user.setRegisteredAt(new Date());
         user.setPicture("https://res.cloudinary.com/dmumvupow/image/upload/v1756311755/defaultPicture_bqiivg.jpg");
         User savedUser = userRepository.save(user);
@@ -76,8 +82,9 @@ public class AuthService implements IAuthService {
         }
 
         String token = jwtUtil.generateToken(user);
-        System.out.println(token);
-        return new LoginResponse(token, user);
+        LoginResponse response = new LoginResponse(token, user);
+        System.out.println("Logged in user: " + user.getEmail() + ", profileCompleted=" + response.isProfileCompleted());
+        return response;
     }
 
     private String createUserFolderName(String email) {
