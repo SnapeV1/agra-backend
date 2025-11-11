@@ -87,10 +87,11 @@ public class AuthController {
         if (token == null || token.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Missing Google ID token (token/credential)"));
         }
-        org.agra.agra_backend.payload.LoginResponse response = googleAuthService.verifyGoogleToken(token
-        );
+        org.agra.agra_backend.payload.LoginResponse response = googleAuthService.verifyGoogleToken(token);
         return ResponseEntity.ok(response);
     }
 
+    // Removed temporary "exists" endpoints in favor of flags on normal responses
 
-}
+
+}   

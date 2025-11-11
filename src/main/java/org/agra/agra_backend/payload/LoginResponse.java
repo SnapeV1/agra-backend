@@ -10,11 +10,15 @@ import org.agra.agra_backend.model.User;
 public class LoginResponse {
     private String token;
     private User user;
+    private Boolean existingAccount;
+    private String passwordResetToken;
 
     @JsonProperty("profileCompleted")
     public boolean isProfileCompleted() {
         if (user == null) return false;
-        return notBlank(user.getName())
+        // Consider profile incomplete if password is not set
+        return notBlank(user.getPassword())
+                && notBlank(user.getName())
                 && notBlank(user.getEmail())
                 && notBlank(user.getPicture())
                 && notBlank(user.getPhone())
@@ -24,4 +28,13 @@ public class LoginResponse {
     private boolean notBlank(String s) {
         return s != null && !s.trim().isEmpty();
     }
+
+    @JsonProperty("resetToken")
+    public String getResetTokenAlias() { return passwordResetToken; }
+
+    @JsonProperty("passwordToken")
+    public String getPasswordTokenAlias() { return passwordResetToken; }
+
+    @JsonProperty("verificationToken")
+    public String getVerificationTokenAlias() { return passwordResetToken; }
 }

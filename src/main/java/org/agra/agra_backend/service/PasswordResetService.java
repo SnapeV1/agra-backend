@@ -65,6 +65,38 @@ public class PasswordResetService {
         sendResetEmail(user.getEmail(), rawToken);
     }
 
+    /**
+     * Create a password reset token for the given user id and return the RAW token.
+     * Does not send an email. Intended for immediate handoff to a trusted client flow
+     * (e.g., new Google sign-in account completing password setup).
+     */
+    public String issueResetTokenForUserId(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new RuntimeException("User id is required");
+        }
+
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            throw new RuntimeException("User not found");
+        }
+
+        // Remove any existing tokens for this user
+        tokenRepository.deleteByUserId(userId);
+
+        String rawToken = generateSecureToken();
+        String tokenHash = sha256(rawToken);
+
+        PasswordResetToken prt = new PasswordResetToken();
+        prt.setTokenHash(tokenHash);
+        prt.setUserId(userId);
+        prt.setCreatedAt(new Date());
+        prt.setExpirationDate(minutesFromNow(30));
+        tokenRepository.save(prt);
+
+        log.debug("PasswordReset: Issued reset token for userId={}", userId);
+        return rawToken;
+    }
+
     private void sendResetEmail(String to, String rawToken) throws MessagingException {
         String resetUrl = frontendBaseUrl.replaceAll("/$", "") + "/reset-password?token=" + urlSafe(rawToken);
 

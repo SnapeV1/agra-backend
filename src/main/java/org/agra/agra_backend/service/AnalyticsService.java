@@ -221,15 +221,36 @@ public class AnalyticsService {
     // ===== User Analytics =====
 
     public List<Map<String, Object>> getUserGrowth(String granularity, Date start, Date end) {
+        // We want cumulative total users over time, not just new registrations per bucket
         List<User> users = userRepository.findAll();
-        Map<Date, Long> buckets = users.stream()
+
+        // Count new registrations per bucket, up to end (if provided)
+        Map<Date, Long> perBucket = users.stream()
                 .map(User::getRegisteredAt)
                 .filter(Objects::nonNull)
-                .filter(d -> start == null || !d.before(start))
                 .filter(d -> end == null || !d.after(end))
                 .map(d -> bucketDate(d, granularity))
                 .collect(Collectors.groupingBy(d -> d, TreeMap::new, Collectors.counting()));
-        return buckets.entrySet().stream().map(e -> mapPoint(e.getKey(), e.getValue())).collect(Collectors.toList());
+
+        // Baseline: users who registered before the requested start window (if start provided)
+        long baseline = 0L;
+        if (start != null) {
+            baseline = users.stream()
+                    .map(User::getRegisteredAt)
+                    .filter(Objects::nonNull)
+                    .filter(d -> d.before(start))
+                    .count();
+        }
+
+        // Build cumulative series in chronological order
+        long[] running = new long[] { baseline };
+        return perBucket.entrySet().stream()
+                .filter(e -> start == null || !e.getKey().before(bucketDate(start, granularity)))
+                .map(e -> {
+                    running[0] = running[0] + e.getValue();
+                    return mapPoint(e.getKey(), running[0]);
+                })
+                .collect(Collectors.toList());
     }
 
     public Map<String, Long> getUserRolesBreakdown() {
@@ -248,7 +269,18 @@ public class AnalyticsService {
     }
 
     public List<Map<String, Object>> getNewRegistrations(String granularity, Date start, Date end) {
-        return getUserGrowth(granularity, start, end);
+        // Non-cumulative new registrations per period (original behavior)
+        List<User> users = userRepository.findAll();
+        Map<Date, Long> buckets = users.stream()
+                .map(User::getRegisteredAt)
+                .filter(Objects::nonNull)
+                .filter(d -> start == null || !d.before(start))
+                .filter(d -> end == null || !d.after(end))
+                .map(d -> bucketDate(d, granularity))
+                .collect(Collectors.groupingBy(d -> d, TreeMap::new, Collectors.counting()));
+        return buckets.entrySet().stream()
+                .map(e -> mapPoint(e.getKey(), e.getValue()))
+                .collect(Collectors.toList());
     }
 
     public Map<String, Object> getActiveVsInactiveUsers(int days) {
@@ -325,13 +357,26 @@ public class AnalyticsService {
                     long likes = p.getLikesCount() == null ? 0L : p.getLikesCount();
                     long comments = p.getCommentsCount() == null ? 0L : p.getCommentsCount();
                     long engagement = likes + comments;
+
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("postId", p.getId());
+                    m.put("content", p.getContent());
                     m.put("likes", likes);
                     m.put("comments", comments);
                     m.put("engagement", engagement);
                     m.put("createdAt", p.getCreatedAt());
                     m.put("isCoursePost", Boolean.TRUE.equals(p.getIsCoursePost()));
+
+                    // Add author info (nested under "user_info" or directly)
+                    if (p.getUserInfo() != null) {
+                        Map<String, Object> author = new LinkedHashMap<>();
+                        author.put("name", p.getUserInfo().getName());
+                        author.put("picture", p.getUserInfo().getPicture());
+                        m.put("user_info", author);
+                    } else {
+                        m.put("user_info", Map.of("name", "Unknown", "picture", ""));
+                    }
+
                     return m;
                 })
                 .sorted(Comparator.<Map<String, Object>>comparingLong(m -> ((Number) m.get("engagement")).longValue()).reversed())

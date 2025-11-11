@@ -28,4 +28,6 @@ public class User {
     private String themePreference = "light";
     private Date registeredAt;
     private List<CourseProgress> progress;
+    private Boolean isArchived=false;
+
 }

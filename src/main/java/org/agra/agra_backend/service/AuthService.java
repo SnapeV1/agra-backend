@@ -64,7 +64,6 @@ public class AuthService implements IAuthService {
         try {
             String folderName = createUserFolderName(normalizedEmail);
             cloudinaryService.createUserFolder(folderName);
-            System.out.println("Created Cloudinary folder for user: " + folderName);
         } catch (Exception e) {
             System.err.println("Warning: Failed to create Cloudinary folder for user " + normalizedEmail + ": " + e.getMessage());
         }
@@ -82,16 +81,13 @@ public class AuthService implements IAuthService {
         }
 
         String token = jwtUtil.generateToken(user);
-        LoginResponse response = new LoginResponse(token, user);
-        // Debug: print JWT token for login
-        System.out.println("JWT Token (password login): " + token);
-        System.out.println("Logged in user: " + user.getEmail() + ", profileCompleted=" + response.isProfileCompleted());
+        LoginResponse response = new LoginResponse(token, user, true, null);
         return response;
     }
 
     private String createUserFolderName(String email) {
-        return "users/" + email.toLowerCase()
-                .replace("@", "_")
-                .replace(".", "_");
+        // Use the same sanitization strategy as CloudinaryService profile uploads
+        String sanitizedEmail = email.replaceAll("[^a-zA-Z0-9]", "_").toLowerCase();
+        return "users/" + sanitizedEmail;
     }
 }

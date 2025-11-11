@@ -25,6 +25,8 @@ public class GoogleAuthService {
     private final JwtUtil jwtService;
     private final UserRepository userRepository;
     private final CloudinaryService cloudinaryService;
+    private final PasswordResetService passwordResetService;
+
 
     public LoginResponse verifyGoogleToken(String idTokenString) {
         try {
@@ -66,12 +68,17 @@ public class GoogleAuthService {
 
             // Find existing user (normalized email) or create a new one
             User user = userRepository.findByEmail(email);
+            boolean existed = (user != null);
             if (user == null) {
                 user = new User();
                 user.setEmail(email);
                 user.setName(name);
-                // Attempt to mirror Google picture into Cloudinary like normal signup flow
-                user.setPicture(picture);
+                // Seed picture with Google URL or default just like normal signup
+                if (picture == null || picture.isBlank()) {
+                    user.setPicture("https://res.cloudinary.com/dmumvupow/image/upload/v1756311755/defaultPicture_bqiivg.jpg");
+                } else {
+                    user.setPicture(picture);
+                }
                 user.setLanguage(locale);
                 user.setDomain(hostedDomain);
                 user.setPhone(phone);
@@ -98,6 +105,7 @@ public class GoogleAuthService {
                         String uploadedUrl = upload.get("secure_url").toString();
                         user.setPicture(uploadedUrl);
                         user = userRepository.save(user);
+                        
                     } catch (Exception e) {
                         System.err.println("Warning: Failed to mirror Google avatar for user " + email + ": " + e.getMessage());
                     }
@@ -110,6 +118,7 @@ public class GoogleAuthService {
                         String uploadedUrl = upload.get("secure_url").toString();
                         user.setPicture(uploadedUrl);
                         user = userRepository.save(user);
+                        
                     } catch (Exception e) {
                         // Fall back to using Google's URL directly if Cloudinary mirror fails
                         user.setPicture(picture);
@@ -119,12 +128,19 @@ public class GoogleAuthService {
                 }
             }
 
+            // If password is unset (new or existing Google-only account), issue a reset token
+            String rawResetToken = null;
+            if (user.getPassword() == null || user.getPassword().isBlank()) {
+                try {
+                    rawResetToken = passwordResetService.issueResetTokenForUserId(user.getId());
+                } catch (Exception e) {
+                    System.err.println("Warning: Failed to issue reset token for Google user " + email + ": " + e.getMessage());
+                }
+            }
+
             // Generate JWT for your app
             String jwt = jwtService.generateToken(user);
-            LoginResponse response = new LoginResponse(jwt, user);
-            // Debug: print JWT token for Google login
-            System.out.println("JWT Token (google login): " + jwt);
-            System.out.println("Logged in (Google) user: " + user.getEmail() + ", profileCompleted=" + response.isProfileCompleted());
+            LoginResponse response = new LoginResponse(jwt, user, existed, rawResetToken);
             return response;
         } catch (Exception e) {
             throw new RuntimeException("Google verification failed", e);
