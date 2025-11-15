@@ -63,6 +63,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/cloudinary/**").permitAll()
                         .requestMatchers("/api/sessions/**").permitAll()
                         .requestMatchers("/api/news/**").permitAll()
+                        // Ticketing
+                        .requestMatchers(HttpMethod.GET, "/api/tickets").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/tickets/*/close").hasRole("ADMIN")
+                        .requestMatchers("/api/tickets/**").authenticated()
                         // WebSocket/STOMP endpoints
                         .requestMatchers("/ws/**", "/ws-sockjs/**").permitAll()
                         // Notifications: public list, but unseen/mark-seen require auth

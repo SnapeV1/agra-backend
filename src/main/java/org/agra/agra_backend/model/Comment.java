@@ -1,8 +1,7 @@
 package org.agra.agra_backend.model;
 
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import lombok.*;
+import org.agra.agra_backend.payload.UserInfo;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -15,6 +14,8 @@ import java.time.ZoneOffset;
 
 @Document(collection = "comments")
 @Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class Comment {
@@ -30,7 +31,7 @@ public class Comment {
     private String userId;
 
     @Field("user_info")
-    private User userInfo;
+    private UserInfo userInfo;
 
     @Field("content")
     private String content;
@@ -60,7 +61,7 @@ public class Comment {
     @Transient
     private java.util.List<Comment> replies;
 
-    public Comment(String postId, String userId, User userInfo, String content) {
+    public Comment(String postId, String userId, UserInfo userInfo, String content) {
         this.postId = postId;
         this.userId = userId;
         this.userInfo = userInfo;
@@ -70,7 +71,7 @@ public class Comment {
         this.updatedAt = this.createdAt;
     }
 
-    public Comment(String postId, String userId, User userInfo, String content,
+    public Comment(String postId, String userId, UserInfo userInfo, String content,
                    String parentCommentId, String replyToUserId) {
         this(postId, userId, userInfo, content);
         this.parentCommentId = parentCommentId;

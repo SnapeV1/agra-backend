@@ -1,6 +1,7 @@
 package org.agra.agra_backend.model;
 
 import lombok.*;
+import org.agra.agra_backend.payload.UserInfo;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -25,7 +26,7 @@ public class Post {
     private String userId;
 
     @Field("user_info")
-    private User userInfo;
+    private UserInfo userInfo;
 
     private String content;
 

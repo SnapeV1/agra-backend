@@ -290,8 +290,13 @@ PostController(PostService postService, UserService userService, SimpMessagingTe
 
 
     @GetMapping("/sorted")
-    public ResponseEntity<List<Post>> getAllPostsSortedByDate() {
-        List<Post> posts = postService.getAllPostsSortedByDate();
+    public ResponseEntity<List<Post>> getAllPostsSorted(
+            @RequestParam(required = false) String currentUserId,
+            @RequestParam(defaultValue = "false") boolean loadComments,
+            @RequestParam(defaultValue = "3") int commentLimit
+    ) {
+        List<Post> posts = postService.getPostsWithDetails(currentUserId, loadComments, commentLimit);
         return ResponseEntity.ok(posts);
     }
+
 }
