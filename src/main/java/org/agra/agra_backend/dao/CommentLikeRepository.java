@@ -2,6 +2,7 @@ package org.agra.agra_backend.dao;
 
 import org.agra.agra_backend.model.CommentLike;
 import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -14,4 +15,10 @@ public interface CommentLikeRepository extends MongoRepository<CommentLike, Stri
     long countByCommentId(String commentId);
     List<CommentLike> findByUserIdAndCommentIdIn(String userId, List<String> commentIds);
     void deleteByCommentId(String commentId);
+
+    @Query(value = "{ 'commentId': ?0, $or: [ { 'active': true }, { 'active': { $exists: false } } ] }", count = true)
+    long countActiveByCommentId(String commentId);
+
+    @Query(value = "{ 'userId': ?0, 'commentId': { $in: ?1 }, $or: [ { 'active': true }, { 'active': { $exists: false } } ] }")
+    List<CommentLike> findActiveByUserIdAndCommentIdIn(String userId, List<String> commentIds);
 }

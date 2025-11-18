@@ -179,6 +179,37 @@ public class CloudinaryService {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> uploadTicketAttachment(MultipartFile file, String userId, String ticketId) throws IOException {
+        try {
+            String safeUser = sanitizeIdentifier(userId);
+            String safeTicket = sanitizeIdentifier(ticketId);
+            String folderPath = "tickets/" + safeUser + "/" + safeTicket;
+            String publicId = buildTicketAttachmentPublicId(file.getOriginalFilename());
+
+            Map<String, Object> uploadResult = (Map<String, Object>) cloudinary.uploader().upload(
+                    file.getBytes(),
+                    ObjectUtils.asMap(
+                            "upload_preset", "hkpcvcr8",
+                            "folder", folderPath,
+                            "public_id", publicId,
+                            "resource_type", "image",
+                            "overwrite", false,
+                            "unique_filename", false,
+                            "use_filename", false
+                    )
+            );
+
+            System.out.println("Ticket attachment uploaded successfully: folder=" + folderPath
+                    + " url=" + uploadResult.get("secure_url"));
+            return uploadResult;
+
+        } catch (IOException e) {
+            System.err.println("Error uploading ticket attachment for user=" + userId + ", ticket=" + ticketId + ": " + e.getMessage());
+            throw e;
+        }
+    }
+
     // Upload raw file (documents, zips, etc.) to specific folder
     @SuppressWarnings("unchecked")
     public Map<String, Object> uploadRawToFolder(MultipartFile file, String folderPath) throws IOException {
@@ -255,6 +286,21 @@ public class CloudinaryService {
             base = "file" + base;
         }
         return base;
+    }
+
+    private String sanitizeIdentifier(String value) {
+        if (value == null || value.isBlank()) {
+            return "unknown";
+        }
+        return value.replaceAll("[^a-zA-Z0-9_-]", "_").toLowerCase();
+    }
+
+    private String buildTicketAttachmentPublicId(String originalName) {
+        String sanitized = sanitizeFilenameKeepingExtension(originalName, null);
+        if (sanitized == null || sanitized.isBlank()) {
+            sanitized = "attachment_" + System.currentTimeMillis();
+        }
+        return sanitized;
     }
 
     // Upload any file type (auto detect) to specific folder

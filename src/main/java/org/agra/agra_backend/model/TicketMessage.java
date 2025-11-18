@@ -33,6 +33,7 @@ public class TicketMessage {
     private UserInfo recipient;
 
     private String content;
+    private String attachmentUrl;
     private LocalDateTime timestamp;
     private boolean isAdminMessage;
 }

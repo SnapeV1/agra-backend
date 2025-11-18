@@ -3,5 +3,6 @@ public enum NotificationType {
     SYSTEM,
     SESSION,
     COURSE,
-    POST
+    POST,
+    TICKET
 }

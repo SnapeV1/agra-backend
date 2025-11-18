@@ -24,6 +24,7 @@ public class Ticket {
     private UserInfo adminInfo;
 
     private String subject;
+    private String attachmentUrl;
     private TicketStatus status = TicketStatus.OPEN;
 
     private LocalDateTime createdAt;

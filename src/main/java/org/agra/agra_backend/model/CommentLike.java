@@ -23,4 +23,7 @@ public class CommentLike {
 
     @CreatedDate
     private LocalDateTime createdAt;
+
+    // Soft-toggle flag mirroring post likes. Null is treated as active for legacy documents.
+    private Boolean active;
 }

@@ -82,9 +82,11 @@ PostController(PostService postService, UserService userService, SimpMessagingTe
     public ResponseEntity<List<Post>> getPostsWithDetails(
             @RequestParam(required = false) String currentUserId,
             @RequestParam(defaultValue = "false") boolean loadComments,
-            @RequestParam(defaultValue = "3") int commentLimit
+            @RequestParam(defaultValue = "3") int commentLimit,
+            Authentication authentication
     ) {
-        List<Post> posts = postService.getPostsWithDetails(currentUserId, loadComments, commentLimit);
+        String effectiveUserId = resolveUserId(currentUserId, authentication);
+        List<Post> posts = postService.getPostsWithDetails(effectiveUserId, loadComments, commentLimit);
         return ResponseEntity.ok(posts);
     }
 
@@ -108,9 +110,11 @@ PostController(PostService postService, UserService userService, SimpMessagingTe
     public ResponseEntity<List<Comment>> getComments(
             @PathVariable String postId,
             @RequestParam(required = false) String currentUserId,
-            @RequestParam(defaultValue = "10") int limit
+            @RequestParam(defaultValue = "10") int limit,
+            Authentication authentication
     ) {
-        List<Comment> comments = postService.getCommentsForPost(postId, currentUserId, limit);
+        String effectiveUserId = resolveUserId(currentUserId, authentication);
+        List<Comment> comments = postService.getCommentsForPost(postId, effectiveUserId, limit);
         return ResponseEntity.ok(comments);
     }
 
@@ -251,41 +255,14 @@ PostController(PostService postService, UserService userService, SimpMessagingTe
         }
         return ResponseEntity.ok(result.isLiked ? "Post liked!" : "Post unliked!");
     }
-
-
-    @PostMapping("/comments/{commentId}/like")
-    public ResponseEntity<String> toggleCommentLike(
-            @PathVariable String commentId,
-            @RequestParam(required = false) String userId,
-            @RequestParam(required = false) String username,
-            Authentication authentication
-    ) {
-        User userInfo;
-        String effectiveUserId;
-
-        if (authentication != null && authentication.getPrincipal() instanceof User) {
-            userInfo = (User) authentication.getPrincipal();
-            effectiveUserId = userInfo.getId();
-        } else {
-            if (userId == null || userId.trim().isEmpty()) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body("Missing required parameter: userId");
-            }
-            userInfo = new User();
-            userInfo.setId(userId);
-            userInfo.setName(username);
-            effectiveUserId = userId;
-        }
-
-        boolean isLiked = postService.toggleCommentLike(commentId, effectiveUserId, userInfo);
-        return ResponseEntity.ok(isLiked ? "Comment liked!" : "Comment unliked!");
-    }
     @GetMapping("/paginated")
     public Page<Post> getPaginatedPosts(
             @RequestParam(required = false) String currentUserId,
-            Pageable pageable
+            Pageable pageable,
+            Authentication authentication
     ) {
-        return postService.getPostsPaginated(currentUserId, pageable);
+        String effectiveUserId = resolveUserId(currentUserId, authentication);
+        return postService.getPostsPaginated(effectiveUserId, pageable);
     }
 
 
@@ -293,10 +270,21 @@ PostController(PostService postService, UserService userService, SimpMessagingTe
     public ResponseEntity<List<Post>> getAllPostsSorted(
             @RequestParam(required = false) String currentUserId,
             @RequestParam(defaultValue = "false") boolean loadComments,
-            @RequestParam(defaultValue = "3") int commentLimit
+            @RequestParam(defaultValue = "3") int commentLimit,
+            Authentication authentication
     ) {
-        List<Post> posts = postService.getPostsWithDetails(currentUserId, loadComments, commentLimit);
+        String effectiveUserId = resolveUserId(currentUserId, authentication);
+        List<Post> posts = postService.getPostsWithDetails(effectiveUserId, loadComments, commentLimit);
         return ResponseEntity.ok(posts);
     }
 
+    private String resolveUserId(String candidate, Authentication authentication) {
+        if (candidate != null && !candidate.trim().isEmpty()) {
+            return candidate;
+        }
+        if (authentication != null && authentication.getPrincipal() instanceof User user) {
+            return user.getId();
+        }
+        return null;
+    }
 }

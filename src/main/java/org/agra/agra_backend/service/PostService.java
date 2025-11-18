@@ -114,10 +114,12 @@ public class PostService {
                     .findByPostIdAndParentCommentIdIsNullOrderByCreatedAtDesc(postId);
         }
 
+        comments.forEach(this::ensureCommentDefaults);
+
         // Enrich like status for top-level comments
         if (currentUserId != null && !comments.isEmpty()) {
             List<String> commentIds = comments.stream().map(Comment::getId).collect(Collectors.toList());
-            Map<String, Boolean> likeStatusMap = getLikeStatusForTargets(currentUserId, TARGET_TYPE_COMMENT, commentIds);
+            Map<String, Boolean> likeStatusMap = getCommentLikeStatusMap(currentUserId, commentIds);
             comments.forEach(comment ->
                     comment.setIsLikedByCurrentUser(likeStatusMap.getOrDefault(comment.getId(), false))
             );
@@ -128,11 +130,12 @@ public class PostService {
             comment.setUserInfo(buildUserSummaryCached(comment.getUserId(), userCache));
 
             List<Comment> replies = commentRepository.findByParentCommentIdOrderByCreatedAtAsc(comment.getId());
+            replies.forEach(this::ensureCommentDefaults);
             replies.forEach(reply -> reply.setUserInfo(buildUserSummaryCached(reply.getUserId(), userCache)));
 
             if (currentUserId != null && !replies.isEmpty()) {
                 List<String> replyIds = replies.stream().map(Comment::getId).collect(Collectors.toList());
-                Map<String, Boolean> replyLikeStatus = getLikeStatusForTargets(currentUserId, TARGET_TYPE_COMMENT, replyIds);
+                Map<String, Boolean> replyLikeStatus = getCommentLikeStatusMap(currentUserId, replyIds);
                 replies.forEach(reply -> reply.setIsLikedByCurrentUser(replyLikeStatus.getOrDefault(reply.getId(), false)));
             }
             comment.setReplies(replies);
@@ -257,28 +260,41 @@ public class PostService {
 
     @Transactional
     public boolean toggleCommentLike(String commentId, String userId, User userInfo) {
-        boolean isLiked = toggleLike(userId, userInfo, TARGET_TYPE_COMMENT, commentId);
+        Optional<CommentLike> existing = commentLikeRepository.findByUserIdAndCommentId(userId, commentId);
+        boolean isLiked;
+
+        if (existing.isPresent()) {
+            CommentLike like = existing.get();
+            boolean currentlyActive = like.getActive() == null || Boolean.TRUE.equals(like.getActive());
+            if (currentlyActive) {
+                like.setActive(false);
+                isLiked = false;
+            } else {
+                like.setActive(true);
+                isLiked = true;
+            }
+            commentLikeRepository.save(like);
+        } else if (likeRepository.existsByUserIdAndTargetTypeAndTargetId(userId, TARGET_TYPE_COMMENT, commentId)) {
+            // Legacy like stored in the generic collection: delete to emulate an "unlike"
+            likeRepository.deleteByUserIdAndTargetTypeAndTargetId(userId, TARGET_TYPE_COMMENT, commentId);
+            isLiked = false;
+        } else {
+            CommentLike like = new CommentLike();
+            like.setUserId(userId);
+            like.setCommentId(commentId);
+            like.setActive(true);
+            commentLikeRepository.save(like);
+            isLiked = true;
+        }
 
         commentRepository.findById(commentId).ifPresent(comment -> {
-            long count = likeRepository.countByTargetTypeAndTargetId(TARGET_TYPE_COMMENT, commentId);
-            comment.setLikesCount(count);
+            long modernLikes = commentLikeRepository.countActiveByCommentId(commentId);
+            long legacyLikes = likeRepository.countByTargetTypeAndTargetId(TARGET_TYPE_COMMENT, commentId);
+            comment.setLikesCount(modernLikes + legacyLikes);
             commentRepository.save(comment);
         });
 
         return isLiked;
-    }
-
-    private boolean toggleLike(String userId, User userInfo, String targetType, String targetId) {
-        Optional<Like> existing = likeRepository.findByUserIdAndTargetTypeAndTargetId(userId, targetType, targetId);
-
-        if (existing.isPresent()) {
-            likeRepository.delete(existing.get());
-            return false;
-        } else {
-            Like newLike = new Like(userId, userInfo, targetType, targetId);
-            likeRepository.save(newLike);
-            return true;
-        }
     }
 
     /* ============================================================
@@ -348,13 +364,35 @@ public class PostService {
         return postIds.stream().collect(Collectors.toMap(id -> id, likedIds::contains));
     }
 
-    public Map<String, Boolean> getLikeStatusForTargets(String userId, String targetType, List<String> targetIds) {
-        if (userId == null || targetIds.isEmpty())
-            return targetIds.stream().collect(Collectors.toMap(id -> id, id -> false));
+    private Map<String, Boolean> getCommentLikeStatusMap(String userId, List<String> commentIds) {
+        if (commentIds == null || commentIds.isEmpty()) {
+            return commentIds == null ? Collections.emptyMap()
+                    : commentIds.stream().collect(Collectors.toMap(id -> id, id -> false));
+        }
 
-        List<Like> likes = likeRepository.findByUserIdAndTargetTypeAndTargetIdIn(userId, targetType, targetIds);
-        Set<String> likedIds = likes.stream().map(Like::getTargetId).collect(Collectors.toSet());
-        return targetIds.stream().collect(Collectors.toMap(id -> id, likedIds::contains));
+        if (userId == null) {
+            return commentIds.stream().collect(Collectors.toMap(id -> id, id -> false));
+        }
+
+        Set<String> likedIds = new HashSet<>();
+
+        List<CommentLike> commentLikes = commentLikeRepository.findActiveByUserIdAndCommentIdIn(userId, commentIds);
+        likedIds.addAll(commentLikes.stream().map(CommentLike::getCommentId).collect(Collectors.toSet()));
+
+        List<Like> legacyLikes = likeRepository.findByUserIdAndTargetTypeAndTargetIdIn(userId, TARGET_TYPE_COMMENT, commentIds);
+        likedIds.addAll(legacyLikes.stream().map(Like::getTargetId).collect(Collectors.toSet()));
+
+        return commentIds.stream().collect(Collectors.toMap(id -> id, likedIds::contains));
+    }
+
+    private void ensureCommentDefaults(Comment comment) {
+        if (comment == null) return;
+        if (comment.getLikesCount() == null) {
+            comment.setLikesCount(0L);
+        }
+        if (comment.getIsLikedByCurrentUser() == null) {
+            comment.setIsLikedByCurrentUser(false);
+        }
     }
 
     /* ============================================================

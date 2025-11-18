@@ -7,8 +7,9 @@ public class CreateTicketRequest {
     @NotBlank
     private String subject;
 
-    @NotBlank
     private String message;
+
+    private String attachmentUrl;
 
     public String getSubject() {
         return subject;
@@ -25,5 +26,12 @@ public class CreateTicketRequest {
     public void setMessage(String message) {
         this.message = message;
     }
-}
 
+    public String getAttachmentUrl() {
+        return attachmentUrl;
+    }
+
+    public void setAttachmentUrl(String attachmentUrl) {
+        this.attachmentUrl = attachmentUrl;
+    }
+}
