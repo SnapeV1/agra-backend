@@ -3,6 +3,7 @@ package org.agra.agra_backend.controller;
 import org.agra.agra_backend.dao.NewsArticleRepository;
 import org.agra.agra_backend.model.NewsArticle;
 import org.agra.agra_backend.service.NewsService;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -72,6 +73,7 @@ public class NewsController {
     }
 
     @GetMapping("/getnews")
+    @Cacheable(cacheNames = "news:list", key = "T(java.util.Objects).toString(#country) + '|' + T(java.util.Objects).toString(#date)")
     public java.util.List<NewsArticle> getAllNews(
             @RequestParam(required = false) String country,
             @RequestParam(required = false) String date
@@ -91,6 +93,7 @@ public class NewsController {
     }
 
     @GetMapping("/all")
+    @Cacheable(cacheNames = "news:list", key = "'all'")
     public java.util.List<NewsArticle> getAll() {
         var list = repository.findAll();
         log.debug("GET /api/news/all - resultCount={}", list.size());

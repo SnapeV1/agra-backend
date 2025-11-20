@@ -3,6 +3,9 @@ package org.agra.agra_backend.service;
 import org.agra.agra_backend.dao.*;
 import org.agra.agra_backend.model.*;
 import org.agra.agra_backend.payload.UserInfo;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -49,6 +52,7 @@ public class PostService {
        ===============  FEED POST RETRIEVAL  ======================
        ============================================================ */
 
+    @Cacheable(cacheNames = "feed:recent", key = "#currentUserId + '|list|' + #loadComments + '|' + #commentLimit")
     public List<Post> getPostsWithDetails(String currentUserId, boolean loadComments, int commentLimit) {
         List<Post> posts = postRepository.findByIsCoursePostOrderByCreatedAtDesc(false);
 
@@ -78,6 +82,7 @@ public class PostService {
         return posts;
     }
 
+    @Cacheable(cacheNames = "feed:recent", key = "#currentUserId + '|page|' + #pageable.pageNumber + '|' + #pageable.pageSize")
     public Page<Post> getPostsPaginated(String currentUserId, Pageable pageable) {
         Page<Post> posts = postRepository.findByIsCoursePostOrderByCreatedAtDesc(false, pageable);
 
@@ -149,6 +154,9 @@ public class PostService {
        ============================================================ */
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = {"feed:recent", "feed:topPosts"}, allEntries = true)
+    })
     public Comment addComment(String postId, String userId, User user, String content) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("Post not found"));
@@ -163,6 +171,9 @@ public class PostService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = {"feed:recent", "feed:topPosts"}, allEntries = true)
+    })
     public Comment addReply(String postId, String parentCommentId, String userId, User user,
                             String content, String replyToUserId) {
         Comment parent = commentRepository.findById(parentCommentId)
@@ -180,6 +191,9 @@ public class PostService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = {"feed:recent", "feed:topPosts"}, allEntries = true)
+    })
     public void deleteComment(String commentId, String userId) {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new RuntimeException("Comment not found"));
@@ -220,6 +234,9 @@ public class PostService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = {"feed:recent", "feed:topPosts"}, allEntries = true)
+    })
     public ToggleLikeResult togglePostLike(String postId, String userId, User userInfo) {
         Optional<PostLike> existingOpt = postLikeRepository.findByUserIdAndPostId(userId, postId);
         boolean isLiked;
@@ -259,6 +276,9 @@ public class PostService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = {"feed:recent", "feed:topPosts"}, allEntries = true)
+    })
     public boolean toggleCommentLike(String commentId, String userId, User userInfo) {
         Optional<CommentLike> existing = commentLikeRepository.findByUserIdAndCommentId(userId, commentId);
         boolean isLiked;
@@ -302,6 +322,9 @@ public class PostService {
        ============================================================ */
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = {"feed:recent", "feed:topPosts"}, allEntries = true)
+    })
     public void deletePost(String postId, String userId) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("Post not found or unauthorized"));
@@ -324,6 +347,9 @@ public class PostService {
         return postRepository.findAllByOrderByCreatedAtDesc();
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = {"feed:recent", "feed:topPosts"}, allEntries = true)
+    })
     public Post createPostWithImage(String userId, User user, String content,
                                     MultipartFile imageFile, boolean isCoursePost, String courseId) throws IOException {
         Post post = new Post();

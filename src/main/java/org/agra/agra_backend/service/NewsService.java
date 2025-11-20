@@ -2,6 +2,9 @@ package org.agra.agra_backend.service;
 
 import org.agra.agra_backend.dao.NewsArticleRepository;
 import org.agra.agra_backend.model.NewsArticle;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,6 +34,7 @@ public class NewsService {
         this.repository = repository;
     }
 
+    @CacheEvict(cacheNames = {"news:list", "news:latest"}, allEntries = true)
     public void fetchWeeklyNews() {
         String[] countries = {"tn", "dz", "ma", "eg", "ly", "mr"};
         log.info("NewsService.fetchWeeklyNews - start (countries={})", java.util.Arrays.toString(countries));
@@ -109,6 +113,11 @@ public class NewsService {
     /**
      * Fetch agriculture news for North African countries immediately and return saved articles.
      */
+    @Caching(cacheable = {
+            @Cacheable(cacheNames = "news:latest", key = "'north-africa'")
+    }, evict = {
+            @CacheEvict(cacheNames = "news:list", allEntries = true, beforeInvocation = false)
+    })
     public java.util.List<NewsArticle> fetchNorthAfricaAgricultureNow() {
         String[] countries = {"tn", "dz", "ma", "eg", "ly", "mr"};
         java.util.List<NewsArticle> collected = new java.util.ArrayList<>();

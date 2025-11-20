@@ -23,6 +23,8 @@ public class CourseProgress {
     private Date startedAt;
     private boolean completed;
     private String certificateUrl;
+    private String certificateCode;
+    private Date certificateIssuedAt;
     private int progressPercentage = 0;
     
     // Lesson tracking fields

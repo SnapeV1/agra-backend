@@ -4,6 +4,7 @@ import org.agra.agra_backend.dao.*;
 import org.agra.agra_backend.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.messaging.simp.user.SimpUserRegistry;
 import org.springframework.stereotype.Service;
 
@@ -88,6 +89,7 @@ public class AnalyticsService {
                 .collect(Collectors.toList());
     }
 
+    @Cacheable(cacheNames = "courses:featured", key = "#metric + '|' + #limit")
     public List<Map<String, Object>> getTopCourses(String metric, int limit) {
         List<Course> courses = courseRepository.findAll();
         Map<String, String> courseTitles = courses.stream()
@@ -351,6 +353,7 @@ public class AnalyticsService {
         return buckets.entrySet().stream().map(e -> mapPoint(e.getKey(), e.getValue())).collect(Collectors.toList());
     }
 
+    @Cacheable(cacheNames = "feed:topPosts", key = "'engagement|' + #limit")
     public List<Map<String, Object>> getTopPostsByEngagement(int limit) {
         return postRepository.findAll().stream()
                 .map(p -> {

@@ -4,7 +4,9 @@ package org.agra.agra_backend.service;
 import org.agra.agra_backend.dao.CourseRepository;
 import org.agra.agra_backend.model.Course;
 import org.agra.agra_backend.model.CourseProgress;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -30,6 +32,9 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
     this.courseProgressService=courseProgressService;
 
 }
+    @Caching(evict = {
+            @CacheEvict(value = {"courses:all", "courses:detail", "courses:country", "courses:domain", "courses:featured"}, allEntries = true)
+    })
     public Course createCourse(Course course, MultipartFile courseImage) throws IOException {
         course.setCreatedAt(new java.util.Date());
         course.setUpdatedAt(new java.util.Date());
@@ -53,11 +58,13 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
     }
 
 
+    @Cacheable(cacheNames = "courses:all", key = "'all'")
     public List<Course> getAllCourses() {
         return courseRepository.findAll();
     }
 
 
+    @Cacheable(cacheNames = "courses:detail", key = "#id")
     public Optional<Course> getCourseById(String id) {
         System.out.println("CourseService: getCourseById called with id: " + id);
         Optional<Course> result = courseRepository.findById(id);
@@ -72,6 +79,9 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
     }
 
 
+    @Caching(evict = {
+            @CacheEvict(value = {"courses:all", "courses:detail", "courses:country", "courses:domain", "courses:featured"}, allEntries = true)
+    })
     public Optional<Course> updateCourse(String id, Course updatedCourse, MultipartFile courseImage) throws IOException {
         return courseRepository.findById(id).map(existingCourse -> {
 
@@ -164,6 +174,9 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
         return existingCourse;
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = {"courses:all", "courses:detail", "courses:country", "courses:domain", "courses:featured"}, allEntries = true)
+    })
     public void deleteCourse(String id) {
         System.out.println("CourseService: Deleting course with id: " + id);
         
@@ -187,6 +200,9 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
     }
 
 
+    @Caching(evict = {
+            @CacheEvict(value = {"courses:all", "courses:detail", "courses:country", "courses:domain", "courses:featured"}, allEntries = true)
+    })
     public void ArchiveCourse(String id) {
         Optional<Course> courseOpt = courseRepository.findById(id);
         if (courseOpt.isPresent()) {
@@ -200,15 +216,20 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
     }
 
 
+    @Cacheable(cacheNames = "courses:country", key = "#country")
     public List<Course> getCoursesByCountry(String country) {
         return courseRepository.findByCountry(country);
     }
 
 
+    @Cacheable(cacheNames = "courses:domain", key = "#domain")
     public List<Course> getCoursesByDomain(String domain) {
         return courseRepository.findByDomain(domain);
     }
     
+    @Caching(evict = {
+            @CacheEvict(value = {"courses:all", "courses:detail", "courses:country", "courses:domain", "courses:featured"}, allEntries = true)
+    })
     public Course save(Course course) {
         return courseRepository.save(course);
     }

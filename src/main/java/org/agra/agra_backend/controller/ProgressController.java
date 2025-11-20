@@ -1,7 +1,9 @@
 package org.agra.agra_backend.controller;
 
+import org.agra.agra_backend.model.CertificateRecord;
 import org.agra.agra_backend.model.CourseProgress;
 import org.agra.agra_backend.model.User;
+import org.agra.agra_backend.service.CertificateService;
 import org.agra.agra_backend.service.CourseProgressService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,9 +22,12 @@ import java.util.Optional;
 public class ProgressController {
 
     private final CourseProgressService courseProgressService;
+    private final CertificateService certificateService;
 
-    public ProgressController(CourseProgressService courseProgressService) {
+    public ProgressController(CourseProgressService courseProgressService,
+                              CertificateService certificateService) {
         this.courseProgressService = courseProgressService;
+        this.certificateService = certificateService;
     }
 
     @PutMapping("/lesson/progress")
@@ -335,14 +340,26 @@ public class ProgressController {
 
             CourseProgress updatedProgress = courseProgressService.markCourseComplete(userId, courseId, completedAt);
 
-            return ResponseEntity.ok(Map.of(
-                    "message", "Course marked as complete",
-                    "courseId", updatedProgress.getCourseId(),
-                    "completed", updatedProgress.isCompleted(),
-                    "progressPercentage", updatedProgress.getProgressPercentage(),
-                    "completedAt", completedAt,
-                    "certificateUrl", updatedProgress.getCertificateUrl()
-            ));
+            CertificateRecord certificateRecord = null;
+            if (updatedProgress.getCertificateUrl() != null) {
+                certificateRecord = certificateService.recordIssuance(updatedProgress, updatedProgress.getCertificateUrl(), completedAt);
+            }
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Course marked as complete");
+            response.put("courseId", updatedProgress.getCourseId());
+            response.put("completed", updatedProgress.isCompleted());
+            response.put("progressPercentage", updatedProgress.getProgressPercentage());
+            response.put("completedAt", completedAt);
+            if (certificateRecord != null) {
+                response.put("certificateUrl", certificateRecord.getCertificateUrl());
+                response.put("certificateCode", certificateRecord.getCertificateCode());
+                response.put("certificateIssuedAt", certificateRecord.getIssuedAt());
+            } else if (updatedProgress.getCertificateUrl() != null) {
+                response.put("certificateUrl", updatedProgress.getCertificateUrl());
+            }
+
+            return ResponseEntity.ok(response);
 
         } catch (RuntimeException e) {
             if (e.getMessage().contains("not enrolled")) {
@@ -373,13 +390,20 @@ public class ProgressController {
             return courseProgressService.getEnrollmentStatus(userId, courseId)
                     .map(progress -> {
                         if (progress.isCompleted() && progress.getCertificateUrl() != null) {
-                            return ResponseEntity.ok(Map.of(
-                                    "certificateUrl", progress.getCertificateUrl(),
-                                    "courseId", progress.getCourseId(),
-                                    "userId", userId,
-                                    "completedAt", progress.getStartedAt(), // This should be completion date
-                                    "message", "Certificate available for download"
-                            ));
+                            Map<String, Object> payload = new HashMap<>();
+                            payload.put("certificateUrl", progress.getCertificateUrl());
+                            payload.put("courseId", progress.getCourseId());
+                            payload.put("userId", userId);
+                            payload.put("completedAt", progress.getStartedAt());
+                            payload.put("message", "Certificate available for download");
+
+                            certificateService.findByCourseAndUser(courseId, userId)
+                                    .ifPresent(record -> {
+                                        payload.put("certificateCode", record.getCertificateCode());
+                                        payload.put("certificateIssuedAt", record.getIssuedAt());
+                                    });
+
+                            return ResponseEntity.ok(payload);
                         } else if (!progress.isCompleted()) {
                             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                                     .body(Map.of("error", "Course not completed yet"));
@@ -397,44 +421,5 @@ public class ProgressController {
         }
     }
 
-    @PostMapping("/certificate/generate/{courseId}")
-    public ResponseEntity<?> generateCertificate(
-            @PathVariable String courseId,
-            Authentication authentication) {
-        try {
-            if (authentication == null || authentication.getPrincipal() == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("error", "Authentication required"));
-            }
 
-            User user = (User) authentication.getPrincipal();
-            String userId = user.getId();
-
-            return courseProgressService.getEnrollmentStatus(userId, courseId)
-                    .map(progress -> {
-                        if (progress.isCompleted()) {
-                            // Generate or update certificate URL
-                            String certificateUrl = "https://certificates.agra.com/course/" + courseId + "/user/" + userId + "/certificate.pdf";
-                            progress.setCertificateUrl(certificateUrl);
-                            courseProgressService.updateProgress(userId, courseId, progress.getProgressPercentage());
-                            
-                            return ResponseEntity.ok(Map.of(
-                                    "message", "Certificate generated successfully",
-                                    "certificateUrl", certificateUrl,
-                                    "courseId", courseId,
-                                    "userId", userId
-                            ));
-                        } else {
-                            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                                    .body(Map.of("error", "Course must be completed before generating certificate"));
-                        }
-                    })
-                    .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
-                            .body(Map.of("error", "User is not enrolled in this course")));
-
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Failed to generate certificate"));
-        }
-    }
 }

@@ -4,6 +4,9 @@ import org.agra.agra_backend.model.User;
 import org.agra.agra_backend.dao.UserRepository;
 
 import org.agra.agra_backend.model.UserRole;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -35,10 +38,14 @@ public class UserService implements IUserService {
 
 
 
+    @Cacheable(cacheNames = "users:dashboard", key = "'all'")
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "users:dashboard", allEntries = true)
+    })
     public User saveUser(User user) {
         // Ensure password is encoded if provided as plain text
         if (user.getPassword() != null && !user.getPassword().isBlank() && !isBcrypt(user.getPassword())) {
@@ -57,6 +64,10 @@ public class UserService implements IUserService {
     }
 
 
+    @Caching(evict = {
+            @CacheEvict(value = "users:profile", key = "#user.id", condition = "#user != null && #user.id != null"),
+            @CacheEvict(value = "users:dashboard", allEntries = true)
+    })
     public User updateUser(User user) {
         User existingUser = findById(user.getId());
 
@@ -95,6 +106,10 @@ public class UserService implements IUserService {
         return userRepository.save(user);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "users:profile", key = "#user.id", condition = "#user != null && #user.id != null"),
+            @CacheEvict(value = "users:dashboard", allEntries = true)
+    })
     public User updateUser(User user, MultipartFile profilePicture) throws IOException {
         User existingUser = findById(user.getId());
 
@@ -187,6 +202,10 @@ public class UserService implements IUserService {
         return value.startsWith("$2a$") || value.startsWith("$2b$") || value.startsWith("$2y$");
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "users:profile", key = "#id", beforeInvocation = true),
+            @CacheEvict(value = "users:dashboard", allEntries = true)
+    })
     public void deleteUser(Long id) {
         if (userRepository.existsById(String.valueOf(id))) {
             userRepository.deleteById(String.valueOf(id));
@@ -194,6 +213,7 @@ public class UserService implements IUserService {
             throw new RuntimeException("User with id " + id + " not found");
         }
     }
+    @Cacheable(cacheNames = "users:profile", key = "#id")
     public User findById(String id) {
         return this.userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
@@ -249,6 +269,10 @@ public class UserService implements IUserService {
      * Change the authenticated user's password.
      * Validates the current password before updating to the new encoded password.
      */
+    @Caching(evict = {
+            @CacheEvict(value = "users:profile", key = "#userId"),
+            @CacheEvict(value = "users:dashboard", allEntries = true)
+    })
     public void changePassword(String userId, String currentPassword, String newPassword) {
         if (newPassword == null || newPassword.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password must not be empty");
