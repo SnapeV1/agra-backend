@@ -3,7 +3,6 @@ package org.agra.agra_backend.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -43,50 +42,9 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Admin endpoints (avoid PathPattern "**" mid-path which is invalid)
-                        .requestMatchers("/api/courses/admin/**").hasRole("ADMIN")
-                        // Specific admin-only operations
-                        .requestMatchers(HttpMethod.POST, "/api/news/fetch-weekly").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/courses/addCourse").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/courses/updateCourse/*").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/courses/ArchiveCourse/*").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/courses/delete/*").hasRole("ADMIN")
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/health/**").permitAll()
-                        .requestMatchers("/api/courses/*/enrollment-status").authenticated()
-                        .requestMatchers("/api/courses/*/enroll").authenticated()
-                        .requestMatchers("/api/courses/enrolled").authenticated()
-                        .requestMatchers("/api/progress/**").authenticated()
-                        .requestMatchers("/api/courses/**").permitAll()
-                        .requestMatchers("/api/certificates/validate/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/certificates/admin/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/certificates/statistics").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/certificates/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/certificates/*/revoke").hasRole("ADMIN")
-                        .requestMatchers("/api/certificates/user/**").authenticated()
-                        .requestMatchers("/api/users/**").permitAll()
-                        .requestMatchers("/api/posts/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/contact").permitAll()
-                        .requestMatchers("/api/comments/**").permitAll()
-                        .requestMatchers("/api/cloudinary/**").permitAll()
-                        .requestMatchers("/api/sessions/**").permitAll()
-                        .requestMatchers("/api/news/**").permitAll()
-                        // Ticketing
-                        .requestMatchers(HttpMethod.GET, "/api/tickets").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, "/api/tickets/*/close").hasRole("ADMIN")
-                        .requestMatchers("/api/tickets/**").authenticated()
-                        // WebSocket/STOMP endpoints
                         .requestMatchers("/ws/**", "/ws-sockjs/**").permitAll()
-                        // Notifications: public list, but unseen/mark-seen require auth
-                        .requestMatchers(HttpMethod.DELETE, "/api/notifications").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/notifications/delete").authenticated()
-                        .requestMatchers("/api/notifications/me").authenticated()
-                        .requestMatchers("/api/notifications/unseen").authenticated()
-                        .requestMatchers("/api/notifications/*/seen").authenticated()
-                        .requestMatchers("/api/notifications/mark-all-seen").authenticated()
-                        .requestMatchers("/api/notifications/**").permitAll()
-
-
+                        .requestMatchers("/api/notifications/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

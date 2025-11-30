@@ -7,6 +7,21 @@ spring:
 
   cloud:
     gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - http://localhost:4200
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+
       discovery:
         locator:
           enabled: true
@@ -14,9 +29,9 @@ spring:
 
       routes:
         - id: agra-backend
-          uri: lb://agra-backend
+          uri: lb://agra-backend     # <<< FIXED
           predicates:
-            - Path=/api/**, /ws/**, /ws-sockjs/**
+            - Path=/api/**,/ws/**,/ws-sockjs/**   # <<< FIXED
           filters:
             - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
             - PreserveHostHeader
@@ -25,6 +40,8 @@ eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+    fetch-registry: true                # <<< ENSURE THESE
+    register-with-eureka: true
   instance:
     prefer-ip-address: true
 

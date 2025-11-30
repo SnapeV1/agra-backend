@@ -38,8 +38,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
+        String path = request.getRequestURI();
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            log.debug("No/invalid Authorization header for path={}, header={}", path, authHeader);
             filterChain.doFilter(request, response);
             return;
         }
@@ -52,6 +54,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
         try {
             String userId = jwtUtil.extractUserId(token);
+            log.debug("JWT parsed for path={}, userId={}", path, userId);
             if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 User user = userRepository.findById(userId).orElse(null);
                 if (user != null && jwtUtil.isTokenValid(token, user)) {
@@ -62,6 +65,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(user, null, List.of(new SimpleGrantedAuthority("ROLE_" + userRole)));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+                    log.debug("JWT accepted for path={}, userId={}, role={}", path, userId, userRole);
                 } else {
                     log.debug("JWT token valid=false or user not found. path={}, userId={}", request.getRequestURI(), userId);
                 }
