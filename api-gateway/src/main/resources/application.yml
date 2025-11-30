@@ -4,8 +4,15 @@ server:
 spring:
   application:
     name: api-gateway
+  cache:
+    type: caffeine
 
   cloud:
+    loadbalancer:
+      cache:
+        enabled: true
+        caffeine:
+          spec: maximumSize=200,expireAfterWrite=10s
     gateway:
       globalcors:
         cors-configurations:
