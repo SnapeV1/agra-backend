@@ -33,7 +33,7 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
 
 }
     @Caching(evict = {
-            @CacheEvict(value = {"courses:all", "courses:detail", "courses:country", "courses:domain", "courses:featured"}, allEntries = true)
+            @CacheEvict(value = {"courses:all", "courses:detail", "courses:country", "courses:domain", "courses:featured", "courses:active"}, allEntries = true)
     })
     public Course createCourse(Course course, MultipartFile courseImage) throws IOException {
         course.setCreatedAt(new java.util.Date());
@@ -63,6 +63,11 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
         return courseRepository.findAll();
     }
 
+    @Cacheable(cacheNames = "courses:active", key = "'active'")
+    public List<Course> getActiveCourses() {
+        return courseRepository.findByArchivedFalse();
+    }
+
 
     @Cacheable(cacheNames = "courses:detail", key = "#id")
     public Optional<Course> getCourseById(String id) {
@@ -80,7 +85,7 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
 
 
     @Caching(evict = {
-            @CacheEvict(value = {"courses:all", "courses:detail", "courses:country", "courses:domain", "courses:featured"}, allEntries = true)
+            @CacheEvict(value = {"courses:all", "courses:detail", "courses:country", "courses:domain", "courses:featured", "courses:active"}, allEntries = true)
     })
     public Optional<Course> updateCourse(String id, Course updatedCourse, MultipartFile courseImage) throws IOException {
         return courseRepository.findById(id).map(existingCourse -> {
@@ -175,7 +180,7 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
     }
 
     @Caching(evict = {
-            @CacheEvict(value = {"courses:all", "courses:detail", "courses:country", "courses:domain", "courses:featured"}, allEntries = true)
+            @CacheEvict(value = {"courses:all", "courses:detail", "courses:country", "courses:domain", "courses:featured", "courses:active"}, allEntries = true)
     })
     public void deleteCourse(String id) {
         System.out.println("CourseService: Deleting course with id: " + id);
@@ -201,7 +206,7 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
 
 
     @Caching(evict = {
-            @CacheEvict(value = {"courses:all", "courses:detail", "courses:country", "courses:domain", "courses:featured"}, allEntries = true)
+            @CacheEvict(value = {"courses:all", "courses:detail", "courses:country", "courses:domain", "courses:featured", "courses:active"}, allEntries = true)
     })
     public void ArchiveCourse(String id) {
         Optional<Course> courseOpt = courseRepository.findById(id);
@@ -228,7 +233,7 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
     }
     
     @Caching(evict = {
-            @CacheEvict(value = {"courses:all", "courses:detail", "courses:country", "courses:domain", "courses:featured"}, allEntries = true)
+            @CacheEvict(value = {"courses:all", "courses:detail", "courses:country", "courses:domain", "courses:featured", "courses:active"}, allEntries = true)
     })
     public Course save(Course course) {
         return courseRepository.save(course);

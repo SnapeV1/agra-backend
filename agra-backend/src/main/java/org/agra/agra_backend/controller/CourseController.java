@@ -92,6 +92,23 @@ public class CourseController {
         return ResponseEntity.ok(courses);
     }
 
+    @GetMapping("/getActiveCourses")
+    public ResponseEntity<List<Course>> getActiveCourses(Authentication authentication) {
+        List<Course> courses = courseService.getActiveCourses();
+        if (authentication != null && authentication.getPrincipal() != null) {
+            User user = (User) authentication.getPrincipal();
+            String userId = user.getId();
+            java.util.Set<String> likedIds = new java.util.HashSet<>(courseLikeService.listLikedCourseIds(userId));
+            for (Course c : courses) {
+                if (c != null && c.getId() != null) {
+                    c.setLiked(likedIds.contains(c.getId()));
+                }
+            }
+        }
+
+        return ResponseEntity.ok(courses);
+    }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<Course> getCourseById(@PathVariable String id, Authentication authentication) {

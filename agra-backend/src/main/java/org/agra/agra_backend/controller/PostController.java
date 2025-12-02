@@ -104,6 +104,28 @@ PostController(PostService postService, UserService userService, SimpMessagingTe
         return ResponseEntity.ok("Post deleted successfully!");
     }
 
+    @PutMapping(value = "/{postId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Post> updatePost(
+            @PathVariable String postId,
+            @RequestPart("post") String postJson,
+            @RequestPart(value = "imageFile", required = false) MultipartFile imageFile,
+            Authentication authentication
+    ) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        User principal = (User) authentication.getPrincipal();
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            Map<String, Object> payload = mapper.readValue(postJson, Map.class);
+            String content = payload.get("content") == null ? null : payload.get("content").toString();
+            Post updated = postService.updatePost(postId, principal.getId(), content, imageFile, principal);
+            return ResponseEntity.ok(updated);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
 //comments
 
     @GetMapping("/{postId}/comments")

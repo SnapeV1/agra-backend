@@ -1,6 +1,7 @@
 package org.agra.agra_backend.service;
 
 import org.agra.agra_backend.dao.NewsArticleRepository;
+import org.agra.agra_backend.model.AdminSettings;
 import org.agra.agra_backend.model.NewsArticle;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -21,6 +22,7 @@ import java.util.Map;
 public class NewsService {
 
     private final NewsArticleRepository repository;
+    private final AdminSettingsService adminSettingsService;
     private final RestTemplate restTemplate = new RestTemplate();
     private static final Logger log = LoggerFactory.getLogger(NewsService.class);
 
@@ -30,8 +32,9 @@ public class NewsService {
     @Value("${gnews.base-url:https://gnews.io/api/v4/search}")
     private String baseUrl;
 
-    public NewsService(NewsArticleRepository repository) {
+    public NewsService(NewsArticleRepository repository, AdminSettingsService adminSettingsService) {
         this.repository = repository;
+        this.adminSettingsService = adminSettingsService;
     }
 
     @CacheEvict(cacheNames = {"news:list", "news:latest"}, allEntries = true)
@@ -119,6 +122,7 @@ public class NewsService {
             @CacheEvict(cacheNames = "news:list", allEntries = true, beforeInvocation = false)
     })
     public java.util.List<NewsArticle> fetchNorthAfricaAgricultureNow() {
+        repository.deleteAll();
         String[] countries = {"tn", "dz", "ma", "eg", "ly", "mr"};
         java.util.List<NewsArticle> collected = new java.util.ArrayList<>();
         log.info("NewsService.fetchNorthAfricaAgricultureNow - start");
@@ -168,5 +172,28 @@ public class NewsService {
         }
         log.info("NewsService.fetchNorthAfricaAgricultureNow - done (saved={})", collected.size());
         return collected;
+    }
+
+    @Caching(evict = {
+            @CacheEvict(cacheNames = {"news:list", "news:latest"}, allEntries = true)
+    })
+    public void deleteById(String id) {
+        if (id == null || id.trim().isEmpty()) {
+            throw new IllegalArgumentException("News id must not be empty");
+        }
+        boolean exists = repository.existsById(id);
+        if (!exists) {
+            throw new RuntimeException("News article not found");
+        }
+        repository.deleteById(id);
+        log.info("Deleted news article id={}", id);
+    }
+
+    public AdminSettings getAdminSettings() {
+        return adminSettingsService.getSettings();
+    }
+
+    public AdminSettings updateNewsCron(String cron) {
+        return adminSettingsService.updateNewsCron(cron);
     }
 }

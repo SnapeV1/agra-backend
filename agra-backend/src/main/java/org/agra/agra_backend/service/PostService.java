@@ -343,6 +343,33 @@ public class PostService {
         postRepository.delete(post);
     }
 
+
+    @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = {"feed:recent", "feed:topPosts"}, allEntries = true)
+    })
+    public Post updatePost(String postId, String userId, String content, MultipartFile imageFile, User user) throws IOException {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new RuntimeException("Post not found or unauthorized"));
+
+        if (!post.getUserId().equals(userId)) {
+            throw new RuntimeException("Unauthorized to update this post");
+        }
+
+        if (content != null && !content.trim().isEmpty()) {
+            post.setContent(content.trim());
+        }
+
+        if (imageFile != null && !imageFile.isEmpty() && user != null && user.getEmail() != null) {
+            String sanitizedEmail = createUserFolderName(user.getEmail());
+            String publicId = "posts/" + sanitizedEmail + "/" + post.getId();
+            Map<String, Object> uploadResult = cloudinaryService.uploadImageToFolder(imageFile, publicId);
+            post.setImageUrl((String) uploadResult.get("secure_url")); // keep original resolution from upload
+        }
+        post.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
+        return postRepository.save(post);
+    }
+
     public List<Post> getAllPostsSortedByDate() {
         return postRepository.findAllByOrderByCreatedAtDesc();
     }

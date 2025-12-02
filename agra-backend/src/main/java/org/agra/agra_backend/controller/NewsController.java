@@ -14,6 +14,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.Map;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/news")
@@ -98,5 +102,19 @@ public class NewsController {
         var list = repository.findAll();
         log.debug("GET /api/news/all - resultCount={}", list.size());
         return list;
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> deleteNews(@PathVariable String id) {
+        try {
+            newsService.deleteById(id);
+            return ResponseEntity.ok().body("News article deleted successfully.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (Exception e) {
+            log.error("DELETE /api/news/{} failed: {}", id, e.getMessage(), e);
+            return ResponseEntity.internalServerError().body("Failed to delete news article: " + e.getMessage());
+        }
     }
 }

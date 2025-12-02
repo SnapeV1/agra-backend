@@ -34,6 +34,12 @@ public class User {
     private List<CourseProgress> progress;
     private Boolean isArchived=false;
 
+    // Admin / security controls
+    private Boolean twoFactorEnabled = false;
+    private String twoFactorSecret;
+    private List<String> twoFactorRecoveryCodes;
+    private Date twoFactorVerifiedAt;
+
     public User(String id, String name, String picture) {
     }
 }

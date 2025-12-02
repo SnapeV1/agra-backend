@@ -8,4 +8,5 @@ import java.util.List;
 public interface CourseRepository extends MongoRepository<Course, String> {
     List<Course> findByCountry(String country);
     List<Course> findByDomain(String domain);
+    List<Course> findByArchivedFalse();
 }
