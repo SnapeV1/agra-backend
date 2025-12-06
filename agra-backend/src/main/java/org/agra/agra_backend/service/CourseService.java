@@ -1,6 +1,8 @@
 package org.agra.agra_backend.service;
 
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.agra.agra_backend.dao.CourseRepository;
 import org.agra.agra_backend.model.Course;
 import org.agra.agra_backend.model.CourseProgress;
@@ -89,7 +91,13 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
     })
     public Optional<Course> updateCourse(String id, Course updatedCourse, MultipartFile courseImage) throws IOException {
         return courseRepository.findById(id).map(existingCourse -> {
-
+            try {
+                System.out.println(
+                        "incoming structure (JSON): " + new ObjectMapper().writeValueAsString(updatedCourse)
+                );
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
             existingCourse.setTitle(updatedCourse.getTitle());
             existingCourse.setDescription(updatedCourse.getDescription());
             existingCourse.setGoals(updatedCourse.getGoals());
@@ -247,6 +255,20 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
             course.getTextContent().forEach(textContent -> {
                 if (textContent.getId() == null || textContent.getId().isEmpty()) {
                     textContent.setId(UUID.randomUUID().toString());
+                }
+                if (textContent.getQuizQuestions() != null) {
+                    textContent.getQuizQuestions().forEach(question -> {
+                        if (question.getId() == null || question.getId().isEmpty()) {
+                            question.setId(UUID.randomUUID().toString());
+                        }
+                        if (question.getAnswers() != null) {
+                            question.getAnswers().forEach(answer -> {
+                                if (answer.getId() == null || answer.getId().isEmpty()) {
+                                    answer.setId(UUID.randomUUID().toString());
+                                }
+                            });
+                        }
+                    });
                 }
             });
         }

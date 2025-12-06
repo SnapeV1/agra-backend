@@ -29,6 +29,9 @@ public class SecurityConfig {
     @Value("${cors.allowed-origins:http://localhost:4200}")
     private String allowedOriginsCsv;
 
+    @Value("${security.csp.directives:default-src 'self'; script-src 'self' 'unsafe-eval'; object-src 'none'; frame-ancestors 'self'; base-uri 'self';}")
+    private String contentSecurityPolicy;
+
     public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
         this.jwtAuthFilter = jwtAuthFilter;
     }
@@ -42,6 +45,9 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .headers(headers -> headers
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(contentSecurityPolicy))
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         // Public guest surface
@@ -52,6 +58,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/news/all").permitAll()
                         .requestMatchers("/ws/**", "/ws-sockjs/**").permitAll()
                         .requestMatchers("/api/notifications/**").authenticated()
+                        .requestMatchers("/api/sessions/**").authenticated()
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

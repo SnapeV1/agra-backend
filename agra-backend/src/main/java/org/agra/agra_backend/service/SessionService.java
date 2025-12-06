@@ -45,18 +45,26 @@ public class SessionService {
     }
 
     public JoinResponse join(String sessionId, User user, boolean moderator) {
-        Session s = repo.findById(sessionId).orElseThrow(() -> notFound("Session"));
+        System.out.println("[JITSI][Service] Join called. sessionId=" + sessionId + ", userId=" + user.getId() + ", moderator=" + moderator);
+        Session s = repo.findById(sessionId).orElseThrow(() -> {
+            System.out.println("[JITSI][Service] Session not found for id=" + sessionId);
+            return notFound("Session");
+        });
+        System.out.println("[JITSI][Service] Loaded session. courseId=" + s.getCourseId() + ", room=" + s.getRoomName() + ", start=" + s.getStartTime() + ", end=" + s.getEndTime());
         enforceCourseAccess(s.getCourseId(), user.getId(), moderator);
+        System.out.println("[JITSI][Service] Access check passed. Generating token...");
         String jwt = tokenService.mintUserToken(user, s, moderator);
-        System.out.println("jwttttt  "+jwt);
+        System.out.println("[JITSI][Service] Token generated? " + (jwt != null) + " tokenLength=" + (jwt == null ? 0 : jwt.length()));
 
         return new JoinResponse(s.getRoomName(), /*domain*/ null, jwt, user.getName(), user.getPicture());
 
     }
 
     private void enforceCourseAccess(String courseId, String userId, boolean moderator) {
+        System.out.println("[JITSI][Service] enforceCourseAccess courseId=" + courseId + ", userId=" + userId + ", moderator=" + moderator);
         if (moderator) return;
         boolean enrolled = progressRepo.existsByUserIdAndCourseId(userId, courseId);
+        System.out.println("[JITSI][Service] Enrollment check result=" + enrolled);
         if (!enrolled) throw forbidden("Not enrolled in this course");
     }
 

@@ -51,9 +51,14 @@ public class SessionController {
     public JoinResponse join(@PathVariable String sessionId) {
         var user = userService.getCurrentUserOrThrow();
         boolean moderator = isAdmin(user.getRole());
-        System.out.println("moderator: '" + moderator + " " + user.getRole());
+        System.out.println("[JITSI][Controller] Join requested. sessionId=" + sessionId);
+        System.out.println("[JITSI][Controller] Current user: id=" + user.getId() + ", name=" + user.getName() + ", role=" + user.getRole() + ", moderator=" + moderator);
         var resp = service.join(sessionId, user, moderator);
-        resp.setDomain(jitsiDomain); 
+        System.out.println("[JITSI][Controller] Service join response: room=" + resp.getRoomName() + ", tokenPresent=" + (resp.getJwt() != null) + ", displayName=" + resp.getDisplayName());
+        String normalizedDomain = normalizeHost(jitsiDomain);
+        resp.setDomain(normalizedDomain); 
+        String https8443 = normalizedDomain == null || normalizedDomain.isEmpty() ? "N/A" : "https://" + normalizedDomain + ":8443";
+        System.out.println("[JITSI][Controller] Setting domain on response: raw=" + jitsiDomain + ", normalized=" + normalizedDomain + ", expectedBaseUrl(https:8443)=" + https8443);
         return resp;
     }
 
@@ -67,5 +72,18 @@ public class SessionController {
     @PreAuthorize("isAuthenticated()")
     public void event(@PathVariable String sessionId, @RequestBody AttendanceEventDto dto) {
         service.recordEvent(sessionId, userService.getCurrentUserOrThrow().getId(), dto);
+    }
+
+    /**
+     * Returns a bare host (no scheme/port/path) to keep Jitsi domain and sub consistent, e.g. "https://jitsi.local:8443" -> "jitsi.local".
+     */
+    private static String normalizeHost(String raw) {
+        if (raw == null) return null;
+        String val = raw.trim();
+        if (val.startsWith("http://")) val = val.substring("http://".length());
+        else if (val.startsWith("https://")) val = val.substring("https://".length());
+        if (val.contains("/")) val = val.substring(0, val.indexOf("/"));
+        if (val.contains(":")) val = val.substring(0, val.indexOf(":"));
+        return val;
     }
 }
