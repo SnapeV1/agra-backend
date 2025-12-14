@@ -59,6 +59,9 @@ public class UserService implements IUserService {
         if (user.getThemePreference() == null || user.getThemePreference().trim().isEmpty()) {
             user.setThemePreference("light");
         }
+        if (user.getVerified() == null) {
+            user.setVerified(false);
+        }
         user.setRegisteredAt(new Date());
         return userRepository.save(user);
     }
@@ -101,6 +104,10 @@ public class UserService implements IUserService {
         // Preserve immutable fields
         if (user.getRegisteredAt() == null) {
             user.setRegisteredAt(existingUser.getRegisteredAt());
+        }
+        // Preserve verification status unless explicitly provided
+        if (user.getVerified() == null) {
+            user.setVerified(existingUser.getVerified());
         }
 
         return userRepository.save(user);
@@ -156,6 +163,9 @@ public class UserService implements IUserService {
 
 
         user.setRegisteredAt(existingUser.getRegisteredAt());
+        if (user.getVerified() == null) {
+            user.setVerified(existingUser.getVerified());
+        }
 
         return userRepository.save(user);
     }

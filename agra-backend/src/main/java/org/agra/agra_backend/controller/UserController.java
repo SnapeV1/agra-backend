@@ -202,7 +202,6 @@ public class UserController {
         if (incoming.getThemePreference() != null) existing.setThemePreference(incoming.getThemePreference());
         if (incoming.getPicture() != null) existing.setPicture(incoming.getPicture());
         if (incoming.getRegisteredAt() != null) existing.setRegisteredAt(incoming.getRegisteredAt());
-        if (incoming.getProgress() != null) existing.setProgress(incoming.getProgress());
         if (incoming.getIsArchived() != existing.getIsArchived()) existing.setIsArchived(incoming.getIsArchived());
     }
 }

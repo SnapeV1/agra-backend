@@ -95,6 +95,8 @@ public class CourseController {
     @GetMapping("/getActiveCourses")
     public ResponseEntity<List<Course>> getActiveCourses(Authentication authentication) {
         List<Course> courses = courseService.getActiveCourses();
+        System.out.println("Active courses: " + courses);
+
         if (authentication != null && authentication.getPrincipal() != null) {
             User user = (User) authentication.getPrincipal();
             String userId = user.getId();

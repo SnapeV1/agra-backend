@@ -13,7 +13,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class QuizAnswer {
+public class    QuizAnswer {
     private String id;
     private String text;
     @JsonAlias("isCorrect")

@@ -26,6 +26,7 @@ public class GoogleAuthService {
     private final UserRepository userRepository;
     private final CloudinaryService cloudinaryService;
     private final PasswordResetService passwordResetService;
+    private final RefreshTokenService refreshTokenService;
 
 
     public LoginResponse verifyGoogleToken(String idTokenString) {
@@ -50,6 +51,8 @@ public class GoogleAuthService {
             if (locale == null || locale.isBlank()) {
                 locale = "en"; // default language when Google doesn't provide locale
             }
+            Boolean emailVerified = payload.getEmailVerified();
+            boolean isEmailVerified = emailVerified != null && emailVerified;
             String hostedDomain = (String) payload.get("hd");
             // Phone is not typically present in ID token unless 'phone' scope was requested
             String phone = (String) payload.get("phone_number");
@@ -85,6 +88,7 @@ public class GoogleAuthService {
                 user.setCountry(country);
                 // Enforce default application role for Google signups
                 user.setRole("USER");
+                user.setVerified(isEmailVerified);
                 // Default theme to light on first creation
                 user.setThemePreference("light");
                 user.setRegisteredAt(new Date());
@@ -126,6 +130,10 @@ public class GoogleAuthService {
                         System.err.println("Warning: Failed to mirror Google avatar for existing user " + email + ": " + e.getMessage());
                     }
                 }
+                if (!Boolean.TRUE.equals(user.getVerified()) && isEmailVerified) {
+                    user.setVerified(true);
+                    user = userRepository.save(user);
+                }
             }
 
             // If password is unset (new or existing Google-only account), issue a reset token
@@ -140,7 +148,8 @@ public class GoogleAuthService {
 
             // Generate JWT for your app
             String jwt = jwtService.generateToken(user);
-            LoginResponse response = new LoginResponse(jwt, user, existed, rawResetToken);
+            String refresh = refreshTokenService.createRefreshToken(user.getId());
+            LoginResponse response = new LoginResponse(jwt, user, existed, rawResetToken, refresh);
             return response;
         } catch (Exception e) {
             throw new RuntimeException("Google verification failed", e);

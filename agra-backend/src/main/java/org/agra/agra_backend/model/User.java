@@ -11,6 +11,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.util.Date;
 import java.util.List;
 
+import org.agra.agra_backend.model.NotificationPreferences;
+
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
@@ -31,8 +33,9 @@ public class User {
     private String picture;
     private String themePreference = "light";
     private Date registeredAt;
-    private List<CourseProgress> progress;
+    private NotificationPreferences notificationPreferences;
     private Boolean isArchived=false;
+    private Boolean verified = false;
 
     // Admin / security controls
     private Boolean twoFactorEnabled = false;

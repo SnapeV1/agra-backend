@@ -249,6 +249,10 @@ public class TicketService {
     private void publishMessageEvent(Ticket ticket, TicketMessage message) {
         TicketEventPayload payload = new TicketEventPayload("MESSAGE", ticket.getId(), ticket, message);
         messagingTemplate.convertAndSend("/topic/tickets/" + ticket.getId(), payload);
+        // Broadcast to a generic messages channel so clients can subscribe without per-ticket setup.
+        messagingTemplate.convertAndSend("/topic/tickets/" + ticket.getId() + "/messages", payload);
+        // Fire a lightweight list update event for ticket overviews.
+        messagingTemplate.convertAndSend("/topic/tickets/updates", payload);
 
         if (message.isAdminMessage()) {
             notifyUser(ticket.getUserInfo(), payload);

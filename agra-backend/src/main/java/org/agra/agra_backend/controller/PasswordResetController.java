@@ -27,6 +27,25 @@ public class PasswordResetController {
         return ResponseEntity.ok(Map.of("message", "If your email is registered, you will receive a reset link."));
     }
 
+    @GetMapping("/twilio/test")
+    public ResponseEntity<?> testTwilio() {
+        log.info("GET /api/auth/twilio/test - connectivity check");
+        try {
+            String serviceName = resetService.testTwilioConnection();
+            return ResponseEntity.ok(Map.of("status", "ok", "serviceName", serviceName));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("status", "error", "error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/forgot-password/sms")
+    public ResponseEntity<?> forgotPasswordSms(@RequestBody Map<String, String> request) {
+        String phone = request.get("phone");
+        log.info("POST /api/auth/forgot-password/sms - phonePresent={}", phone != null && !phone.isBlank());
+        resetService.sendResetCodeSms(phone);
+        return ResponseEntity.ok(Map.of("message", "If your phone is registered, you will receive a verification code."));
+    }
+
     @PostMapping("/reset-password")
     public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
         String token = request.get("token");
@@ -38,6 +57,25 @@ public class PasswordResetController {
             return ResponseEntity.ok(Map.of("message", "Password reset successful."));
         } catch (RuntimeException e) {
             log.warn("POST /api/auth/reset-password - failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/reset-password/sms")
+    public ResponseEntity<?> resetPasswordSms(@RequestBody Map<String, String> request) {
+        String phone = request.get("phone");
+        String code = request.get("code");
+        log.info("POST /api/auth/reset-password/sms - phonePresent={} codePresent={}",
+                phone != null && !phone.isBlank(),
+                code != null && !code.isBlank());
+        try {
+            String rawToken = resetService.createResetTokenWithSmsCode(phone, code);
+            return ResponseEntity.ok(Map.of(
+                    "message", "Verification successful. Use this token with /api/auth/reset-password to set a new password.",
+                    "token", rawToken
+            ));
+        } catch (RuntimeException e) {
+            log.warn("POST /api/auth/reset-password/sms - failed: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
@@ -57,4 +95,5 @@ public class PasswordResetController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
+
 }

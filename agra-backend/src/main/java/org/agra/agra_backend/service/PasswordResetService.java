@@ -8,11 +8,15 @@ import org.agra.agra_backend.dao.UserRepository;
 import org.agra.agra_backend.model.PasswordResetToken;
 import org.agra.agra_backend.model.User;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import com.twilio.Twilio;
+import com.twilio.exception.ApiException;
+import com.twilio.rest.verify.v2.service.Verification;
+import com.twilio.rest.verify.v2.service.VerificationCheck;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -39,6 +43,15 @@ public class PasswordResetService {
     @Value("${app.frontend.base-url:http://localhost:4200}")
     private String frontendBaseUrl;
 
+    @Value("${twilio.accountSid:}")
+    private String twilioAccountSid;
+
+    @Value("${twilio.authToken:}")
+    private String twilioAuthToken;
+
+    @Value("${twilio.verifyServiceSid:}")
+    private String twilioVerifyServiceSid;
+
     public void initiateReset(String emailRaw) throws MessagingException {
         if (emailRaw == null) return; // do nothing
         String email = emailRaw.toLowerCase().trim();
@@ -63,6 +76,32 @@ public class PasswordResetService {
         tokenRepository.save(prt);
 
         sendResetEmail(user.getEmail(), rawToken);
+    }
+
+    public void sendResetCodeSms(String phoneRaw) {
+        if (phoneRaw == null || phoneRaw.isBlank()) {
+            log.info("PasswordReset: SMS reset requested with empty phone");
+            return;
+        }
+        String phone = phoneRaw.trim();
+
+        Optional<User> userOpt = userRepository.findByPhone(phone);
+        if (userOpt.isEmpty()) {
+            // Preserve privacy: behave as if it succeeded
+            log.info("PasswordReset: SMS reset requested for non-existent phone - no Twilio call made");
+            return;
+        }
+
+        ensureTwilioConfigured();
+        try {
+            Twilio.init(twilioAccountSid, twilioAuthToken);
+            Verification.creator(twilioVerifyServiceSid, phone, "sms").create();
+            log.info("PasswordReset: Sent SMS reset code to phone={}", phone);
+        } catch (ApiException e) {
+            // Handle gracefully without noisy stack traces
+            log.warn("PasswordReset: Twilio send failed for phone={} msg={}", phone, e.getMessage());
+            throw new RuntimeException("Failed to send reset code. Please check the phone number format.");
+        }
     }
 
     /**
@@ -165,6 +204,66 @@ public class PasswordResetService {
         log.debug("PasswordReset: Reset token deleted for userId={}", user.getId());
     }
 
+    public String createResetTokenWithSmsCode(String phoneRaw, String code) {
+        if (phoneRaw == null || phoneRaw.isBlank()) {
+            throw new RuntimeException("Phone number is required");
+        }
+        if (code == null || code.isBlank()) {
+            throw new RuntimeException("Verification code is required");
+        }
+
+        String phone = phoneRaw.trim();
+        ensureTwilioConfigured();
+        try {
+            Twilio.init(twilioAccountSid, twilioAuthToken);
+            VerificationCheck check = VerificationCheck.creator(twilioVerifyServiceSid)
+                    .setTo(phone)
+                    .setCode(code)
+                    .create();
+
+            if (!"approved".equalsIgnoreCase(check.getStatus())) {
+                log.warn("PasswordReset: SMS code not approved for phone={} status={}", phone, check.getStatus());
+                throw new RuntimeException("Invalid or expired verification code");
+            }
+        } catch (ApiException e) {
+            // Handle gracefully without noisy stack traces
+            log.warn("PasswordReset: Twilio verification failed for phone={} msg={}", phone, e.getMessage());
+            throw new RuntimeException("Failed to verify code. Please check the phone number format.");
+        }
+
+        User user = userRepository.findByPhone(phone)
+                .orElseThrow(() -> new RuntimeException("User not found for phone number"));
+
+        // Remove old tokens and issue a fresh reset token (same flow as email)
+        tokenRepository.deleteByUserId(user.getId());
+
+        String rawToken = generateSecureToken();
+        String tokenHash = sha256(rawToken);
+
+        PasswordResetToken prt = new PasswordResetToken();
+        prt.setTokenHash(tokenHash);
+        prt.setUserId(user.getId());
+        prt.setCreatedAt(new Date());
+        prt.setExpirationDate(minutesFromNow(30));
+        tokenRepository.save(prt);
+
+        log.info("PasswordReset: Issued reset token via SMS verification for userId={}", user.getId());
+        return rawToken;
+    }
+
+    public String testTwilioConnection() {
+        ensureTwilioConfigured();
+        try {
+            Twilio.init(twilioAccountSid, twilioAuthToken);
+            com.twilio.rest.verify.v2.Service svc = com.twilio.rest.verify.v2.Service.fetcher(twilioVerifyServiceSid).fetch();
+            log.info("PasswordReset: Twilio Verify service fetch successful name={} sid={}", svc.getFriendlyName(), svc.getSid());
+            return svc.getFriendlyName();
+        } catch (ApiException e) {
+            log.error("PasswordReset: Twilio connectivity test failed - {}", e.getMessage());
+            throw new RuntimeException("Twilio connectivity failed: " + e.getMessage());
+        }
+    }
+
     private static String generateSecureToken() {
         byte[] bytes = new byte[32];
         new SecureRandom().nextBytes(bytes);
@@ -191,5 +290,13 @@ public class PasswordResetService {
 
     private static String urlSafe(String token) {
         return token; // already URL-safe Base64 (URL variant)
+    }
+
+    private void ensureTwilioConfigured() {
+        if (twilioAccountSid == null || twilioAccountSid.isBlank()
+                || twilioAuthToken == null || twilioAuthToken.isBlank()
+                || twilioVerifyServiceSid == null || twilioVerifyServiceSid.isBlank()) {
+            throw new RuntimeException("Twilio credentials are not configured");
+        }
     }
 }

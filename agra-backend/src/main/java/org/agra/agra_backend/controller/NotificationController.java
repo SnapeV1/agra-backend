@@ -2,7 +2,9 @@ package org.agra.agra_backend.controller;
 
 import org.agra.agra_backend.model.Notification;
 import org.agra.agra_backend.model.User;
+import org.agra.agra_backend.model.NotificationPreferences;
 import org.agra.agra_backend.service.NotificationService;
+import org.agra.agra_backend.service.NotificationPreferencesService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -16,9 +18,12 @@ import java.util.Map;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final NotificationPreferencesService preferencesService;
 
-    public NotificationController(NotificationService notificationService) {
+    public NotificationController(NotificationService notificationService,
+                                  NotificationPreferencesService preferencesService) {
         this.notificationService = notificationService;
+        this.preferencesService = preferencesService;
     }
 
     @GetMapping
@@ -51,18 +56,23 @@ public class NotificationController {
     }
 
     @GetMapping("/preferences/me")
-    public ResponseEntity<Map<String, Object>> getMyPreferences(Authentication authentication) {
-        if (authentication == null || authentication.getPrincipal() == null || !(authentication.getPrincipal() instanceof User user)) {
+    public ResponseEntity<?> getMyPreferences(Authentication authentication) {
+        if (!isUserAuthenticated(authentication)) {
             return ResponseEntity.status(401).body(Map.of("error", "Authentication required"));
         }
-        // Stubbed preferences response; adjust fields to match frontend expectations
-        Map<String, Object> prefs = Map.of(
-                "userId", user.getId(),
-                "notificationsEnabled", true,
-                "channels", List.of("email", "websocket"),
-                "digest", Map.of("enabled", false, "frequency", "daily")
-        );
+        String userId = ((User) authentication.getPrincipal()).getId();
+        NotificationPreferences prefs = preferencesService.getOrCreate(userId);
         return ResponseEntity.ok(prefs);
+    }
+
+    @PutMapping("/preferences/me")
+    public ResponseEntity<?> updateMyPreferences(@RequestBody NotificationPreferences request, Authentication authentication) {
+        if (!isUserAuthenticated(authentication)) {
+            return ResponseEntity.status(401).body(Map.of("error", "Authentication required"));
+        }
+        String userId = ((User) authentication.getPrincipal()).getId();
+        NotificationPreferences saved = preferencesService.upsert(userId, request);
+        return ResponseEntity.ok(saved);
     }
 
     @DeleteMapping({"", "/delete"})
@@ -77,5 +87,9 @@ public class NotificationController {
             throw new RuntimeException("Unauthorized");
         }
         return u.getId();
+    }
+
+    private boolean isUserAuthenticated(Authentication authentication) {
+        return authentication != null && authentication.getPrincipal() instanceof User;
     }
 }

@@ -12,6 +12,7 @@ public class LoginResponse {
     private User user;
     private Boolean existingAccount;
     private String passwordResetToken;
+    private String refreshToken;
 
     @JsonProperty("profileCompleted")
     public boolean isProfileCompleted() {

@@ -7,9 +7,8 @@ import org.agra.agra_backend.dao.UserRepository;
 import org.agra.agra_backend.model.User;
 import org.agra.agra_backend.payload.LoginRequest;
 import org.agra.agra_backend.payload.RegisterRequest;
-import org.agra.agra_backend.service.AuthService;
-import org.agra.agra_backend.service.GoogleAuthService;
-import org.agra.agra_backend.service.UserService;
+import org.agra.agra_backend.service.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,14 +25,18 @@ public class AuthController {
     private final UserService userService;
     private final AuthService authService;
     private final GoogleAuthService googleAuthService;
+    private final EmailVerificationService emailVerificationService;
+    private final RefreshTokenService refreshTokenService;
 
     private final JwtUtil jwtUtil;
 
-    public AuthController(UserRepository userRepository, UserService userService, AuthService authService, GoogleAuthService googleAuthService, JwtUtil jwtUtil) {
+    public AuthController(UserRepository userRepository, UserService userService, AuthService authService, GoogleAuthService googleAuthService, EmailVerificationService emailVerificationService, RefreshTokenService refreshTokenService, JwtUtil jwtUtil) {
         this.userRepository = userRepository;
         this.userService = userService;
         this.authService = authService;
         this.googleAuthService = googleAuthService;
+        this.emailVerificationService = emailVerificationService;
+        this.refreshTokenService = refreshTokenService;
         this.jwtUtil = jwtUtil;
     }
 
@@ -89,6 +92,63 @@ public class AuthController {
         }
         org.agra.agra_backend.payload.LoginResponse response = googleAuthService.verifyGoogleToken(token);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/verify-email")
+    public ResponseEntity<?> verifyEmail(@RequestParam("token") String token) {
+        try {
+            emailVerificationService.verifyToken(token);
+            return ResponseEntity.ok(Map.of("message", "Email verified successfully."));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/resend-verification")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> resendVerification() {
+        try {
+            User user = userService.getCurrentUserOrThrow();
+            emailVerificationService.sendVerificationEmail(user);
+            return ResponseEntity.ok(Map.of("message", "Verification email sent if your account is unverified."));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refresh(@RequestBody Map<String, String> body) {
+        String refreshToken = body.get("refreshToken");
+        try {
+            var stored = refreshTokenService.validateRefreshToken(refreshToken);
+            User user = userRepository.findById(stored.getUserId())
+                    .orElseThrow(() -> new RuntimeException("User not found for refresh token"));
+
+            String newAccess = jwtUtil.generateToken(user);
+            String newRefresh = refreshTokenService.rotateRefreshToken(stored);
+            return ResponseEntity.ok(Map.of(
+                    "token", newAccess,
+                    "refreshToken", newRefresh,
+                    "user", user
+            ));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(@RequestBody(required = false) Map<String, String> body) {
+        String refreshToken = body == null ? null : body.get("refreshToken");
+        // Revoke the presented refresh token if provided
+        refreshTokenService.revokeByToken(refreshToken);
+        // If an authenticated user is present, clear any stored tokens for that user
+        try {
+            User user = userService.getCurrentUserOrThrow();
+            refreshTokenService.revokeAllForUser(user.getId());
+        } catch (Exception ignored) {
+            // If not authenticated, just rely on the provided refresh token revocation
+        }
+        return ResponseEntity.ok(Map.of("message", "Logged out"));
     }
 
     // Removed temporary "exists" endpoints in favor of flags on normal responses

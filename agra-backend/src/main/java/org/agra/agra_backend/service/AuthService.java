@@ -21,12 +21,21 @@ public class AuthService implements IAuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final CloudinaryService cloudinaryService;
+    private final EmailVerificationService emailVerificationService;
+    private final RefreshTokenService refreshTokenService;
 
-    public AuthService(JwtUtil jwtUtil, UserRepository userRepository, PasswordEncoder passwordEncoder, CloudinaryService cloudinaryService) {
+    public AuthService(JwtUtil jwtUtil,
+                       UserRepository userRepository,
+                       PasswordEncoder passwordEncoder,
+                       CloudinaryService cloudinaryService,
+                       EmailVerificationService emailVerificationService,
+                       RefreshTokenService refreshTokenService) {
         this.jwtUtil = jwtUtil;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.cloudinaryService = cloudinaryService;
+        this.emailVerificationService = emailVerificationService;
+        this.refreshTokenService = refreshTokenService;
     }
 
     public User registerUser(RegisterRequest request) {
@@ -49,6 +58,7 @@ public class AuthService implements IAuthService {
         user.setDomain(request.getDomain());
         // Enforce default role for signups to prevent privilege escalation
         user.setRole("USER");
+        user.setVerified(false);
         // Default theme preference if not provided elsewhere
         if (user.getThemePreference() == null || user.getThemePreference().isBlank()) {
             user.setThemePreference("light");
@@ -68,6 +78,12 @@ public class AuthService implements IAuthService {
             System.err.println("Warning: Failed to create Cloudinary folder for user " + normalizedEmail + ": " + e.getMessage());
         }
 
+        try {
+            emailVerificationService.sendVerificationEmail(savedUser);
+        } catch (Exception e) {
+            System.err.println("Warning: Failed to send verification email to " + normalizedEmail + ": " + e.getMessage());
+        }
+
         return savedUser;
     }
 
@@ -81,7 +97,8 @@ public class AuthService implements IAuthService {
         }
 
         String token = jwtUtil.generateToken(user);
-        LoginResponse response = new LoginResponse(token, user, true, null);
+        String refresh = refreshTokenService.createRefreshToken(user.getId());
+        LoginResponse response = new LoginResponse(token, user, true, null, refresh);
         return response;
     }
 
