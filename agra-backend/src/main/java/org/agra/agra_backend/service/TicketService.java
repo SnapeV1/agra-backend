@@ -412,6 +412,7 @@ public class TicketService {
         info.setName(user.getName());
         info.setEmail(user.getEmail());
         info.setPicture(user.getPicture());
+        info.setBirthdate(user.getBirthdate());
         return info;
     }
 

@@ -23,7 +23,8 @@ public class LoginResponse {
                 && notBlank(user.getEmail())
                 && notBlank(user.getPicture())
                 && notBlank(user.getPhone())
-                && notBlank(user.getCountry());
+                && notBlank(user.getCountry())
+                && user.getBirthdate() != null;
     }
 
     private boolean notBlank(String s) {

@@ -54,11 +54,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/posts/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/courses/**").permitAll()
                         .requestMatchers("/api/contact/**").permitAll()
-                        .requestMatchers("/api/chat/**", "/api/chatbot/**").permitAll()
                         .requestMatchers("/api/news/all").permitAll()
                         .requestMatchers("/ws/**", "/ws-sockjs/**").permitAll()
                         .requestMatchers("/api/notifications/**").authenticated()
                         .requestMatchers("/api/sessions/**").authenticated()
+                        .requestMatchers("/api/certificates/**").permitAll()
+                        .requestMatchers("/api/progress/**").authenticated()
 
                         .anyRequest().authenticated()
                 )

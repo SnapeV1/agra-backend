@@ -2,10 +2,10 @@ package org.agra.agra_backend.service;
 
 import org.agra.agra_backend.dao.*;
 import org.agra.agra_backend.model.*;
+import org.agra.agra_backend.service.PresenceService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.messaging.simp.user.SimpUserRegistry;
 import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
@@ -26,7 +26,7 @@ public class AnalyticsService {
     private final LikeRepository likeRepository;
     private final NotificationRepository notificationRepository;
     private final NotificationStatusRepository notificationStatusRepository;
-    private final SimpUserRegistry simpUserRegistry;
+    private final PresenceService presenceService;
 
     private static final Logger log = LoggerFactory.getLogger(AnalyticsService.class);
 
@@ -38,7 +38,7 @@ public class AnalyticsService {
                             LikeRepository likeRepository,
                             NotificationRepository notificationRepository,
                             NotificationStatusRepository notificationStatusRepository,
-                            SimpUserRegistry simpUserRegistry) {
+                            PresenceService presenceService) {
         this.courseRepository = courseRepository;
         this.courseProgressRepository = courseProgressRepository;
         this.userRepository = userRepository;
@@ -47,7 +47,7 @@ public class AnalyticsService {
         this.likeRepository = likeRepository;
         this.notificationRepository = notificationRepository;
         this.notificationStatusRepository = notificationStatusRepository;
-        this.simpUserRegistry = simpUserRegistry;
+        this.presenceService = presenceService;
     }
 
     public Map<String, Object> getCourseStatusSummary() {
@@ -63,7 +63,7 @@ public class AnalyticsService {
         // Helpful debug when numbers look off on the dashboard
         if (published == 0 || archived > 0) {
             for (Course c : courses) {
-                log.debug("Analytics: Course id={}, title='{}', archived={}", c.getId(), c.getTitle(), c.isArchived());
+                log.debug("Analytics: Course id={}, title='{}', archived={}", c.getId(), resolveCourseTitle(c), c.isArchived());
             }
         }
 
@@ -93,7 +93,7 @@ public class AnalyticsService {
     public List<Map<String, Object>> getTopCourses(String metric, int limit) {
         List<Course> courses = courseRepository.findAll();
         Map<String, String> courseTitles = courses.stream()
-                .collect(Collectors.toMap(Course::getId, Course::getTitle));
+                .collect(Collectors.toMap(Course::getId, this::resolveCourseTitle));
 
         List<CourseProgress> progress = courseProgressRepository.findAll();
         Map<String, Long> enrollmentsByCourse = progress.stream()
@@ -151,13 +151,36 @@ public class AnalyticsService {
             double rate = stats[1] == 0 ? 0.0 : (double) stats[0] / (double) stats[1];
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("courseId", c.getId());
-            row.put("title", c.getTitle());
+            row.put("title", resolveCourseTitle(c));
             row.put("completed", stats[0]);
             row.put("total", stats[1]);
             row.put("completionRate", rate);
             out.add(row);
         }
         return out;
+    }
+
+    private String resolveCourseTitle(Course course) {
+        if (course == null) return null;
+        String title = course.getTitle();
+        if (title != null && !title.isBlank()) return title;
+        CourseTranslation translation = resolveFallbackTranslation(course);
+        if (translation != null && translation.getTitle() != null && !translation.getTitle().isBlank()) {
+            return translation.getTitle();
+        }
+        return title;
+    }
+
+    private CourseTranslation resolveFallbackTranslation(Course course) {
+        if (course == null || course.getTranslations() == null || course.getTranslations().isEmpty()) return null;
+        String defaultLanguage = course.getDefaultLanguage();
+        if (defaultLanguage != null && !defaultLanguage.isBlank()) {
+            CourseTranslation preferred = course.getTranslations().get(defaultLanguage);
+            if (preferred != null) return preferred;
+        }
+        CourseTranslation en = course.getTranslations().get("en");
+        if (en != null) return en;
+        return course.getTranslations().values().stream().findFirst().orElse(null);
     }
 
     public List<Map<String, Object>> getCertificatesIssuedOverview(String granularity, Date start, Date end) {
@@ -447,9 +470,10 @@ public class AnalyticsService {
 
     public Map<String, Object> getWebSocketActivity() {
         Map<String, Object> out = new LinkedHashMap<>();
-        // Number of unique connected users per SimpUserRegistry
-        int connectedUsers = simpUserRegistry.getUserCount();
-        out.put("connectedUsers", connectedUsers);
+        long connectedSessions = presenceService.countOnlineSessions();
+        long onlineUsers = presenceService.countOnlineUsers();
+        out.put("connectedUsers", connectedSessions); // backward compatibility: was sessions
+        out.put("onlineUsers", onlineUsers);
         return out;
     }
 

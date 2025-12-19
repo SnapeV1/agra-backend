@@ -92,6 +92,10 @@ public class UserService implements IUserService {
             user.setThemePreference(existingUser.getThemePreference());
         }
 
+        if (user.getBirthdate() == null) {
+            user.setBirthdate(existingUser.getBirthdate());
+        }
+
         // Encode password if provided raw; keep existing if not provided
         if (user.getPassword() != null && !user.getPassword().isBlank()) {
             if (!isBcrypt(user.getPassword()) && !user.getPassword().equals(existingUser.getPassword())) {
@@ -161,6 +165,10 @@ public class UserService implements IUserService {
             user.setLanguage(existingUser.getLanguage());
         }
 
+        if (user.getBirthdate() == null) {
+            user.setBirthdate(existingUser.getBirthdate());
+        }
+
 
         user.setRegisteredAt(existingUser.getRegisteredAt());
         if (user.getVerified() == null) {
@@ -185,6 +193,7 @@ public class UserService implements IUserService {
         appendChange(sb, "domain", oldUser.getDomain(), newUser.getDomain());
         appendChange(sb, "role", oldUser.getRole(), newUser.getRole());
         appendChange(sb, "picture", oldUser.getPicture(), newUser.getPicture());
+        appendChange(sb, "birthdate", oldUser.getBirthdate(), newUser.getBirthdate());
 
         boolean passwordProvided = newUser.getPassword() != null && !newUser.getPassword().isBlank();
         if (passwordProvided) {
@@ -195,10 +204,10 @@ public class UserService implements IUserService {
         System.out.print(sb.toString());
     }
 
-    private void appendChange(StringBuilder sb, String field, String oldVal, String newVal) {
+    private void appendChange(StringBuilder sb, String field, Object oldVal, Object newVal) {
         if (newVal == null) return; // only log when client provided a value
-        String oldDisplay = oldVal == null ? "<null>" : oldVal;
-        String newDisplay = newVal;
+        String oldDisplay = oldVal == null ? "<null>" : oldVal.toString();
+        String newDisplay = newVal.toString();
         if ((oldVal == null && newVal != null) || (oldVal != null && !oldVal.equals(newVal))) {
             sb.append(" - ").append(field).append(": ")
               .append(oldDisplay).append(" -> ").append(newDisplay).append("\n");

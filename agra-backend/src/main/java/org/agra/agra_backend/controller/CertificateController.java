@@ -6,6 +6,7 @@ import org.agra.agra_backend.model.User;
 import org.agra.agra_backend.service.CertificateService;
 import org.agra.agra_backend.service.CourseProgressService;
 import org.agra.agra_backend.service.CourseService;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -44,6 +45,19 @@ public class CertificateController {
                                 "valid", false,
                                 "message", "Certificate not found or invalid"
                         )));
+    }
+
+    @GetMapping("/verify/{certificateId}")
+    public ResponseEntity<?> verifyCertificate(@PathVariable String certificateId) {
+        return certificateService.verifyCertificate(certificateId)
+                .map(payload -> {
+                    applyLocalizedCourseFields(payload);
+                    boolean valid = Boolean.TRUE.equals(payload.get("valid"));
+                    HttpStatus status = valid ? HttpStatus.OK : HttpStatus.GONE;
+                    return ResponseEntity.status(status).body(payload);
+                })
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("valid", false, "message", "Certificate not found")));
     }
 
     @GetMapping("/user/course/{courseId}")
@@ -184,6 +198,7 @@ public class CertificateController {
                 });
 
         courseService.getCourseById(record.getCourseId())
+                .map(course -> courseService.localizeCourse(course, LocaleContextHolder.getLocale()))
                 .ifPresent(course -> {
                     response.put("courseCountry", course.getCountry());
                     response.put("courseDomain", course.getDomain());
@@ -208,6 +223,26 @@ public class CertificateController {
         int sessionCount = course.getSessionIds() != null ? course.getSessionIds().size() : 0;
         int textCount = course.getTextContent() != null ? course.getTextContent().size() : 0;
         return sessionCount + textCount;
+    }
+
+    private void applyLocalizedCourseFields(Map<String, Object> payload) {
+        if (payload == null) return;
+        Object courseIdObj = payload.get("courseId");
+        if (!(courseIdObj instanceof String courseId) || courseId.isBlank()) {
+            return;
+        }
+        courseService.getCourseById(courseId)
+                .map(course -> courseService.localizeCourse(course, LocaleContextHolder.getLocale()))
+                .ifPresent(course -> {
+                    payload.put("courseTitle", course.getTitle());
+                    Object courseObj = payload.get("course");
+                    if (courseObj instanceof Map<?, ?> courseMap) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> typed = (Map<String, Object>) courseMap;
+                        typed.put("title", course.getTitle());
+                        typed.put("description", course.getDescription());
+                    }
+                });
     }
 
     private String buildVerificationUrl(String code) {

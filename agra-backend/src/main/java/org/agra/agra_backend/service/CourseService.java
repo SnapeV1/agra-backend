@@ -5,7 +5,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.agra.agra_backend.dao.CourseRepository;
 import org.agra.agra_backend.model.Course;
+import org.agra.agra_backend.model.CourseTranslation;
 import org.agra.agra_backend.model.CourseProgress;
+import org.springframework.beans.BeanUtils;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -14,7 +16,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -38,6 +42,7 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
             @CacheEvict(value = {"courses:all", "courses:detail", "courses:country", "courses:domain", "courses:featured", "courses:active"}, allEntries = true)
     })
     public Course createCourse(Course course, MultipartFile courseImage) throws IOException {
+        ensureTranslations(course, null);
         course.setCreatedAt(new java.util.Date());
         course.setUpdatedAt(new java.util.Date());
         
@@ -77,7 +82,9 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
         Optional<Course> result = courseRepository.findById(id);
         if (result.isPresent()) {
             Course course = result.get();
-            System.out.println("CourseService: Found course - Title: " + course.getTitle() + 
+            CourseTranslation translation = resolveTranslation(course, null);
+            String title = translation != null ? translation.getTitle() : null;
+            System.out.println("CourseService: Found course - Title: " + title + 
                              ", Archived: " + course.isArchived());
         } else {
             System.out.println("CourseService: Course not found with id: " + id);
@@ -98,14 +105,12 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
             }
-            existingCourse.setTitle(updatedCourse.getTitle());
-            existingCourse.setDescription(updatedCourse.getDescription());
-            existingCourse.setGoals(updatedCourse.getGoals());
             existingCourse.setDomain(updatedCourse.getDomain());
             existingCourse.setCountry(updatedCourse.getCountry());
             existingCourse.setTrainerId(updatedCourse.getTrainerId());
             existingCourse.setSessionIds(updatedCourse.getSessionIds());
             existingCourse.setLanguagesAvailable(updatedCourse.getLanguagesAvailable());
+            ensureTranslations(existingCourse, updatedCourse);
             // Merge files: preserve existing files and add/update from payload
             if (updatedCourse.getFiles() != null) {
                 if (existingCourse.getFiles() == null || existingCourse.getFiles().isEmpty()) {
@@ -272,5 +277,117 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
                 }
             });
         }
+    }
+
+    public Course localizeCourse(Course course, Locale locale) {
+        if (course == null) return null;
+        Course localized = new Course();
+        BeanUtils.copyProperties(course, localized);
+        if (course.getTranslations() == null || course.getTranslations().isEmpty()) {
+            return localized;
+        }
+
+        CourseTranslation translation = resolveTranslation(course, locale);
+
+        if (translation != null) {
+            if (translation.getTitle() != null) localized.setTitle(translation.getTitle());
+            if (translation.getDescription() != null) localized.setDescription(translation.getDescription());
+            if (translation.getGoals() != null) localized.setGoals(translation.getGoals());
+        }
+
+        return localized;
+    }
+
+    public List<Course> localizeCourses(List<Course> courses, Locale locale) {
+        if (courses == null || courses.isEmpty()) return courses;
+        List<Course> localized = new java.util.ArrayList<>(courses.size());
+        for (Course c : courses) {
+            localized.add(localizeCourse(c, locale));
+        }
+        return localized;
+    }
+
+    private void ensureTranslations(Course target, Course source) {
+        if (target == null) return;
+        String defaultLanguage = resolveDefaultLanguage(source != null ? source.getDefaultLanguage() : null,
+                target.getDefaultLanguage());
+        target.setDefaultLanguage(defaultLanguage);
+
+        Map<String, CourseTranslation> merged = new HashMap<>();
+        if (target.getTranslations() != null) {
+            merged.putAll(target.getTranslations());
+        }
+        if (source != null && source.getTranslations() != null) {
+            for (Map.Entry<String, CourseTranslation> entry : source.getTranslations().entrySet()) {
+                mergeTranslation(merged, entry.getKey(), entry.getValue());
+            }
+        }
+
+        CourseTranslation fromFields = buildTranslationFromFields(source);
+        if (fromFields != null) {
+            mergeTranslation(merged, defaultLanguage, fromFields);
+        } else if (merged.isEmpty()) {
+            CourseTranslation fallback = buildTranslationFromFields(target);
+            if (fallback != null) {
+                mergeTranslation(merged, defaultLanguage, fallback);
+            }
+        }
+
+        target.setTranslations(merged.isEmpty() ? null : merged);
+    }
+
+    private String resolveDefaultLanguage(String preferred, String fallback) {
+        if (preferred != null && !preferred.isBlank()) return preferred;
+        if (fallback != null && !fallback.isBlank()) return fallback;
+        return "en";
+    }
+
+    private CourseTranslation buildTranslationFromFields(Course course) {
+        if (course == null) return null;
+        if (course.getTitle() == null && course.getDescription() == null && course.getGoals() == null) {
+            return null;
+        }
+        CourseTranslation translation = new CourseTranslation();
+        translation.setTitle(course.getTitle());
+        translation.setDescription(course.getDescription());
+        translation.setGoals(course.getGoals());
+        return translation;
+    }
+
+    private void mergeTranslation(Map<String, CourseTranslation> merged,
+                                  String language,
+                                  CourseTranslation update) {
+        if (merged == null || update == null) return;
+        String key = (language != null && !language.isBlank()) ? language : "en";
+        CourseTranslation existing = merged.getOrDefault(key, new CourseTranslation());
+        if (update.getTitle() != null) existing.setTitle(update.getTitle());
+        if (update.getDescription() != null) existing.setDescription(update.getDescription());
+        if (update.getGoals() != null) existing.setGoals(update.getGoals());
+        merged.put(key, existing);
+    }
+
+    private CourseTranslation resolveTranslation(Course course, Locale locale) {
+        if (course == null || course.getTranslations() == null || course.getTranslations().isEmpty()) return null;
+        String language = locale != null ? locale.getLanguage() : null;
+        CourseTranslation translation = null;
+        if (language != null && !language.isBlank()) {
+            translation = course.getTranslations().get(language);
+            if (translation == null) {
+                translation = course.getTranslations().get(language.toLowerCase());
+            }
+        }
+        if (translation == null && locale != null) {
+            translation = course.getTranslations().get(locale.toString());
+        }
+        if (translation == null) {
+            translation = course.getTranslations().get(course.getDefaultLanguage());
+        }
+        if (translation == null) {
+            translation = course.getTranslations().get("en");
+        }
+        if (translation == null) {
+            translation = course.getTranslations().values().stream().findFirst().orElse(null);
+        }
+        return translation;
     }
 }

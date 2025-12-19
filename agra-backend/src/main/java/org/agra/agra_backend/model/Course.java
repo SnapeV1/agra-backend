@@ -8,6 +8,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -16,9 +17,14 @@ public class Course {
     @Id
     private String id;
 
+    @Transient
     private String title;
+    @Transient
     private String description;
+    @Transient
     private List<String> goals;
+    private String defaultLanguage;
+    private Map<String, CourseTranslation> translations;
     private String domain;
     private String country;
     private String trainerId;

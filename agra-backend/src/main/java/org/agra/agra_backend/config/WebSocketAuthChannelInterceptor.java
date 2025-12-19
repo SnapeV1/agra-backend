@@ -1,8 +1,7 @@
 package org.agra.agra_backend.config;
 
 import org.agra.agra_backend.Misc.JwtUtil;
-import org.agra.agra_backend.dao.UserRepository;
-import org.agra.agra_backend.model.User;
+import org.agra.agra_backend.service.PresenceService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.Message;
@@ -21,11 +20,11 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
     private static final Logger log = LoggerFactory.getLogger(WebSocketAuthChannelInterceptor.class);
 
     private final JwtUtil jwtUtil;
-    private final UserRepository userRepository;
+    private final PresenceService presenceService;
 
-    public WebSocketAuthChannelInterceptor(JwtUtil jwtUtil, UserRepository userRepository) {
+    public WebSocketAuthChannelInterceptor(JwtUtil jwtUtil, PresenceService presenceService) {
         this.jwtUtil = jwtUtil;
-        this.userRepository = userRepository;
+        this.presenceService = presenceService;
     }
 
     @Override
@@ -43,10 +42,26 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
                         UsernamePasswordAuthenticationToken authentication =
                                 new UsernamePasswordAuthenticationToken(userId, null, java.util.Collections.emptyList());
                         accessor.setUser(authentication);
+                        presenceService.markOnline(userId, accessor.getSessionId());
                     }
                 } catch (Exception e) {
                     log.debug("WebSocket CONNECT token rejected: {}", e.getMessage());
                 }
+            }
+        }
+
+        if (StompCommand.DISCONNECT.equals(accessor.getCommand())) {
+            if (accessor.getUser() != null) {
+                presenceService.markOfflineIfNoSessions(accessor.getUser().getName(), accessor.getSessionId());
+            }
+        }
+
+        if (accessor.getUser() != null) {
+            // Refresh TTL on activity and heartbeats
+            if (accessor.getCommand() == null || StompCommand.SEND.equals(accessor.getCommand())
+                    || StompCommand.SUBSCRIBE.equals(accessor.getCommand())
+                    || StompCommand.MESSAGE.equals(accessor.getCommand())) {
+                presenceService.refresh(accessor.getUser().getName(), accessor.getSessionId());
             }
         }
         return message;
@@ -74,4 +89,3 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
         return null;
     }
 }
-

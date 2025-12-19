@@ -339,17 +339,25 @@ def make_course_documents(target_ids: List[ObjectId]) -> List[Dict]:
     docs: List[Dict] = []
     now = datetime.datetime.utcnow()
     for bp, oid in zip(COURSE_BLUEPRINTS, target_ids):
-        docs.append(
-            {
-                "_id": oid,
+        translations = {
+            "en": {
                 "title": bp["title"],
                 "description": bp["description"],
                 "goals": bp["goals"],
+            }
+        }
+        docs.append(
+            {
+                "_id": oid,
+                "defaultLanguage": "en",
+                "translations": translations,
                 "domain": bp["domain"],
                 "country": bp["country"],
                 "trainerId": bp.get("trainerId", "seed-script"),
                 "sessionIds": [],
-                "languagesAvailable": bp["languagesAvailable"],
+                "languagesAvailable": sorted(
+                    set(bp.get("languagesAvailable", [])) | set(translations.keys())
+                ),
                 "createdAt": now,
                 "updatedAt": now,
                 "archived": False,
@@ -370,7 +378,7 @@ def make_course_documents(target_ids: List[ObjectId]) -> List[Dict]:
 def delete_seeded_courses(collection, target_ids: List[ObjectId]) -> int:
     titles = [bp["title"] for bp in COURSE_BLUEPRINTS]
     filter_query = {
-        "title": {"$in": titles},
+        "translations.en.title": {"$in": titles},
         "_id": {"$nin": target_ids},
     }
     result = collection.delete_many(filter_query)

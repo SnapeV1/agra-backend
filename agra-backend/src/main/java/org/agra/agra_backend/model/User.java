@@ -31,6 +31,7 @@ public class User {
     private String domain;
     private String role;
     private String picture;
+    private Date birthdate;
     private String themePreference = "light";
     private Date registeredAt;
     private NotificationPreferences notificationPreferences;

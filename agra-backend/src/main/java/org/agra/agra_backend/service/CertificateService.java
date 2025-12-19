@@ -7,6 +7,7 @@ import org.agra.agra_backend.dao.UserRepository;
 import org.agra.agra_backend.model.CertificateRecord;
 import org.agra.agra_backend.model.Course;
 import org.agra.agra_backend.model.CourseProgress;
+import org.agra.agra_backend.model.CourseTranslation;
 import org.agra.agra_backend.model.User;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -159,6 +160,69 @@ public class CertificateService {
         return certificateRecordRepository.findByCourseIdAndUserId(courseId, userId);
     }
 
+    /**
+     * Verifies a certificate by its public code or internal id and returns enriched details
+     * about the recipient and course when valid.
+     */
+    public Optional<Map<String, Object>> verifyCertificate(String certificateIdentifier) {
+        if (!StringUtils.hasText(certificateIdentifier)) {
+            return Optional.empty();
+        }
+        String normalized = certificateIdentifier.trim();
+
+        Optional<CertificateRecord> recordOpt = findByCode(normalized);
+        if (recordOpt.isEmpty()) {
+            recordOpt = getById(normalized);
+        }
+        if (recordOpt.isEmpty()) {
+            return Optional.empty();
+        }
+
+        CertificateRecord record = recordOpt.get();
+        Map<String, Object> response = buildVerificationPayload(record);
+        if (record.isRevoked()) {
+            response.put("valid", false);
+            response.put("message", record.getRevokedReason() != null ? record.getRevokedReason() : "Certificate revoked");
+        } else {
+            response.put("valid", true);
+        }
+        return Optional.of(response);
+    }
+
+    private Map<String, Object> buildVerificationPayload(CertificateRecord record) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("certificateId", record.getId());
+        response.put("certificateCode", record.getCertificateCode());
+        response.put("certificateUrl", record.getCertificateUrl());
+        response.put("issuedAt", record.getIssuedAt());
+        response.put("completedAt", record.getCompletedAt());
+        response.put("revoked", record.isRevoked());
+        response.put("revokedReason", record.getRevokedReason());
+
+        userRepository.findById(record.getUserId()).ifPresent(user -> {
+            response.put("userId", user.getId());
+            response.put("recipientName", user.getName());
+            response.put("userName", user.getName());
+            response.put("email", user.getEmail());
+            response.put("birthdate", user.getBirthdate());
+        });
+
+        courseRepository.findById(record.getCourseId()).ifPresent(course -> {
+            Map<String, Object> courseDetails = new HashMap<>();
+            courseDetails.put("id", course.getId());
+            courseDetails.put("title", resolveCourseTitle(course));
+            courseDetails.put("description", resolveCourseDescription(course));
+            courseDetails.put("domain", course.getDomain());
+            courseDetails.put("country", course.getCountry());
+            courseDetails.put("trainerId", course.getTrainerId());
+            response.put("course", courseDetails);
+            response.put("courseId", course.getId());
+            response.put("courseTitle", resolveCourseTitle(course));
+        });
+
+        return response;
+    }
+
     private String ensureCertificateCode(CourseProgress progress) {
         if (StringUtils.hasText(progress.getCertificateCode())) {
             String normalized = progress.getCertificateCode().trim().toUpperCase();
@@ -201,8 +265,42 @@ public class CertificateService {
             return null;
         }
         return courseRepository.findById(courseId)
-                .map(Course::getTitle)
+                .map(this::resolveCourseTitle)
                 .orElse(null);
+    }
+
+    private String resolveCourseTitle(Course course) {
+        if (course == null) return null;
+        String title = course.getTitle();
+        if (StringUtils.hasText(title)) return title;
+        CourseTranslation translation = resolveFallbackTranslation(course);
+        if (translation != null && StringUtils.hasText(translation.getTitle())) {
+            return translation.getTitle();
+        }
+        return title;
+    }
+
+    private String resolveCourseDescription(Course course) {
+        if (course == null) return null;
+        String description = course.getDescription();
+        if (StringUtils.hasText(description)) return description;
+        CourseTranslation translation = resolveFallbackTranslation(course);
+        if (translation != null && StringUtils.hasText(translation.getDescription())) {
+            return translation.getDescription();
+        }
+        return description;
+    }
+
+    private CourseTranslation resolveFallbackTranslation(Course course) {
+        if (course == null || course.getTranslations() == null || course.getTranslations().isEmpty()) return null;
+        String defaultLanguage = course.getDefaultLanguage();
+        if (StringUtils.hasText(defaultLanguage)) {
+            CourseTranslation preferred = course.getTranslations().get(defaultLanguage);
+            if (preferred != null) return preferred;
+        }
+        CourseTranslation en = course.getTranslations().get("en");
+        if (en != null) return en;
+        return course.getTranslations().values().stream().findFirst().orElse(null);
     }
 
     private String resolveCertificateUrl(CourseProgress progress, String overrideUrl) {

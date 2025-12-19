@@ -470,6 +470,7 @@ public class PostService {
         info.setName(user.getName());
         info.setEmail(user.getEmail());
         info.setPicture(user.getPicture());
+        info.setBirthdate(user.getBirthdate());
         return info;
     }
     public Optional<Post> getPostById(String postId) {

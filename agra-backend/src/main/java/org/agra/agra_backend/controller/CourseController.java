@@ -10,6 +10,7 @@ import org.agra.agra_backend.service.CourseService;
 import org.agra.agra_backend.service.CourseProgressService;
 import org.agra.agra_backend.service.CourseLikeService;
 import org.agra.agra_backend.service.NotificationService;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -53,9 +54,10 @@ public class CourseController {
             @RequestPart("course") Course course,
             @RequestPart(value = "image", required = false) MultipartFile courseImage) {
         try {
+            Course localizedForNotification = courseService.localizeCourse(course, LocaleContextHolder.getLocale());
             Notification notification = new Notification(
                     UUID.randomUUID().toString(),
-                    "New post published: " + course.getTitle(),
+                    "New post published: " + localizedForNotification.getTitle(),
                     NotificationType.COURSE,
                     LocalDateTime.now()
             );
@@ -67,7 +69,7 @@ public class CourseController {
             messagingTemplate.convertAndSend("/topic/notifications", notification);
 
 
-            return ResponseEntity.ok(createdCourse);
+            return ResponseEntity.ok(courseService.localizeCourse(createdCourse, LocaleContextHolder.getLocale()));
         } catch (IOException e) {
             return ResponseEntity.badRequest().build();
         }
@@ -89,7 +91,7 @@ public class CourseController {
             }
         }
 
-        return ResponseEntity.ok(courses);
+        return ResponseEntity.ok(courseService.localizeCourses(courses, LocaleContextHolder.getLocale()));
     }
 
     @GetMapping("/getActiveCourses")
@@ -108,7 +110,7 @@ public class CourseController {
             }
         }
 
-        return ResponseEntity.ok(courses);
+        return ResponseEntity.ok(courseService.localizeCourses(courses, LocaleContextHolder.getLocale()));
     }
 
 
@@ -122,7 +124,7 @@ public class CourseController {
             String userId = user.getId();
             course.setLiked(courseLikeService.isLiked(userId, id));
         }
-        return ResponseEntity.ok(course);
+        return ResponseEntity.ok(courseService.localizeCourse(course, LocaleContextHolder.getLocale()));
     }
 
     @PutMapping(value = "updateCourse/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -138,6 +140,7 @@ public class CourseController {
             Course course = objectMapper.readValue(courseJson, Course.class);
 
             return courseService.updateCourse(id, course, courseImage)
+                    .map(updated -> courseService.localizeCourse(updated, LocaleContextHolder.getLocale()))
                     .map(ResponseEntity::ok)
                     .orElse(ResponseEntity.notFound().build());
 
@@ -166,12 +169,14 @@ public class CourseController {
 
     @GetMapping("/country/{country}")
     public ResponseEntity<List<Course>> getCoursesByCountry(@PathVariable String country) {
-        return ResponseEntity.ok(courseService.getCoursesByCountry(country));
+        List<Course> courses = courseService.getCoursesByCountry(country);
+        return ResponseEntity.ok(courseService.localizeCourses(courses, LocaleContextHolder.getLocale()));
     }
 
     @GetMapping("/domain/{domain}")
     public ResponseEntity<List<Course>> getCoursesByDomain(@PathVariable String domain) {
-        return ResponseEntity.ok(courseService.getCoursesByDomain(domain));
+        List<Course> courses = courseService.getCoursesByDomain(domain);
+        return ResponseEntity.ok(courseService.localizeCourses(courses, LocaleContextHolder.getLocale()));
     }
 
     @GetMapping("/{id}/enrollment-status")
@@ -238,7 +243,7 @@ public class CourseController {
                 c.setLiked(likedIds.contains(c.getId()));
             }
 
-            return ResponseEntity.ok(result);
+            return ResponseEntity.ok(courseService.localizeCourses(result, LocaleContextHolder.getLocale()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .build();
@@ -349,10 +354,11 @@ public class CourseController {
                 
                 if (courseOpt.isPresent()) {
                     Course course = courseOpt.get();
+                    Course localizedCourse = courseService.localizeCourse(course, LocaleContextHolder.getLocale());
                     
                     // Skip archived courses
-                    if (course.isArchived()) {
-                        System.out.println("GET /api/courses/enrolled - Skipping archived course: " + course.getTitle() + 
+                    if (localizedCourse.isArchived()) {
+                        System.out.println("GET /api/courses/enrolled - Skipping archived course: " + localizedCourse.getTitle() + 
                                          " (ID: " + course.getId() + ")");
                         continue;
                     }
@@ -360,15 +366,15 @@ public class CourseController {
                     Map<String, Object> courseData = new HashMap<>();
                     
                     // Course basic info
-                    courseData.put("id", course.getId());
-                    courseData.put("title", course.getTitle());
-                    courseData.put("description", course.getDescription());
-                    courseData.put("domain", course.getDomain());
-                    courseData.put("country", course.getCountry());
-                    courseData.put("trainerId", course.getTrainerId());
-                    courseData.put("imageUrl", course.getImageUrl());
-                    courseData.put("createdAt", course.getCreatedAt());
-                    courseData.put("updatedAt", course.getUpdatedAt());
+                    courseData.put("id", localizedCourse.getId());
+                    courseData.put("title", localizedCourse.getTitle());
+                    courseData.put("description", localizedCourse.getDescription());
+                    courseData.put("domain", localizedCourse.getDomain());
+                    courseData.put("country", localizedCourse.getCountry());
+                    courseData.put("trainerId", localizedCourse.getTrainerId());
+                    courseData.put("imageUrl", localizedCourse.getImageUrl());
+                    courseData.put("createdAt", localizedCourse.getCreatedAt());
+                    courseData.put("updatedAt", localizedCourse.getUpdatedAt());
                     
                     // Progress data
                     courseData.put("enrolledAt", progress.getEnrolledAt());
@@ -382,7 +388,7 @@ public class CourseController {
                     
                     coursesWithProgress.add(courseData);
                     
-                    System.out.println("GET /api/courses/enrolled - Added course: " + course.getTitle() + 
+                    System.out.println("GET /api/courses/enrolled - Added course: " + localizedCourse.getTitle() + 
                                      " (Progress: " + progress.getProgressPercentage() + "%)");
                 } else {
                     System.err.println("GET /api/courses/enrolled - Course not found: " + progress.getCourseId());

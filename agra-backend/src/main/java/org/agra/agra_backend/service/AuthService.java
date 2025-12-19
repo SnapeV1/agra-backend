@@ -59,6 +59,7 @@ public class AuthService implements IAuthService {
         // Enforce default role for signups to prevent privilege escalation
         user.setRole("USER");
         user.setVerified(false);
+        user.setBirthdate(request.getBirthdate());
         // Default theme preference if not provided elsewhere
         if (user.getThemePreference() == null || user.getThemePreference().isBlank()) {
             user.setThemePreference("light");

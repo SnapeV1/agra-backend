@@ -207,7 +207,7 @@ public class AnalyticsController {
     public ResponseEntity<Map<String, Object>> getWebsocketActive() {
         log.info("GET /api/analytics/notifications/websocket/active - request received");
         Map<String, Object> out = analyticsService.getWebSocketActivity();
-        log.info("GET /api/analytics/notifications/websocket/active - connectedUsers={}", out.get("connectedUsers"));
+        log.info("GET /api/analytics/notifications/websocket/active - connectedUsers(sessions)={} onlineUsers={}", out.get("connectedUsers"), out.get("onlineUsers"));
         return ResponseEntity.ok(out);
     }
 

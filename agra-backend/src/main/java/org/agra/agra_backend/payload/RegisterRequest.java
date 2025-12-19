@@ -5,6 +5,8 @@ import lombok.NoArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.Date;
+
 @Getter
 @Setter
 @AllArgsConstructor
@@ -20,5 +22,6 @@ public class RegisterRequest {
     private String domain;
     private String role;
     private String picture;
+    private Date birthdate;
 
 }

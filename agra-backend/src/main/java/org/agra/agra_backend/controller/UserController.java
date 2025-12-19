@@ -201,7 +201,10 @@ public class UserController {
         if (incoming.getRole() != null) existing.setRole(incoming.getRole());
         if (incoming.getThemePreference() != null) existing.setThemePreference(incoming.getThemePreference());
         if (incoming.getPicture() != null) existing.setPicture(incoming.getPicture());
+        if (incoming.getBirthdate() != null) existing.setBirthdate(incoming.getBirthdate());
         if (incoming.getRegisteredAt() != null) existing.setRegisteredAt(incoming.getRegisteredAt());
-        if (incoming.getIsArchived() != existing.getIsArchived()) existing.setIsArchived(incoming.getIsArchived());
+        if (incoming.getIsArchived() != null && incoming.getIsArchived() != existing.getIsArchived()) {
+            existing.setIsArchived(incoming.getIsArchived());
+        }
     }
 }

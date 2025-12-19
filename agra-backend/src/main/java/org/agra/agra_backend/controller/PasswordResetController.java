@@ -1,14 +1,16 @@
 package org.agra.agra_backend.controller;
 
 import jakarta.mail.MessagingException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import lombok.RequiredArgsConstructor;
 import org.agra.agra_backend.service.PasswordResetService;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -17,6 +19,7 @@ import org.slf4j.LoggerFactory;
 public class PasswordResetController {
 
     private final PasswordResetService resetService;
+    private final MessageSource messageSource;
     private static final Logger log = LoggerFactory.getLogger(PasswordResetController.class);
 
     @PostMapping("/forgot-password")
@@ -24,7 +27,7 @@ public class PasswordResetController {
         String email = request.get("email");
         log.info("POST /api/auth/forgot-password - email={} (normalized internally)", email);
         resetService.initiateReset(email);
-        return ResponseEntity.ok(Map.of("message", "If your email is registered, you will receive a reset link."));
+        return ResponseEntity.ok(Map.of("message", msg("auth.reset.email.sent")));
     }
 
     @GetMapping("/twilio/test")
@@ -43,7 +46,7 @@ public class PasswordResetController {
         String phone = request.get("phone");
         log.info("POST /api/auth/forgot-password/sms - phonePresent={}", phone != null && !phone.isBlank());
         resetService.sendResetCodeSms(phone);
-        return ResponseEntity.ok(Map.of("message", "If your phone is registered, you will receive a verification code."));
+        return ResponseEntity.ok(Map.of("message", msg("auth.reset.sms.sent")));
     }
 
     @PostMapping("/reset-password")
@@ -54,7 +57,7 @@ public class PasswordResetController {
                 token != null && !token.isBlank(), password != null && !password.isBlank());
         try {
             resetService.resetPassword(token, password);
-            return ResponseEntity.ok(Map.of("message", "Password reset successful."));
+            return ResponseEntity.ok(Map.of("message", msg("auth.reset.success")));
         } catch (RuntimeException e) {
             log.warn("POST /api/auth/reset-password - failed: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -71,7 +74,7 @@ public class PasswordResetController {
         try {
             String rawToken = resetService.createResetTokenWithSmsCode(phone, code);
             return ResponseEntity.ok(Map.of(
-                    "message", "Verification successful. Use this token with /api/auth/reset-password to set a new password.",
+                    "message", msg("auth.reset.sms.verify.success"),
                     "token", rawToken
             ));
         } catch (RuntimeException e) {
@@ -89,11 +92,14 @@ public class PasswordResetController {
                 token != null && !token.isBlank(), password != null && !password.isBlank());
         try {
             resetService.resetPassword(token, password);
-            return ResponseEntity.ok(Map.of("message", "Password set successfully."));
+            return ResponseEntity.ok(Map.of("message", msg("auth.set.success")));
         } catch (RuntimeException e) {
             log.warn("POST /api/auth/set-password - failed: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
+    private String msg(String code) {
+        return messageSource.getMessage(code, null, LocaleContextHolder.getLocale());
+    }
 }
