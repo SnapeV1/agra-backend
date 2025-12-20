@@ -148,8 +148,8 @@ public class TicketService {
             throw new ResponseStatusException(FORBIDDEN, "Ticket is not open for replies");
         }
 
-        if (isAdmin(actor) && ticket.getStatus() == TicketStatus.CLOSED) {
-            throw new ResponseStatusException(FORBIDDEN, "Cannot reply to closed ticket");
+        if (isAdmin(actor) && isResolvedStatus(ticket.getStatus())) {
+            throw new ResponseStatusException(FORBIDDEN, "Cannot reply to resolved ticket");
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -203,11 +203,11 @@ public class TicketService {
         requireAdmin(actor);
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ticket not found"));
-        ticket.setStatus(TicketStatus.CLOSED);
+        ticket.setStatus(TicketStatus.RESOLVED);
         ticket.setUpdatedAt(LocalDateTime.now());
         enrichTicket(ticket);
         Ticket saved = ticketRepository.save(ticket);
-        publishLifecycleEvent("CLOSED", saved);
+        publishLifecycleEvent("RESOLVED", saved);
         return saved;
     }
 
@@ -374,6 +374,9 @@ public class TicketService {
         if (ticket == null) {
             return;
         }
+        if (ticket.getStatus() == TicketStatus.CLOSED) {
+            ticket.setStatus(TicketStatus.RESOLVED);
+        }
         if (ticket.getUserInfo() == null || ticket.getUserInfo().getName() == null) {
             ticket.setUserInfo(loadUserInfo(resolveUserId(ticket.getUserInfo())));
         }
@@ -440,11 +443,19 @@ public class TicketService {
         if (statusValue == null || statusValue.trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Status is required");
         }
+        String normalized = statusValue.trim().toUpperCase();
+        if ("CLOSED".equals(normalized)) {
+            return TicketStatus.RESOLVED;
+        }
         try {
-            return TicketStatus.valueOf(statusValue.trim().toUpperCase());
+            return TicketStatus.valueOf(normalized);
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid ticket status: " + statusValue);
         }
+    }
+
+    private boolean isResolvedStatus(TicketStatus status) {
+        return status == TicketStatus.RESOLVED || status == TicketStatus.CLOSED;
     }
 
     private String resolveAttachment(Ticket ticket, MultipartFile attachment) {

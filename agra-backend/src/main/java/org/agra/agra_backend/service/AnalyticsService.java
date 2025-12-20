@@ -293,6 +293,20 @@ public class AnalyticsService {
                 .collect(Collectors.groupingBy(c -> c, TreeMap::new, Collectors.counting()));
     }
 
+    public Map<String, Object> getLatestUserSummary() {
+        Map<String, Object> out = new LinkedHashMap<>();
+        userRepository.findTopByOrderByRegisteredAtDesc()
+                .ifPresent(user -> {
+                    Map<String, Object> latest = new LinkedHashMap<>();
+                    latest.put("name", user.getName());
+                    latest.put("email", user.getEmail());
+                    latest.put("createdAt", user.getRegisteredAt());
+                    latest.put("userId", user.getId());
+                    out.put("latestUser", latest);
+                });
+        return out;
+    }
+
     public List<Map<String, Object>> getNewRegistrations(String granularity, Date start, Date end) {
         // Non-cumulative new registrations per period (original behavior)
         List<User> users = userRepository.findAll();

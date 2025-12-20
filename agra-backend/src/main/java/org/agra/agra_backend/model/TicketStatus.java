@@ -4,6 +4,7 @@ public enum TicketStatus {
     OPEN,
     PENDING,
     RESOLVED,
+    @Deprecated
     CLOSED
 }
 

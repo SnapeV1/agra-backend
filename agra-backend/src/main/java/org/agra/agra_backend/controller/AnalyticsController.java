@@ -134,6 +134,15 @@ public class AnalyticsController {
         return ResponseEntity.ok(data);
     }
 
+    @GetMapping("/users/latest")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> getLatestUser() {
+        log.info("GET /api/analytics/users/latest - request received");
+        Map<String, Object> data = analyticsService.getLatestUserSummary();
+        log.info("GET /api/analytics/users/latest - latestUser={}", data.get("latestUser") != null);
+        return ResponseEntity.ok(data);
+    }
+
     // ===== Social / Feed Analytics =====
     @GetMapping("/social/posts/trend")
     @PreAuthorize("hasRole('ADMIN')")

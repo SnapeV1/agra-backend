@@ -12,6 +12,7 @@ public interface UserRepository extends MongoRepository<User,String> {
     Boolean existsByEmail(String email);
     User findByEmail(String email);
     Optional<User> findByPhone(String phone);
+    Optional<User> findTopByOrderByRegisteredAtDesc();
     
     // Case-insensitive email queries (backup methods if needed)
     @Query("{'email': {$regex: ?0, $options: 'i'}}")
