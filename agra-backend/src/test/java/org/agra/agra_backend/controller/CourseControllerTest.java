@@ -78,7 +78,7 @@ class CourseControllerTest {
 
         CourseProgress progress = new CourseProgress();
         progress.setEnrolledAt(new Date());
-        progress.setProgressPercentage(0.25);
+        progress.setProgressPercentage(25);
         when(courseProgressService.enrollUserInCourse("user-1", "course-1")).thenReturn(progress);
 
         ResponseEntity<Object> response = controller.enrollInCourse("course-1", authentication);
