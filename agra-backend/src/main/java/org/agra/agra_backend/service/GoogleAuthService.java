@@ -5,7 +5,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import lombok.RequiredArgsConstructor;
-import org.agra.agra_backend.Misc.JwtUtil;
+import org.agra.agra_backend.misc.JwtUtil;
 import org.agra.agra_backend.dao.UserRepository;
 import org.agra.agra_backend.model.User;
 import org.agra.agra_backend.payload.LoginResponse;

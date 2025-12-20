@@ -1,4 +1,4 @@
-package org.agra.agra_backend.Misc;
+package org.agra.agra_backend.misc;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -17,7 +16,7 @@ import java.util.function.Function;
 public class JwtUtil {
 
     private final SecretKey secretKey;
-    private static final long EXPIRATION_TIME = 1000 * 60 * 60 * 2; // 2 hours
+    private static final long EXPIRATION_TIME = 1000L * 60 * 60 * 2; // 2 hours
 
     public JwtUtil(JwtConfig jwtConfig) {
         this.secretKey = Keys.hmacShaKeyFor(jwtConfig.getSecret().getBytes(StandardCharsets.UTF_8));

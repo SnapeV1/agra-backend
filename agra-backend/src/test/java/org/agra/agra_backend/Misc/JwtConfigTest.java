@@ -1,5 +1,6 @@
 package org.agra.agra_backend.Misc;
 
+import org.agra.agra_backend.misc.JwtConfig;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;

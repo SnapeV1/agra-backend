@@ -1,7 +1,6 @@
 package org.agra.agra_backend.controller;
 
 import org.agra.agra_backend.service.CloudinaryService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -12,9 +11,18 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/cloudinary")
 public class CloudinaryController {
+    private static final String KEY_STATUS = "status";
+    private static final String KEY_SUCCESS = "success";
+    private static final String KEY_MESSAGE = "message";
+    private static final String KEY_CONNECTED = "connected";
+    private static final String KEY_ERROR = "error";
+    private static final String KEY_PUBLIC_ID = "public_id";
 
-    @Autowired
-    private CloudinaryService cloudinaryService;
+    private final CloudinaryService cloudinaryService;
+
+    public CloudinaryController(CloudinaryService cloudinaryService) {
+        this.cloudinaryService = cloudinaryService;
+    }
 
     @GetMapping("/test")
     public ResponseEntity<Map<String, Object>> testConnection() {
@@ -24,21 +32,21 @@ public class CloudinaryController {
             boolean isConnected = cloudinaryService.testConnection();
 
             if (isConnected) {
-                response.put("status", "success");
-                response.put("message", "Cloudinary connection is working!");
-                response.put("connected", true);
+                response.put(KEY_STATUS, KEY_SUCCESS);
+                response.put(KEY_MESSAGE, "Cloudinary connection is working!");
+                response.put(KEY_CONNECTED, true);
                 return ResponseEntity.ok(response);
             } else {
-                response.put("status", "error");
-                response.put("message", "Cloudinary connection failed");
-                response.put("connected", false);
+                response.put(KEY_STATUS, KEY_ERROR);
+                response.put(KEY_MESSAGE, "Cloudinary connection failed");
+                response.put(KEY_CONNECTED, false);
                 return ResponseEntity.status(500).body(response);
             }
 
         } catch (Exception e) {
-            response.put("status", "error");
-            response.put("message", "Error testing connection: " + e.getMessage());
-            response.put("connected", false);
+            response.put(KEY_STATUS, KEY_ERROR);
+            response.put(KEY_MESSAGE, "Error testing connection: " + e.getMessage());
+            response.put(KEY_CONNECTED, false);
             return ResponseEntity.status(500).body(response);
         }
     }
@@ -50,26 +58,26 @@ public class CloudinaryController {
         try {
             // Validate file
             if (file.isEmpty()) {
-                response.put("status", "error");
-                response.put("message", "Please select a file to upload");
+                response.put(KEY_STATUS, KEY_ERROR);
+                response.put(KEY_MESSAGE, "Please select a file to upload");
                 return ResponseEntity.badRequest().body(response);
             }
 
             // Check if it's an image
             String contentType = file.getContentType();
             if (contentType == null || !contentType.startsWith("image/")) {
-                response.put("status", "error");
-                response.put("message", "Please upload a valid image file");
+                response.put(KEY_STATUS, KEY_ERROR);
+                response.put(KEY_MESSAGE, "Please upload a valid image file");
                 return ResponseEntity.badRequest().body(response);
             }
 
             // Upload to Cloudinary
             Map<String, Object> uploadResult = cloudinaryService.uploadImage(file);
 
-            response.put("status", "success");
-            response.put("message", "Image uploaded successfully");
+            response.put(KEY_STATUS, KEY_SUCCESS);
+            response.put(KEY_MESSAGE, "Image uploaded successfully");
             response.put("url", uploadResult.get("secure_url"));
-            response.put("public_id", uploadResult.get("public_id"));
+            response.put(KEY_PUBLIC_ID, uploadResult.get(KEY_PUBLIC_ID));
             response.put("format", uploadResult.get("format"));
             response.put("width", uploadResult.get("width"));
             response.put("height", uploadResult.get("height"));
@@ -79,8 +87,8 @@ public class CloudinaryController {
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            response.put("status", "error");
-            response.put("message", "Error uploading image: " + e.getMessage());
+            response.put(KEY_STATUS, KEY_ERROR);
+            response.put(KEY_MESSAGE, "Error uploading image: " + e.getMessage());
             return ResponseEntity.status(500).body(response);
         }
     }
@@ -94,24 +102,24 @@ public class CloudinaryController {
         try {
             // Validate file
             if (file.isEmpty()) {
-                response.put("status", "error");
-                response.put("message", "Please select a file to upload");
+                response.put(KEY_STATUS, KEY_ERROR);
+                response.put(KEY_MESSAGE, "Please select a file to upload");
                 return ResponseEntity.badRequest().body(response);
             }
 
             Map<String, Object> uploadResult = cloudinaryService.uploadImage(file, uploadPreset);
 
-            response.put("status", "success");
-            response.put("message", "Image uploaded successfully with preset: " + uploadPreset);
+            response.put(KEY_STATUS, KEY_SUCCESS);
+            response.put(KEY_MESSAGE, "Image uploaded successfully with preset: " + uploadPreset);
             response.put("url", uploadResult.get("secure_url"));
-            response.put("public_id", uploadResult.get("public_id"));
+            response.put(KEY_PUBLIC_ID, uploadResult.get(KEY_PUBLIC_ID));
             response.put("preset_used", uploadPreset);
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            response.put("status", "error");
-            response.put("message", "Error uploading image: " + e.getMessage());
+            response.put(KEY_STATUS, KEY_ERROR);
+            response.put(KEY_MESSAGE, "Error uploading image: " + e.getMessage());
             return ResponseEntity.status(500).body(response);
         }
     }

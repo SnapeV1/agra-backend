@@ -27,6 +27,11 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequestMapping("/api/admin")
 public class AdminSettingsController {
+    private static final String KEY_ERROR = "error";
+    private static final String KEY_STATUS = "status";
+    private static final String KEY_EMAIL = "email";
+    private static final String KEY_CURRENT_PASSWORD = "currentPassword";
+    private static final String MSG_CURRENT_PASSWORD_INCORRECT = "Current password incorrect";
 
     private final AdminSettingsService adminSettingsService;
     private final NewsService newsService;
@@ -77,7 +82,7 @@ public class AdminSettingsController {
 
     @PostMapping("/news/fetch-now")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> fetchNow(@RequestBody(required = false) Map<String, Object> body) {
+    public ResponseEntity<Map<String, Object>> fetchNow(@RequestBody(required = false) Map<String, Object> body) {
         Duration cooldownOverride = null;
         if (body != null && body.get("cooldownSeconds") instanceof Number n) {
             cooldownOverride = Duration.ofSeconds(n.longValue());
@@ -85,12 +90,12 @@ public class AdminSettingsController {
         try {
             adminSettingsService.markNewsFetchNow(cooldownOverride);
         } catch (IllegalStateException ex) {
-            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("error", ex.getMessage()));
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of(KEY_ERROR, ex.getMessage()));
         }
         var articles = newsService.fetchNorthAfricaAgricultureNow();
         Map<String, Object> resp = new HashMap<>();
         resp.put("count", articles.size());
-        resp.put("status", "ok");
+        resp.put(KEY_STATUS, "ok");
         return ResponseEntity.ok(resp);
     }
 
@@ -127,77 +132,78 @@ public class AdminSettingsController {
 
     @PostMapping("/settings/security/2fa/verify")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> verify2fa(@RequestBody Map<String, String> body) {
+    public ResponseEntity<Map<String, String>> verify2fa(@RequestBody Map<String, String> body) {
         User admin = requireAdmin();
         String code = body.get("code");
         if (!twoFactorService.verifyCode(admin.getTwoFactorSecret(), code)) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Invalid code"));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(KEY_ERROR, "Invalid code"));
         }
         admin.setTwoFactorEnabled(true);
         admin.setTwoFactorVerifiedAt(new java.util.Date());
         userRepository.save(admin);
-        return ResponseEntity.ok(Map.of("status", "2fa_enabled"));
+        return ResponseEntity.ok(Map.of(KEY_STATUS, "2fa_enabled"));
     }
 
     @PutMapping("/settings/security/2fa/disable")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> disable2fa(@RequestBody Map<String, String> body) {
+    public ResponseEntity<Map<String, String>> disable2fa(@RequestBody Map<String, String> body) {
         User admin = requireAdmin();
-        String currentPassword = body.get("currentPassword");
+        String currentPassword = body.get(KEY_CURRENT_PASSWORD);
         if (!passwordEncoder.matches(currentPassword, admin.getPassword())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Current password incorrect"));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(KEY_ERROR, MSG_CURRENT_PASSWORD_INCORRECT));
         }
         String recoveryCode = body.get("recoveryCode");
         String totpCode = body.get("code");
         boolean totpOk = twoFactorService.verifyCode(admin.getTwoFactorSecret(), totpCode);
         boolean recoveryOk = recoveryCode != null && matchesRecoveryCode(admin, recoveryCode);
-        if (!totpOk && !recoveryOk && Boolean.TRUE.equals(admin.getTwoFactorEnabled())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Valid TOTP or recovery code required"));
+        boolean twoFactorEnabled = Boolean.TRUE.equals(admin.getTwoFactorEnabled());
+        if (!totpOk && !recoveryOk && twoFactorEnabled) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(KEY_ERROR, "Valid TOTP or recovery code required"));
         }
         admin.setTwoFactorEnabled(false);
         admin.setTwoFactorSecret(null);
         admin.setTwoFactorRecoveryCodes(null);
         admin.setTwoFactorVerifiedAt(null);
         userRepository.save(admin);
-        return ResponseEntity.ok(Map.of("status", "2fa_disabled"));
+        return ResponseEntity.ok(Map.of(KEY_STATUS, "2fa_disabled"));
     }
 
     @PutMapping("/settings/security/email")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> updateEmail(@RequestBody Map<String, String> body) {
+    public ResponseEntity<Map<String, Object>> updateEmail(@RequestBody Map<String, String> body) {
         User admin = requireAdmin();
-        String newEmail = body.get("email");
-        String currentPassword = body.get("currentPassword");
+        String newEmail = body.get(KEY_EMAIL);
+        String currentPassword = body.get(KEY_CURRENT_PASSWORD);
         if (!StringUtils.hasText(newEmail)) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Email required"));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(KEY_ERROR, "Email required"));
         }
         if (!passwordEncoder.matches(currentPassword, admin.getPassword())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Current password incorrect"));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(KEY_ERROR, MSG_CURRENT_PASSWORD_INCORRECT));
         }
         if (userRepository.existsByEmailIgnoreCase(newEmail)) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Email already in use"));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(KEY_ERROR, "Email already in use"));
         }
         admin.setEmail(newEmail);
         userRepository.save(admin);
         adminSettingsService.updateAdminEmail(newEmail);
-        return ResponseEntity.ok(Map.of("status", "email_updated", "email", newEmail));
+        return ResponseEntity.ok(Map.of(KEY_STATUS, "email_updated", KEY_EMAIL, newEmail));
     }
 
     @PutMapping("/settings/security/password")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> updatePassword(@RequestBody Map<String, String> body) {
+    public ResponseEntity<Map<String, String>> updatePassword(@RequestBody Map<String, String> body) {
         User admin = requireAdmin();
-        String currentPassword = body.get("currentPassword");
+        String currentPassword = body.get(KEY_CURRENT_PASSWORD);
         String newPassword = body.get("newPassword");
         if (!passwordEncoder.matches(currentPassword, admin.getPassword())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Current password incorrect"));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(KEY_ERROR, MSG_CURRENT_PASSWORD_INCORRECT));
         }
         if (!isStrongPassword(newPassword)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("error", "Password must be at least 8 characters with upper, lower, digit and symbol"));
+                    .body(Map.of(KEY_ERROR, "Password must be at least 8 characters with upper, lower, digit and symbol"));
         }
         userService.changePassword(admin.getId(), currentPassword, newPassword);
-        return ResponseEntity.ok(Map.of("status", "password_updated"));
+        return ResponseEntity.ok(Map.of(KEY_STATUS, "password_updated"));
     }
 
     private boolean isStrongPassword(String password) {

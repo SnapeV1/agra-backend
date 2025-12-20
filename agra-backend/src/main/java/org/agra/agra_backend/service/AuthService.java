@@ -1,6 +1,6 @@
 package org.agra.agra_backend.service;
 
-import org.agra.agra_backend.Misc.JwtUtil;
+import org.agra.agra_backend.misc.JwtUtil;
 import org.agra.agra_backend.dao.UserRepository;
 import org.agra.agra_backend.model.User;
 import org.agra.agra_backend.payload.LoginRequest;

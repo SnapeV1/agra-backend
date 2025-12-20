@@ -24,6 +24,14 @@ import java.util.TimeZone;
 @RequestMapping("/api/certificates")
 @CrossOrigin(origins = "*")
 public class CertificateController {
+    private static final String KEY_VALID = "valid";
+    private static final String KEY_MESSAGE = "message";
+    private static final String KEY_ERROR = "error";
+    private static final String MSG_AUTH_REQUIRED = "Authentication required";
+    private static final String KEY_INSTRUCTOR_NAME = "instructorName";
+    private static final String KEY_ORGANIZATION_NAME = "organizationName";
+    private static final String KEY_COURSE_ID = "courseId";
+    private static final String KEY_COURSE_TITLE = "courseTitle";
     private final CourseProgressService courseProgressService;
     private final CertificateService certificateService;
     private final CourseService courseService;
@@ -37,36 +45,36 @@ public class CertificateController {
     }
 
     @GetMapping("/validate/{certificateCode}")
-    public ResponseEntity<?> validateCertificate(@PathVariable String certificateCode) {
+    public ResponseEntity<Map<String, Object>> validateCertificate(@PathVariable String certificateCode) {
         return certificateService.findByCode(certificateCode)
                 .map(this::buildSuccessResponse)
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of(
-                                "valid", false,
-                                "message", "Certificate not found or invalid"
+                                KEY_VALID, false,
+                                KEY_MESSAGE, "Certificate not found or invalid"
                         )));
     }
 
     @GetMapping("/verify/{certificateId}")
-    public ResponseEntity<?> verifyCertificate(@PathVariable String certificateId) {
+    public ResponseEntity<Map<String, Object>> verifyCertificate(@PathVariable String certificateId) {
         return certificateService.verifyCertificate(certificateId)
                 .map(payload -> {
                     applyLocalizedCourseFields(payload);
-                    boolean valid = Boolean.TRUE.equals(payload.get("valid"));
+                    boolean valid = Boolean.TRUE.equals(payload.get(KEY_VALID));
                     HttpStatus status = valid ? HttpStatus.OK : HttpStatus.GONE;
                     return ResponseEntity.status(status).body(payload);
                 })
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of("valid", false, "message", "Certificate not found")));
+                        .body(Map.of(KEY_VALID, false, KEY_MESSAGE, "Certificate not found")));
     }
 
     @GetMapping("/user/course/{courseId}")
-    public ResponseEntity<?> getCertificateForAuthenticatedUser(
+    public ResponseEntity<Map<String, Object>> getCertificateForAuthenticatedUser(
             @PathVariable String courseId,
             Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Authentication required"));
+                    .body(Map.of(KEY_ERROR, MSG_AUTH_REQUIRED));
         }
 
         User requester = (User) authentication.getPrincipal();
@@ -75,14 +83,14 @@ public class CertificateController {
         return certificateService.findByCourseAndUser(courseId, userId)
                 .map(this::buildSuccessResponse)
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of("error", "Certificate not found")));
+                        .body(Map.of(KEY_ERROR, "Certificate not found")));
     }
 
     @GetMapping("/admin/issued")
     public ResponseEntity<?> listIssuedCertificates(Authentication authentication) {
         ResponseEntity<Map<String, Object>> authError = requireAdmin(authentication);
         if (authError != null) {
-            return authError;
+            return ResponseEntity.status(authError.getStatusCode()).body(authError.getBody());
         }
         List<Map<String, Object>> data = certificateService.getAllCertificates().stream()
                 .map(this::mapCertificate)
@@ -91,7 +99,7 @@ public class CertificateController {
     }
 
     @PutMapping("/{certificateId}")
-    public ResponseEntity<?> updateCertificate(
+    public ResponseEntity<Map<String, Object>> updateCertificate(
             @PathVariable String certificateId,
             @RequestBody Map<String, Object> updates,
             Authentication authentication) {
@@ -117,15 +125,15 @@ public class CertificateController {
             return buildSuccessResponse(updated);
         } catch (IllegalArgumentException | ParseException ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("error", ex.getMessage()));
+                    .body(Map.of(KEY_ERROR, ex.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Failed to update certificate"));
+                    .body(Map.of(KEY_ERROR, "Failed to update certificate"));
         }
     }
 
     @PostMapping("/{certificateId}/revoke")
-    public ResponseEntity<?> revokeCertificate(
+    public ResponseEntity<Map<String, Object>> revokeCertificate(
             @PathVariable String certificateId,
             @RequestBody(required = false) Map<String, Object> payload,
             Authentication authentication) {
@@ -135,14 +143,14 @@ public class CertificateController {
         }
         try {
             String reason = payload != null ? (String) payload.get("reason") : null;
-            CertificateRecord record = certificateService.revokeCertificate(certificateId, reason);
-            return buildSuccessResponse(record);
+            CertificateRecord certificateRecord = certificateService.revokeCertificate(certificateId, reason);
+            return buildSuccessResponse(certificateRecord);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", ex.getMessage()));
+                    .body(Map.of(KEY_ERROR, ex.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Failed to revoke certificate"));
+                    .body(Map.of(KEY_ERROR, "Failed to revoke certificate"));
         }
     }
 
@@ -150,67 +158,67 @@ public class CertificateController {
     public ResponseEntity<?> getStatistics(Authentication authentication) {
         ResponseEntity<Map<String, Object>> authError = requireAdmin(authentication);
         if (authError != null) {
-            return authError;
+            return ResponseEntity.status(authError.getStatusCode()).body(authError.getBody());
         }
         return ResponseEntity.ok(certificateService.getStatistics());
     }
 
-    private ResponseEntity<Map<String, Object>> buildSuccessResponse(CertificateRecord record) {
-        Map<String, Object> response = mapCertificate(record);
-        HttpStatus status = record.isRevoked() ? HttpStatus.GONE : HttpStatus.OK;
+    private ResponseEntity<Map<String, Object>> buildSuccessResponse(CertificateRecord certificateRecord) {
+        Map<String, Object> response = mapCertificate(certificateRecord);
+        HttpStatus status = certificateRecord.isRevoked() ? HttpStatus.GONE : HttpStatus.OK;
         return ResponseEntity.status(status).body(response);
     }
 
-    private Map<String, Object> mapCertificate(CertificateRecord record) {
+    private Map<String, Object> mapCertificate(CertificateRecord certificateRecord) {
         Map<String, Object> response = new HashMap<>();
-        boolean isValid = !record.isRevoked();
-        response.put("valid", isValid);
+        boolean isValid = !certificateRecord.isRevoked();
+        response.put(KEY_VALID, isValid);
         response.put("isValid", isValid);
-        response.put("certificateId", record.getId());
-        response.put("certificateCode", record.getCertificateCode());
-        response.put("verificationCode", record.getCertificateCode());
-        response.put("verificationUrl", buildVerificationUrl(record.getCertificateCode()));
-        response.put("id", record.getId());
-        response.put("userId", record.getUserId());
-        response.put("studentId", record.getUserId());
-        response.put("recipientName", record.getRecipientName());
-        response.put("studentName", record.getRecipientName());
-        response.put("courseId", record.getCourseId());
-        response.put("courseTitle", record.getCourseTitle());
-        response.put("certificateUrl", record.getCertificateUrl());
-        response.put("issuedAt", record.getIssuedAt());
-        response.put("issueDate", record.getIssuedAt());
-        response.put("completedAt", record.getCompletedAt());
-        response.put("completionDate", record.getCompletedAt());
-        response.put("revoked", record.isRevoked());
-        response.put("revokedReason", record.getRevokedReason());
-        response.put("revokedAt", record.getRevokedAt());
-        response.put("organizationName", record.getOrganizationName());
-        response.put("instructorName", record.getInstructorName());
-        response.put("notes", record.getNotes());
-        response.put("certificateProgressId", record.getCourseProgressId());
+        response.put("certificateId", certificateRecord.getId());
+        response.put("certificateCode", certificateRecord.getCertificateCode());
+        response.put("verificationCode", certificateRecord.getCertificateCode());
+        response.put("verificationUrl", buildVerificationUrl(certificateRecord.getCertificateCode()));
+        response.put("id", certificateRecord.getId());
+        response.put("userId", certificateRecord.getUserId());
+        response.put("studentId", certificateRecord.getUserId());
+        response.put("recipientName", certificateRecord.getRecipientName());
+        response.put("studentName", certificateRecord.getRecipientName());
+        response.put(KEY_COURSE_ID, certificateRecord.getCourseId());
+        response.put(KEY_COURSE_TITLE, certificateRecord.getCourseTitle());
+        response.put("certificateUrl", certificateRecord.getCertificateUrl());
+        response.put("issuedAt", certificateRecord.getIssuedAt());
+        response.put("issueDate", certificateRecord.getIssuedAt());
+        response.put("completedAt", certificateRecord.getCompletedAt());
+        response.put("completionDate", certificateRecord.getCompletedAt());
+        response.put("revoked", certificateRecord.isRevoked());
+        response.put("revokedReason", certificateRecord.getRevokedReason());
+        response.put("revokedAt", certificateRecord.getRevokedAt());
+        response.put(KEY_ORGANIZATION_NAME, certificateRecord.getOrganizationName());
+        response.put(KEY_INSTRUCTOR_NAME, certificateRecord.getInstructorName());
+        response.put("notes", certificateRecord.getNotes());
+        response.put("certificateProgressId", certificateRecord.getCourseProgressId());
         response.put("totalTimeSpent", null);
 
-        courseProgressService.getEnrollmentStatus(record.getUserId(), record.getCourseId())
+        courseProgressService.getEnrollmentStatus(certificateRecord.getUserId(), certificateRecord.getCourseId())
                 .ifPresent(progress -> {
                     response.put("completionPercentage", progress.getProgressPercentage());
                     response.put("totalLessons", progress.getCompletedLessons() != null ? progress.getCompletedLessons().size() : null);
                 });
 
-        courseService.getCourseById(record.getCourseId())
+        courseService.getCourseById(certificateRecord.getCourseId())
                 .map(course -> courseService.localizeCourse(course, LocaleContextHolder.getLocale()))
                 .ifPresent(course -> {
                     response.put("courseCountry", course.getCountry());
                     response.put("courseDomain", course.getDomain());
                     response.put("totalLessons", calculateTotalLessons(course));
-                    response.put("courseTitle", course.getTitle());
+                    response.put(KEY_COURSE_TITLE, course.getTitle());
                 });
 
-        if (response.get("organizationName") == null) {
-            response.put("organizationName", "YEFFA Learning Platform");
+        if (response.get(KEY_ORGANIZATION_NAME) == null) {
+            response.put(KEY_ORGANIZATION_NAME, "YEFFA Learning Platform");
         }
-        if (response.get("instructorName") == null) {
-            response.put("instructorName", "AGRA Trainer");
+        if (response.get(KEY_INSTRUCTOR_NAME) == null) {
+            response.put(KEY_INSTRUCTOR_NAME, "AGRA Trainer");
         }
 
         return response;
@@ -227,14 +235,14 @@ public class CertificateController {
 
     private void applyLocalizedCourseFields(Map<String, Object> payload) {
         if (payload == null) return;
-        Object courseIdObj = payload.get("courseId");
+        Object courseIdObj = payload.get(KEY_COURSE_ID);
         if (!(courseIdObj instanceof String courseId) || courseId.isBlank()) {
             return;
         }
         courseService.getCourseById(courseId)
                 .map(course -> courseService.localizeCourse(course, LocaleContextHolder.getLocale()))
                 .ifPresent(course -> {
-                    payload.put("courseTitle", course.getTitle());
+                    payload.put(KEY_COURSE_TITLE, course.getTitle());
                     Object courseObj = payload.get("course");
                     if (courseObj instanceof Map<?, ?> courseMap) {
                         @SuppressWarnings("unchecked")
@@ -255,12 +263,12 @@ public class CertificateController {
     private ResponseEntity<Map<String, Object>> requireAdmin(Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Authentication required"));
+                    .body(Map.of(KEY_ERROR, MSG_AUTH_REQUIRED));
         }
         User user = (User) authentication.getPrincipal();
         if (!isAdmin(user)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("error", "Admin privileges required"));
+                    .body(Map.of(KEY_ERROR, "Admin privileges required"));
         }
         return null;
     }
@@ -303,7 +311,7 @@ public class CertificateController {
         try {
             if (authentication == null || authentication.getPrincipal() == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("error", "Authentication required"));
+                        .body(Map.of(KEY_ERROR, MSG_AUTH_REQUIRED));
             }
 
             User user = (User) authentication.getPrincipal();
@@ -318,24 +326,24 @@ public class CertificateController {
                             CertificateRecord certificateRecord = certificateService.recordIssuance(progress, certificateUrl, null);
 
                             return ResponseEntity.ok(Map.of(
-                                    "message", "Certificate generated successfully",
+                                    KEY_MESSAGE, "Certificate generated successfully",
                                     "certificateUrl", certificateRecord.getCertificateUrl(),
                                     "certificateCode", certificateRecord.getCertificateCode(),
                                     "certificateIssuedAt", certificateRecord.getIssuedAt(),
-                                    "courseId", courseId,
+                                    KEY_COURSE_ID, courseId,
                                     "userId", userId
                             ));
                         } else {
                             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                                    .body(Map.of("error", "Course must be completed before generating certificate"));
+                                    .body(Map.of(KEY_ERROR, "Course must be completed before generating certificate"));
                         }
                     })
                     .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
-                            .body(Map.of("error", "User is not enrolled in this course")));
+                            .body(Map.of(KEY_ERROR, "User is not enrolled in this course")));
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Failed to generate certificate"));
+                    .body(Map.of(KEY_ERROR, "Failed to generate certificate"));
         }
     }
 }

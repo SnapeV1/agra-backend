@@ -2,7 +2,7 @@ package org.agra.agra_backend.controller;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
-import org.agra.agra_backend.Misc.JwtUtil;
+import org.agra.agra_backend.misc.JwtUtil;
 import org.agra.agra_backend.dao.UserRepository;
 import org.agra.agra_backend.model.User;
 import org.agra.agra_backend.payload.LoginRequest;
@@ -20,6 +20,10 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AuthController.class);
+    private static final String KEY_MESSAGE = "message";
+    private static final String KEY_ERROR = "error";
+    private static final String KEY_REFRESH_TOKEN = "refreshToken";
 
     private final UserRepository userRepository;
     private final UserService userService;
@@ -41,23 +45,23 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@RequestBody RegisterRequest request) {
+    public ResponseEntity<Object> registerUser(@RequestBody RegisterRequest request) {
         try {
             authService.registerUser(request);
-            return ResponseEntity.ok(Map.of("message", "User registered successfully"));
+            return ResponseEntity.ok(Map.of(KEY_MESSAGE, "User registered successfully"));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-        System.out.println("login phase");
+    public ResponseEntity<Object> login(@RequestBody LoginRequest request) {
+        log.info("login phase");
         return ResponseEntity.ok(authService.login(request));
     }
 
     @GetMapping("/me")
-    public ResponseEntity<?> getCurrentUser(
+    public ResponseEntity<Object> getCurrentUser(
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -73,7 +77,7 @@ public class AuthController {
             Optional<User> userOptional = userRepository.findById(userId);
 
             return userOptional
-                    .<ResponseEntity<?>>map(ResponseEntity::ok)
+                    .<ResponseEntity<Object>>map(ResponseEntity::ok)
                     .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found"));
 
         } catch (JwtException e) {
@@ -82,43 +86,43 @@ public class AuthController {
     }
 
     @PostMapping("/google")
-    public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> body) {
+    public ResponseEntity<Object> googleLogin(@RequestBody Map<String, String> body) {
         String token = body.get("token");
         if (token == null || token.isBlank()) {
             token = body.get("credential"); // Support GSI default field name
         }
         if (token == null || token.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Missing Google ID token (token/credential)"));
+            return ResponseEntity.badRequest().body(Map.of(KEY_ERROR, "Missing Google ID token (token/credential)"));
         }
         org.agra.agra_backend.payload.LoginResponse response = googleAuthService.verifyGoogleToken(token);
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/verify-email")
-    public ResponseEntity<?> verifyEmail(@RequestParam("token") String token) {
+    public ResponseEntity<Object> verifyEmail(@RequestParam("token") String token) {
         try {
             emailVerificationService.verifyToken(token);
-            return ResponseEntity.ok(Map.of("message", "Email verified successfully."));
+            return ResponseEntity.ok(Map.of(KEY_MESSAGE, "Email verified successfully."));
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            return ResponseEntity.badRequest().body(Map.of(KEY_ERROR, e.getMessage()));
         }
     }
 
     @PostMapping("/resend-verification")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> resendVerification() {
+    public ResponseEntity<Object> resendVerification() {
         try {
             User user = userService.getCurrentUserOrThrow();
             emailVerificationService.sendVerificationEmail(user);
-            return ResponseEntity.ok(Map.of("message", "Verification email sent if your account is unverified."));
+            return ResponseEntity.ok(Map.of(KEY_MESSAGE, "Verification email sent if your account is unverified."));
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            return ResponseEntity.badRequest().body(Map.of(KEY_ERROR, e.getMessage()));
         }
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<?> refresh(@RequestBody Map<String, String> body) {
-        String refreshToken = body.get("refreshToken");
+    public ResponseEntity<Object> refresh(@RequestBody Map<String, String> body) {
+        String refreshToken = body.get(KEY_REFRESH_TOKEN);
         try {
             var stored = refreshTokenService.validateRefreshToken(refreshToken);
             User user = userRepository.findById(stored.getUserId())
@@ -128,17 +132,17 @@ public class AuthController {
             String newRefresh = refreshTokenService.rotateRefreshToken(stored);
             return ResponseEntity.ok(Map.of(
                     "token", newAccess,
-                    "refreshToken", newRefresh,
+                    KEY_REFRESH_TOKEN, newRefresh,
                     "user", user
             ));
         } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(KEY_ERROR, e.getMessage()));
         }
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(@RequestBody(required = false) Map<String, String> body) {
-        String refreshToken = body == null ? null : body.get("refreshToken");
+    public ResponseEntity<Object> logout(@RequestBody(required = false) Map<String, String> body) {
+        String refreshToken = body == null ? null : body.get(KEY_REFRESH_TOKEN);
         // Revoke the presented refresh token if provided
         refreshTokenService.revokeByToken(refreshToken);
         // If an authenticated user is present, clear any stored tokens for that user
@@ -148,7 +152,7 @@ public class AuthController {
         } catch (Exception ignored) {
             // If not authenticated, just rely on the provided refresh token revocation
         }
-        return ResponseEntity.ok(Map.of("message", "Logged out"));
+        return ResponseEntity.ok(Map.of(KEY_MESSAGE, "Logged out"));
     }
 
     // Removed temporary "exists" endpoints in favor of flags on normal responses

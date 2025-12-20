@@ -1,7 +1,7 @@
 package org.agra.agra_backend.service;
 
 import lombok.RequiredArgsConstructor;
-import org.agra.agra_backend.Misc.JitsiTokenService;
+import org.agra.agra_backend.misc.JitsiTokenService;
 import org.agra.agra_backend.dao.CourseProgressRepository;
 import org.agra.agra_backend.dao.SessionRepository;
 import org.agra.agra_backend.model.Session;

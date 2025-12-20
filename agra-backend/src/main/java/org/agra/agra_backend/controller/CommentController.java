@@ -29,8 +29,8 @@ public class CommentController {
         User userInfo;
         String effectiveUserId;
 
-        if (authentication != null && authentication.getPrincipal() instanceof User) {
-            userInfo = (User) authentication.getPrincipal();
+        if (authentication != null && authentication.getPrincipal() instanceof User user) {
+            userInfo = user;
             effectiveUserId = userInfo.getId();
         } else {
             if (userId == null || userId.trim().isEmpty()) {

@@ -1,10 +1,11 @@
-package org.agra.agra_backend.Misc;
+package org.agra.agra_backend.misc;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class JwtConfig {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(JwtConfig.class);
 
     @Value("${jwt.secret:#{null}}")
     private String propertySecret;
@@ -24,12 +25,12 @@ public class JwtConfig {
 
     private String resolveSecret() {
         if (propertySecret != null && !propertySecret.trim().isEmpty()) {
-            System.out.println("Using JWT secret from properties file");
+            log.info("Using JWT secret from properties file");
             return propertySecret;
         }
 
         if (environmentSecret != null && !environmentSecret.trim().isEmpty()) {
-            System.out.println("Using JWT secret from environment variable");
+            log.info("Using JWT secret from environment variable");
             return environmentSecret;
         }
 

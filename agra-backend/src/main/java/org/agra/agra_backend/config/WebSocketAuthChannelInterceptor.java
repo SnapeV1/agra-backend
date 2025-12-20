@@ -1,6 +1,6 @@
 package org.agra.agra_backend.config;
 
-import org.agra.agra_backend.Misc.JwtUtil;
+import org.agra.agra_backend.misc.JwtUtil;
 import org.agra.agra_backend.service.PresenceService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +12,7 @@ import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Component;
+import org.springframework.lang.Nullable;
 
 import java.util.List;
 
@@ -28,43 +29,62 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
     }
 
     @Override
-    public Message<?> preSend(Message<?> message, MessageChannel channel) {
+    public @Nullable Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
-        if (accessor == null) return message;
+        if (accessor == null) {
+            return message;
+        }
+        StompCommand command = accessor.getCommand();
 
-        if (StompCommand.CONNECT.equals(accessor.getCommand())) {
-            String token = resolveToken(accessor);
-            if (token != null && !token.isBlank()) {
-                try {
-                    String userId = jwtUtil.extractUserId(token);
-                    if (userId != null) {
-                        // Principal name must match convertAndSendToUser target; use userId as the name
-                        UsernamePasswordAuthenticationToken authentication =
-                                new UsernamePasswordAuthenticationToken(userId, null, java.util.Collections.emptyList());
-                        accessor.setUser(authentication);
-                        presenceService.markOnline(userId, accessor.getSessionId());
-                    }
-                } catch (Exception e) {
-                    log.debug("WebSocket CONNECT token rejected: {}", e.getMessage());
-                }
-            }
+        if (StompCommand.CONNECT.equals(command)) {
+            handleConnect(accessor);
+        } else if (StompCommand.DISCONNECT.equals(command)) {
+            handleDisconnect(accessor);
         }
 
-        if (StompCommand.DISCONNECT.equals(accessor.getCommand())) {
-            if (accessor.getUser() != null) {
-                presenceService.markOfflineIfNoSessions(accessor.getUser().getName(), accessor.getSessionId());
-            }
-        }
-
-        if (accessor.getUser() != null) {
-            // Refresh TTL on activity and heartbeats
-            if (accessor.getCommand() == null || StompCommand.SEND.equals(accessor.getCommand())
-                    || StompCommand.SUBSCRIBE.equals(accessor.getCommand())
-                    || StompCommand.MESSAGE.equals(accessor.getCommand())) {
-                presenceService.refresh(accessor.getUser().getName(), accessor.getSessionId());
-            }
-        }
+        refreshPresenceIfNeeded(accessor, command);
         return message;
+    }
+
+    private void handleConnect(StompHeaderAccessor accessor) {
+        String token = resolveToken(accessor);
+        if (token == null || token.isBlank()) {
+            return;
+        }
+        try {
+            String userId = jwtUtil.extractUserId(token);
+            if (userId == null) {
+                return;
+            }
+            // Principal name must match convertAndSendToUser target; use userId as the name
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(userId, null, java.util.Collections.emptyList());
+            accessor.setUser(authentication);
+            presenceService.markOnline(userId, accessor.getSessionId());
+        } catch (Exception e) {
+            log.debug("WebSocket CONNECT token rejected: {}", e.getMessage());
+        }
+    }
+
+    private void handleDisconnect(StompHeaderAccessor accessor) {
+        java.security.Principal user = accessor.getUser();
+        if (user == null) {
+            return;
+        }
+        presenceService.markOfflineIfNoSessions(user.getName(), accessor.getSessionId());
+    }
+
+    private void refreshPresenceIfNeeded(StompHeaderAccessor accessor, StompCommand command) {
+        java.security.Principal user = accessor.getUser();
+        if (user == null) {
+            return;
+        }
+        // Refresh TTL on activity and heartbeats
+        if (command == null || StompCommand.SEND.equals(command)
+                || StompCommand.SUBSCRIBE.equals(command)
+                || StompCommand.MESSAGE.equals(command)) {
+            presenceService.refresh(user.getName(), accessor.getSessionId());
+        }
     }
 
     private String resolveToken(StompHeaderAccessor accessor) {
