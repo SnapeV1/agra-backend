@@ -63,7 +63,7 @@ public class TicketService {
     }
 
     public TicketThreadResponse createTicket(User requester, CreateTicketRequest request, MultipartFile attachment) {
-        requester = requireActor(requester);
+        validateActor(requester);
         LocalDateTime now = LocalDateTime.now();
         Ticket ticket = new Ticket();
         ticket.setUserInfo(toUserInfo(requester));
@@ -110,7 +110,7 @@ public class TicketService {
     }
 
     public List<Ticket> getTickets(User actor) {
-        actor = requireActor(actor);
+        validateActor(actor);
         if (isAdmin(actor)) {
             List<Ticket> tickets = ticketRepository.findAllByOrderByCreatedAtDesc();
             enrichTickets(tickets);
@@ -122,14 +122,14 @@ public class TicketService {
     }
 
     public List<Ticket> getTicketsForUser(User actor) {
-        actor = requireActor(actor);
+        validateActor(actor);
         List<Ticket> tickets = ticketRepository.findByUserInfo_IdOrderByCreatedAtDesc(actor.getId());
         enrichTickets(tickets);
         return tickets;
     }
 
     public TicketThreadResponse getTicketThread(User actor, String ticketId) {
-        actor = requireActor(actor);
+        validateActor(actor);
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ticket not found"));
         ensureCanView(actor, ticket);
@@ -144,7 +144,7 @@ public class TicketService {
     }
 
     public TicketMessage sendMessage(User actor, String ticketId, SendTicketMessageRequest request, MultipartFile attachment) {
-        actor = requireActor(actor);
+        validateActor(actor);
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ticket not found"));
         ensureCanView(actor, ticket);
@@ -205,7 +205,7 @@ public class TicketService {
     }
 
     public Ticket closeTicket(User actor, String ticketId) {
-        actor = requireActor(actor);
+        validateActor(actor);
         requireAdmin(actor);
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ticket not found"));
@@ -218,7 +218,7 @@ public class TicketService {
     }
 
     public Ticket updateTicketStatus(User actor, String ticketId, String statusValue) {
-        actor = requireActor(actor);
+        validateActor(actor);
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ticket not found"));
         ensureCanView(actor, ticket);
@@ -249,11 +249,10 @@ public class TicketService {
         }
     }
 
-    private User requireActor(User actor) {
+    private void validateActor(User actor) {
         if (actor == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
         }
-        return actor;
     }
 
     private boolean isAdmin(User actor) {

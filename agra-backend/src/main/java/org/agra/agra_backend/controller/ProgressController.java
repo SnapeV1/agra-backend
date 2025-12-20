@@ -20,6 +20,7 @@ import java.util.Optional;
 @RequestMapping("/api/progress")
 @CrossOrigin(origins = "*")
 public class ProgressController {
+    private static final String KEY_COMPLETED_AT = "completedAt";
 
     private final CourseProgressService courseProgressService;
     private final CertificateService certificateService;
@@ -244,7 +245,7 @@ public class ProgressController {
             response.put("courseId", updatedProgress.getCourseId());
             response.put("lessonId", lessonId);
             response.put("completedLessons", updatedProgress.getCompletedLessons());
-            response.put("completedAt", completedAt);
+            response.put(KEY_COMPLETED_AT, completedAt);
             response.put("progressPercentage", updatedProgress.getProgressPercentage());
             response.put("lessonCompletionDates", updatedProgress.getLessonCompletionDates());
             response.put("success", lessonWasAdded);
@@ -346,7 +347,7 @@ public class ProgressController {
             response.put("courseId", updatedProgress.getCourseId());
             response.put("completed", updatedProgress.isCompleted());
             response.put("progressPercentage", updatedProgress.getProgressPercentage());
-            response.put("completedAt", completedAt);
+            response.put(KEY_COMPLETED_AT, completedAt);
             if (certificateRecord != null) {
                 response.put("certificateUrl", certificateRecord.getCertificateUrl());
                 response.put("certificateCode", certificateRecord.getCertificateCode());
@@ -390,7 +391,7 @@ public class ProgressController {
                             payload.put("certificateUrl", progress.getCertificateUrl());
                             payload.put("courseId", progress.getCourseId());
                             payload.put("userId", userId);
-                            payload.put("completedAt", progress.getStartedAt());
+                            payload.put(KEY_COMPLETED_AT, progress.getStartedAt());
                             payload.put("message", "Certificate available for download");
 
                             certificateService.findByCourseAndUser(courseId, userId)

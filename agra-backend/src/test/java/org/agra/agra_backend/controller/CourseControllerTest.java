@@ -88,6 +88,6 @@ class CourseControllerTest {
         assertThat(body).isInstanceOf(Map.class);
         @SuppressWarnings("unchecked")
         Map<String, Object> payload = (Map<String, Object>) body;
-        assertThat(payload.get("enrolled")).isEqualTo(true);
+        assertThat(payload).containsEntry("enrolled", true);
     }
 }
