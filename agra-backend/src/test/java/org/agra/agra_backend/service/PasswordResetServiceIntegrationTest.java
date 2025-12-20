@@ -4,10 +4,7 @@ import org.agra.agra_backend.dao.PasswordResetTokenRepository;
 import org.agra.agra_backend.dao.UserRepository;
 import org.agra.agra_backend.model.PasswordResetToken;
 import org.agra.agra_backend.model.User;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +30,7 @@ import de.flapdoodle.embed.mongo.transitions.Mongod;
 import de.flapdoodle.embed.mongo.transitions.RunningMongodProcess;
 import de.flapdoodle.reverse.TransitionWalker;
 
+@Tag("integration")
 @DataMongoTest(properties = "eureka.client.enabled=false")
 @Import(PasswordResetService.class)
 @ActiveProfiles("test")

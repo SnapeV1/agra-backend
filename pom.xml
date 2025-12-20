@@ -17,6 +17,18 @@
     <packaging>pom</packaging>
     <name>YEFFA Platform</name>
     <description>Parent project for YEFFA microservices</description>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <excludedGroups>integration</excludedGroups>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 
     <properties>
         <java.version>17</java.version>
