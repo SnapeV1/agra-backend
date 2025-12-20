@@ -54,4 +54,11 @@ class ProgressControllerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
+
+    @Test
+    void getCourseProgressReturnsUnauthorizedWhenMissingAuth() {
+        ResponseEntity<?> response = controller.getCourseProgress("course-1", null);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
 }

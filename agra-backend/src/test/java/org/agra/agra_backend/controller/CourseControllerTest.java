@@ -90,4 +90,33 @@ class CourseControllerTest {
         Map<String, Object> payload = (Map<String, Object>) body;
         assertThat(payload).containsEntry("enrolled", true);
     }
+
+    @Test
+    void getEnrollmentStatusReturnsUnauthorizedWhenNoAuth() {
+        ResponseEntity<Object> response = controller.getEnrollmentStatus("course-1", null);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void getEnrollmentStatusReturnsEnrolledWhenProgressFound() {
+        Authentication authentication = org.mockito.Mockito.mock(Authentication.class);
+        User user = new User();
+        user.setId("user-1");
+        when(authentication.getPrincipal()).thenReturn(user);
+
+        CourseProgress progress = new CourseProgress();
+        progress.setEnrolledAt(new Date());
+        progress.setProgressPercentage(50);
+        when(courseProgressService.getEnrollmentStatus("user-1", "course-1"))
+                .thenReturn(Optional.of(progress));
+
+        ResponseEntity<Object> response = controller.getEnrollmentStatus("course-1", authentication);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isInstanceOf(Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> payload = (Map<String, Object>) response.getBody();
+        assertThat(payload).containsEntry("enrolled", true);
+    }
 }
