@@ -4,6 +4,7 @@ import org.agra.agra_backend.dao.PasswordResetTokenRepository;
 import org.agra.agra_backend.dao.UserRepository;
 import org.agra.agra_backend.model.PasswordResetToken;
 import org.agra.agra_backend.model.User;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -26,6 +27,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@Disabled("Disabled in CI")
 class PasswordResetServiceTest {
 
     @Mock

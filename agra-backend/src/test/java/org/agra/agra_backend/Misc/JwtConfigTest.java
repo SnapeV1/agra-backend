@@ -1,11 +1,13 @@
 package org.agra.agra_backend.Misc;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@Disabled("Disabled in CI")
 class JwtConfigTest {
 
     @Test

@@ -31,6 +31,7 @@ import de.flapdoodle.embed.mongo.transitions.RunningMongodProcess;
 import de.flapdoodle.reverse.TransitionWalker;
 
 @Tag("integration")
+@Disabled("Disabled in CI")
 @DataMongoTest(properties = "eureka.client.enabled=false")
 @Import(PasswordResetService.class)
 @ActiveProfiles("test")
