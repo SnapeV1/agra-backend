@@ -19,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/users")
@@ -203,7 +204,7 @@ public class UserController {
         if (incoming.getPicture() != null) existing.setPicture(incoming.getPicture());
         if (incoming.getBirthdate() != null) existing.setBirthdate(incoming.getBirthdate());
         if (incoming.getRegisteredAt() != null) existing.setRegisteredAt(incoming.getRegisteredAt());
-        if (incoming.getIsArchived() != null && incoming.getIsArchived() != existing.getIsArchived()) {
+        if (incoming.getIsArchived() != null && !Objects.equals(incoming.getIsArchived(), existing.getIsArchived())) {
             existing.setIsArchived(incoming.getIsArchived());
         }
     }

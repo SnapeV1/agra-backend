@@ -1,27 +1,17 @@
-package org.agra.agra_backend.Misc;
+package org.agra.agra_backend.misc;
 
 import io.jsonwebtoken.Claims;
-import org.agra.agra_backend.misc.JwtConfig;
-import org.agra.agra_backend.misc.JwtUtil;
 import org.agra.agra_backend.model.User;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Disabled("Disabled in CI")
 class JwtUtilTest {
-
-    private JwtUtil jwtUtil;
-
-    @BeforeEach
-    void setUp() {
-        jwtUtil = new JwtUtil(new StaticJwtConfig("0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"));
-    }
 
     @Test
     void generateTokenEmbedsUserInformation() {
+        JwtUtil jwtUtil = new JwtUtil(new StaticJwtConfig("0123456789ABCDEF0123456789ABCDEF"));
+
         User user = new User();
         user.setId("user-123");
         user.setEmail("user@example.com");
@@ -37,10 +27,10 @@ class JwtUtilTest {
 
     @Test
     void isTokenValidMatchesUserAndExpiration() {
+        JwtUtil jwtUtil = new JwtUtil(new StaticJwtConfig("0123456789ABCDEF0123456789ABCDEF"));
+
         User user = new User();
         user.setId("user-456");
-        user.setEmail("user2@example.com");
-        user.setRole("STUDENT");
 
         String token = jwtUtil.generateToken(user);
 
@@ -48,7 +38,6 @@ class JwtUtilTest {
 
         User differentUser = new User();
         differentUser.setId("other-user");
-        differentUser.setEmail("other@example.com");
 
         assertThat(jwtUtil.isTokenValid(token, differentUser)).isFalse();
     }

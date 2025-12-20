@@ -128,7 +128,7 @@ public class CloudinaryController {
     public ResponseEntity<Map<String, String>> health() {
         Map<String, String> response = new HashMap<>();
         response.put("service", "CloudinaryController");
-        response.put("status", "UP");
+        response.put(KEY_STATUS, "UP");
         return ResponseEntity.ok(response);
     }
 

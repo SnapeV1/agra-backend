@@ -204,10 +204,8 @@ public class ProgressController {
             // Extract data from request body
             String courseId = (String) lessonData.get("courseId");
             String lessonId = (String) lessonData.get("lessonId");
-            String completedAtStr = (String) lessonData.get("completedAt");
-            
-            System.out.println("Extracted courseId: " + courseId + ", lessonId: " + lessonId + 
-                             ", completedAt: " + completedAtStr + ", userId: " + userId);
+            System.out.println("Extracted courseId: " + courseId + ", lessonId: " + lessonId +
+                             ", userId: " + userId);
             
             if (courseId == null || lessonId == null) {
                 return ResponseEntity.badRequest()
@@ -220,7 +218,7 @@ public class ProgressController {
                         .body(Map.of("error", "lessonId cannot be empty"));
             }
 
-            Date completedAt = completedAtStr != null ? new Date() : new Date();
+            Date completedAt = new Date();
 
             // Check if user is enrolled before attempting to mark lesson complete
             Optional<CourseProgress> existingProgress = courseProgressService.getEnrollmentStatus(userId, courseId);
@@ -329,14 +327,12 @@ public class ProgressController {
 
             // Extract data from request body
             String courseId = (String) courseData.get("courseId");
-            String completedAtStr = (String) courseData.get("completedAt");
-            
             if (courseId == null) {
                 return ResponseEntity.badRequest()
                         .body(Map.of("error", "courseId is required"));
             }
 
-            Date completedAt = completedAtStr != null ? new Date() : new Date();
+            Date completedAt = new Date();
 
             CourseProgress updatedProgress = courseProgressService.markCourseComplete(userId, courseId, completedAt);
 

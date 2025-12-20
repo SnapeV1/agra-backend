@@ -12,7 +12,6 @@ import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Component;
-import org.springframework.lang.Nullable;
 
 import java.util.List;
 
@@ -29,7 +28,7 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
     }
 
     @Override
-    public @Nullable Message<?> preSend(Message<?> message, MessageChannel channel) {
+    public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
         if (accessor == null) {
             return message;

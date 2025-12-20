@@ -319,7 +319,7 @@ public class CourseController {
 
             CourseProgress progress = courseProgressService.enrollUserInCourse(userId, id);
             
-            return ResponseEntity.ok(Map.of(
+            return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
                     KEY_MESSAGE, "Successfully enrolled in course",
                     KEY_ENROLLED, true,
                     KEY_ENROLLED_AT, progress.getEnrolledAt(),
@@ -508,7 +508,7 @@ public class CourseController {
                     courseFile.getId(), courseFile.getName(), courseFile.getType(), courseFile.getSize(),
                     courseFile.getUrl(), courseFile.getPublicId());
 
-            return ResponseEntity.ok(courseFile);
+            return ResponseEntity.status(HttpStatus.CREATED).body(courseFile);
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of(KEY_ERROR, "Failed to upload file: " + e.getMessage()));

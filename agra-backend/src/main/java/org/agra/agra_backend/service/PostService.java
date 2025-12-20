@@ -388,7 +388,7 @@ public class PostService {
         post.setCreatedAt(LocalDateTime.now(ZoneOffset.UTC));
         post = postRepository.save(post);
 
-        if (imageFile != null && !imageFile.isEmpty()) {
+        if (imageFile != null && !imageFile.isEmpty() && user != null && user.getEmail() != null) {
             String sanitizedEmail = createUserFolderName(user.getEmail());
             String publicId = "posts/" + sanitizedEmail + "/" + post.getId();
             Map<String, Object> uploadResult = cloudinaryService.uploadImageToFolder(imageFile, publicId);

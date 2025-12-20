@@ -214,12 +214,8 @@ public class CertificateController {
                     response.put(KEY_COURSE_TITLE, course.getTitle());
                 });
 
-        if (response.get(KEY_ORGANIZATION_NAME) == null) {
-            response.put(KEY_ORGANIZATION_NAME, "YEFFA Learning Platform");
-        }
-        if (response.get(KEY_INSTRUCTOR_NAME) == null) {
-            response.put(KEY_INSTRUCTOR_NAME, "AGRA Trainer");
-        }
+        response.computeIfAbsent(KEY_ORGANIZATION_NAME, key -> "YEFFA Learning Platform");
+        response.computeIfAbsent(KEY_INSTRUCTOR_NAME, key -> "AGRA Trainer");
 
         return response;
     }
