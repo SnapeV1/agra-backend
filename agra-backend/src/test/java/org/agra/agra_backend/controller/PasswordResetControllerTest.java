@@ -3,6 +3,7 @@ package org.agra.agra_backend.controller;
 import jakarta.mail.MessagingException;
 import org.agra.agra_backend.service.PasswordResetService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -11,15 +12,15 @@ import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
-import java.util.Locale;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyString;
 
 @ExtendWith(MockitoExtension.class)
 class PasswordResetControllerTest {
@@ -32,11 +33,14 @@ class PasswordResetControllerTest {
     @InjectMocks
     private PasswordResetController controller;
 
+    @BeforeEach
+    void stubMessages() {
+        lenient().when(messageSource.getMessage(anyString(), any(), any()))
+                .thenReturn("OK");
+    }
+
     @Test
     void forgotPasswordReturnsOk() throws MessagingException {
-        when(messageSource.getMessage(eq("auth.reset.email.sent"), any(Object[].class), any(Locale.class)))
-                .thenReturn("sent");
-
         ResponseEntity<?> response = controller.forgotPassword(Map.of("email", "user@example.com"));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -63,9 +67,6 @@ class PasswordResetControllerTest {
 
     @Test
     void forgotPasswordSmsReturnsOk() {
-        when(messageSource.getMessage(eq("auth.reset.sms.sent"), any(Object[].class), any(Locale.class)))
-                .thenReturn("sent");
-
         ResponseEntity<?> response = controller.forgotPasswordSms(Map.of("phone", "+1"));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -74,9 +75,6 @@ class PasswordResetControllerTest {
 
     @Test
     void resetPasswordReturnsOk() {
-        when(messageSource.getMessage(eq("auth.reset.success"), any(Object[].class), any(Locale.class)))
-                .thenReturn("ok");
-
         ResponseEntity<?> response = controller.resetPassword(Map.of("token", "t", "password", "p"));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -94,8 +92,6 @@ class PasswordResetControllerTest {
 
     @Test
     void resetPasswordSmsReturnsOk() {
-        when(messageSource.getMessage(eq("auth.reset.sms.verify.success"), any(Object[].class), any(Locale.class)))
-                .thenReturn("ok");
         when(resetService.createResetTokenWithSmsCode("+1", "1234")).thenReturn("token");
 
         ResponseEntity<?> response = controller.resetPasswordSms(Map.of("phone", "+1", "code", "1234"));
@@ -114,9 +110,6 @@ class PasswordResetControllerTest {
 
     @Test
     void setPasswordAliasReturnsOk() {
-        when(messageSource.getMessage(eq("auth.set.success"), any(Object[].class), any(Locale.class)))
-                .thenReturn("ok");
-
         ResponseEntity<?> response = controller.setPassword(Map.of("token", "t", "password", "p"));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);

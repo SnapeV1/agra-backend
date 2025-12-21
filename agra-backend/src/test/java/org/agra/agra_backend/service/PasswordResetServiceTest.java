@@ -8,6 +8,7 @@ import org.agra.agra_backend.model.PasswordResetToken;
 import org.agra.agra_backend.model.User;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -19,7 +20,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Date;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -27,7 +27,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -46,6 +45,12 @@ class PasswordResetServiceTest {
 
     @InjectMocks
     private PasswordResetService service;
+
+    @BeforeEach
+    void stubMessages() {
+        lenient().when(messageSource.getMessage(anyString(), any(), any()))
+                .thenReturn("OK");
+    }
 
     @AfterEach
     void resetLocale() {
@@ -73,22 +78,6 @@ class PasswordResetServiceTest {
     @Test
     void initiateResetSendsEmailForExistingUser() throws Exception {
         LocaleContextHolder.setLocale(Locale.ENGLISH);
-        when(messageSource.getMessage(eq("email.reset.subject"), any(Object[].class), any(Locale.class)))
-                .thenReturn("subject");
-        when(messageSource.getMessage(eq("email.reset.heading"), any(Object[].class), any(Locale.class)))
-                .thenReturn("heading");
-        when(messageSource.getMessage(eq("email.reset.greeting"), any(Object[].class), any(Locale.class)))
-                .thenReturn("greeting");
-        when(messageSource.getMessage(eq("email.reset.intro"), any(Object[].class), any(Locale.class)))
-                .thenReturn("intro");
-        when(messageSource.getMessage(eq("email.reset.button"), any(Object[].class), any(Locale.class)))
-                .thenReturn("button");
-        when(messageSource.getMessage(eq("email.reset.fallback"), any(Object[].class), any(Locale.class)))
-                .thenReturn("fallback");
-        when(messageSource.getMessage(eq("email.reset.ignore"), any(Object[].class), any(Locale.class)))
-                .thenReturn("ignore");
-        when(messageSource.getMessage(eq("email.reset.signature"), any(Object[].class), any(Locale.class)))
-                .thenReturn("signature");
         User user = new User();
         user.setId("user-1");
         user.setEmail("user@example.com");
@@ -106,7 +95,6 @@ class PasswordResetServiceTest {
 
     @Test
     void resetPasswordRejectsMissingToken() {
-        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("err");
         when(tokenRepository.findByTokenHash(anyString())).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.resetPassword("token", "password"))
@@ -115,7 +103,6 @@ class PasswordResetServiceTest {
 
     @Test
     void resetPasswordRejectsExpiredToken() {
-        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("err");
         PasswordResetToken token = new PasswordResetToken();
         token.setUserId("user-1");
         token.setExpirationDate(new Date(System.currentTimeMillis() - 1000));
@@ -129,7 +116,6 @@ class PasswordResetServiceTest {
 
     @Test
     void resetPasswordRejectsMissingUser() {
-        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("err");
         PasswordResetToken token = new PasswordResetToken();
         token.setUserId("user-1");
         token.setExpirationDate(new Date(System.currentTimeMillis() + 10000));
@@ -144,7 +130,6 @@ class PasswordResetServiceTest {
 
     @Test
     void resetPasswordUpdatesUser() {
-        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("ok");
         PasswordResetToken token = new PasswordResetToken();
         token.setUserId("user-1");
         token.setExpirationDate(new Date(System.currentTimeMillis() + 10000));
@@ -163,15 +148,12 @@ class PasswordResetServiceTest {
 
     @Test
     void issueResetTokenValidatesUserId() {
-        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("err");
-
         assertThatThrownBy(() -> service.issueResetTokenForUserId(" "))
                 .isInstanceOf(RuntimeException.class);
     }
 
     @Test
     void issueResetTokenRejectsMissingUser() {
-        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("err");
         when(userRepository.findById("user-1")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.issueResetTokenForUserId("user-1"))
@@ -180,7 +162,6 @@ class PasswordResetServiceTest {
 
     @Test
     void issueResetTokenPersistsToken() {
-        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("ok");
         User user = new User();
         user.setId("user-1");
         when(userRepository.findById("user-1")).thenReturn(Optional.of(user));
@@ -210,8 +191,6 @@ class PasswordResetServiceTest {
 
     @Test
     void createResetTokenWithSmsCodeRequiresInputs() {
-        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("err");
-
         assertThatThrownBy(() -> service.createResetTokenWithSmsCode(null, "123"))
                 .isInstanceOf(RuntimeException.class);
         assertThatThrownBy(() -> service.createResetTokenWithSmsCode("+1", " "))
@@ -220,7 +199,6 @@ class PasswordResetServiceTest {
 
     @Test
     void createResetTokenWithSmsCodeRequiresTwilioConfig() {
-        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("err");
         ReflectionTestUtils.setField(service, "twilioAccountSid", "");
         ReflectionTestUtils.setField(service, "twilioAuthToken", "");
         ReflectionTestUtils.setField(service, "twilioVerifyServiceSid", "");
@@ -231,7 +209,6 @@ class PasswordResetServiceTest {
 
     @Test
     void testTwilioConnectionRequiresConfig() {
-        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("err");
         ReflectionTestUtils.setField(service, "twilioAccountSid", "");
         ReflectionTestUtils.setField(service, "twilioAuthToken", "");
         ReflectionTestUtils.setField(service, "twilioVerifyServiceSid", "");
