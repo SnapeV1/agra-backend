@@ -5,8 +5,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.agra.agra_backend.dao.CourseRepository;
 import org.agra.agra_backend.model.Course;
-import org.agra.agra_backend.model.CourseTranslation;
 import org.agra.agra_backend.model.CourseProgress;
+import org.agra.agra_backend.model.CourseTranslation;
+import org.agra.agra_backend.model.QuizAnswer;
+import org.agra.agra_backend.model.QuizAnswerTranslation;
+import org.agra.agra_backend.model.QuizQuestion;
+import org.agra.agra_backend.model.QuizQuestionTranslation;
+import org.agra.agra_backend.model.TextContent;
+import org.agra.agra_backend.model.TextContentTranslation;
 import org.springframework.beans.BeanUtils;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -43,6 +49,7 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
     })
     public Course createCourse(Course course, MultipartFile courseImage) throws IOException {
         ensureTranslations(course, null);
+        ensureTextContentTranslations(course);
         course.setCreatedAt(new java.util.Date());
         course.setUpdatedAt(new java.util.Date());
         
@@ -151,6 +158,7 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
             
             // Generate IDs for TextContent objects if they don't have them
             generateTextContentIds(existingCourse);
+            ensureTextContentTranslations(existingCourse);
             
             existingCourse.setUpdatedAt(new java.util.Date());
             System.out.println(existingCourse.getLanguagesAvailable());
@@ -279,11 +287,66 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
         }
     }
 
+    private void ensureTextContentTranslations(Course course) {
+        if (course == null || course.getTextContent() == null) return;
+        String defaultLanguage = resolveDefaultLanguage(course.getDefaultLanguage(), null);
+        for (TextContent textContent : course.getTextContent()) {
+            if (textContent == null) continue;
+            Map<String, TextContentTranslation> merged = new HashMap<>();
+            if (textContent.getTranslations() != null) {
+                merged.putAll(textContent.getTranslations());
+            }
+            TextContentTranslation fromFields = buildTranslationFromFields(textContent);
+            if (fromFields != null) {
+                mergeTextContentTranslation(merged, defaultLanguage, fromFields);
+            }
+            textContent.setTranslations(merged.isEmpty() ? null : merged);
+
+            if (textContent.getQuizQuestions() != null) {
+                for (QuizQuestion question : textContent.getQuizQuestions()) {
+                    ensureQuizQuestionTranslations(question, defaultLanguage);
+                    if (question != null && question.getAnswers() != null) {
+                        for (QuizAnswer answer : question.getAnswers()) {
+                            ensureQuizAnswerTranslations(answer, defaultLanguage);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void ensureQuizQuestionTranslations(QuizQuestion question, String defaultLanguage) {
+        if (question == null) return;
+        Map<String, QuizQuestionTranslation> merged = new HashMap<>();
+        if (question.getTranslations() != null) {
+            merged.putAll(question.getTranslations());
+        }
+        QuizQuestionTranslation fromFields = buildTranslationFromFields(question);
+        if (fromFields != null) {
+            mergeQuizQuestionTranslation(merged, defaultLanguage, fromFields);
+        }
+        question.setTranslations(merged.isEmpty() ? null : merged);
+    }
+
+    private void ensureQuizAnswerTranslations(QuizAnswer answer, String defaultLanguage) {
+        if (answer == null) return;
+        Map<String, QuizAnswerTranslation> merged = new HashMap<>();
+        if (answer.getTranslations() != null) {
+            merged.putAll(answer.getTranslations());
+        }
+        QuizAnswerTranslation fromFields = buildTranslationFromFields(answer);
+        if (fromFields != null) {
+            mergeQuizAnswerTranslation(merged, defaultLanguage, fromFields);
+        }
+        answer.setTranslations(merged.isEmpty() ? null : merged);
+    }
+
     public Course localizeCourse(Course course, Locale locale) {
         if (course == null) return null;
         Course localized = new Course();
         BeanUtils.copyProperties(course, localized);
         if (course.getTranslations() == null || course.getTranslations().isEmpty()) {
+            localized.setTextContent(localizeTextContents(course.getTextContent(), locale, course.getDefaultLanguage()));
             return localized;
         }
 
@@ -295,6 +358,7 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
             if (translation.getGoals() != null) localized.setGoals(translation.getGoals());
         }
 
+        localized.setTextContent(localizeTextContents(course.getTextContent(), locale, course.getDefaultLanguage()));
         return localized;
     }
 
@@ -368,25 +432,143 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
 
     private CourseTranslation resolveTranslation(Course course, Locale locale) {
         if (course == null || course.getTranslations() == null || course.getTranslations().isEmpty()) return null;
+        return resolveTranslation(course.getTranslations(), locale, course.getDefaultLanguage());
+    }
+
+    private TextContentTranslation buildTranslationFromFields(TextContent content) {
+        if (content == null) return null;
+        if (content.getTitle() == null && content.getContent() == null) {
+            return null;
+        }
+        TextContentTranslation translation = new TextContentTranslation();
+        translation.setTitle(content.getTitle());
+        translation.setContent(content.getContent());
+        return translation;
+    }
+
+    private QuizQuestionTranslation buildTranslationFromFields(QuizQuestion question) {
+        if (question == null || question.getQuestion() == null) return null;
+        QuizQuestionTranslation translation = new QuizQuestionTranslation();
+        translation.setQuestion(question.getQuestion());
+        return translation;
+    }
+
+    private QuizAnswerTranslation buildTranslationFromFields(QuizAnswer answer) {
+        if (answer == null || answer.getText() == null) return null;
+        QuizAnswerTranslation translation = new QuizAnswerTranslation();
+        translation.setText(answer.getText());
+        return translation;
+    }
+
+    private void mergeTextContentTranslation(Map<String, TextContentTranslation> merged,
+                                             String language,
+                                             TextContentTranslation update) {
+        if (merged == null || update == null) return;
+        String key = (language != null && !language.isBlank()) ? language : "en";
+        TextContentTranslation existing = merged.getOrDefault(key, new TextContentTranslation());
+        if (update.getTitle() != null) existing.setTitle(update.getTitle());
+        if (update.getContent() != null) existing.setContent(update.getContent());
+        merged.put(key, existing);
+    }
+
+    private void mergeQuizQuestionTranslation(Map<String, QuizQuestionTranslation> merged,
+                                              String language,
+                                              QuizQuestionTranslation update) {
+        if (merged == null || update == null) return;
+        String key = (language != null && !language.isBlank()) ? language : "en";
+        QuizQuestionTranslation existing = merged.getOrDefault(key, new QuizQuestionTranslation());
+        if (update.getQuestion() != null) existing.setQuestion(update.getQuestion());
+        merged.put(key, existing);
+    }
+
+    private void mergeQuizAnswerTranslation(Map<String, QuizAnswerTranslation> merged,
+                                            String language,
+                                            QuizAnswerTranslation update) {
+        if (merged == null || update == null) return;
+        String key = (language != null && !language.isBlank()) ? language : "en";
+        QuizAnswerTranslation existing = merged.getOrDefault(key, new QuizAnswerTranslation());
+        if (update.getText() != null) existing.setText(update.getText());
+        merged.put(key, existing);
+    }
+
+    private List<TextContent> localizeTextContents(List<TextContent> contents,
+                                                   Locale locale,
+                                                   String defaultLanguage) {
+        if (contents == null || contents.isEmpty()) return contents;
+        List<TextContent> localized = new java.util.ArrayList<>(contents.size());
+        for (TextContent content : contents) {
+            if (content == null) continue;
+            TextContent localizedContent = new TextContent();
+            BeanUtils.copyProperties(content, localizedContent);
+            TextContentTranslation translation = resolveTranslation(content.getTranslations(), locale, defaultLanguage);
+            if (translation != null) {
+                if (translation.getTitle() != null) localizedContent.setTitle(translation.getTitle());
+                if (translation.getContent() != null) localizedContent.setContent(translation.getContent());
+            }
+            localizedContent.setQuizQuestions(localizeQuizQuestions(content.getQuizQuestions(), locale, defaultLanguage));
+            localized.add(localizedContent);
+        }
+        return localized;
+    }
+
+    private List<QuizQuestion> localizeQuizQuestions(List<QuizQuestion> questions,
+                                                     Locale locale,
+                                                     String defaultLanguage) {
+        if (questions == null || questions.isEmpty()) return questions;
+        List<QuizQuestion> localized = new java.util.ArrayList<>(questions.size());
+        for (QuizQuestion question : questions) {
+            if (question == null) continue;
+            QuizQuestion localizedQuestion = new QuizQuestion();
+            BeanUtils.copyProperties(question, localizedQuestion);
+            QuizQuestionTranslation translation = resolveTranslation(question.getTranslations(), locale, defaultLanguage);
+            if (translation != null && translation.getQuestion() != null) {
+                localizedQuestion.setQuestion(translation.getQuestion());
+            }
+            localizedQuestion.setAnswers(localizeQuizAnswers(question.getAnswers(), locale, defaultLanguage));
+            localized.add(localizedQuestion);
+        }
+        return localized;
+    }
+
+    private List<QuizAnswer> localizeQuizAnswers(List<QuizAnswer> answers,
+                                                 Locale locale,
+                                                 String defaultLanguage) {
+        if (answers == null || answers.isEmpty()) return answers;
+        List<QuizAnswer> localized = new java.util.ArrayList<>(answers.size());
+        for (QuizAnswer answer : answers) {
+            if (answer == null) continue;
+            QuizAnswer localizedAnswer = new QuizAnswer();
+            BeanUtils.copyProperties(answer, localizedAnswer);
+            QuizAnswerTranslation translation = resolveTranslation(answer.getTranslations(), locale, defaultLanguage);
+            if (translation != null && translation.getText() != null) {
+                localizedAnswer.setText(translation.getText());
+            }
+            localized.add(localizedAnswer);
+        }
+        return localized;
+    }
+
+    private <T> T resolveTranslation(Map<String, T> translations, Locale locale, String defaultLanguage) {
+        if (translations == null || translations.isEmpty()) return null;
         String language = locale != null ? locale.getLanguage() : null;
-        CourseTranslation translation = null;
+        T translation = null;
         if (language != null && !language.isBlank()) {
-            translation = course.getTranslations().get(language);
+            translation = translations.get(language);
             if (translation == null) {
-                translation = course.getTranslations().get(language.toLowerCase());
+                translation = translations.get(language.toLowerCase());
             }
         }
         if (translation == null && locale != null) {
-            translation = course.getTranslations().get(locale.toString());
+            translation = translations.get(locale.toString());
+        }
+        if (translation == null && defaultLanguage != null) {
+            translation = translations.get(defaultLanguage);
         }
         if (translation == null) {
-            translation = course.getTranslations().get(course.getDefaultLanguage());
+            translation = translations.get("en");
         }
         if (translation == null) {
-            translation = course.getTranslations().get("en");
-        }
-        if (translation == null) {
-            translation = course.getTranslations().values().stream().findFirst().orElse(null);
+            translation = translations.values().stream().findFirst().orElse(null);
         }
         return translation;
     }

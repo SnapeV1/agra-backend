@@ -126,4 +126,30 @@ class ModelCoverageTest {
         assertThat(article.getTitle()).isEqualTo("Title");
         assertThat(article.getCountry()).isEqualTo("GH");
     }
+
+    @Test
+    void textContentTranslationStoresFields() {
+        TextContentTranslation translation = new TextContentTranslation();
+        translation.setTitle("Lesson");
+        translation.setContent("Body");
+
+        assertThat(translation.getTitle()).isEqualTo("Lesson");
+        assertThat(translation.getContent()).isEqualTo("Body");
+    }
+
+    @Test
+    void quizQuestionTranslationStoresFields() {
+        QuizQuestionTranslation translation = new QuizQuestionTranslation();
+        translation.setQuestion("Question?");
+
+        assertThat(translation.getQuestion()).isEqualTo("Question?");
+    }
+
+    @Test
+    void quizAnswerTranslationStoresFields() {
+        QuizAnswerTranslation translation = new QuizAnswerTranslation();
+        translation.setText("Answer");
+
+        assertThat(translation.getText()).isEqualTo("Answer");
+    }
 }

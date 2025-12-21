@@ -439,11 +439,7 @@ public class CourseController {
     @GetMapping("/test-connection")
     public ResponseEntity<Object> testCloudinaryConnection() {
         try {
-            Map<String, Object> config = Map.of(
-                    "cloudinaryConfigured", true,
-                    KEY_MESSAGE, "Cloudinary service is properly configured",
-                    "timestamp", java.time.LocalDateTime.now()
-            );
+            Map<String, Object> config = buildCloudinaryConfig();
 
             return ResponseEntity.ok(config);
 
@@ -451,6 +447,14 @@ public class CourseController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of(KEY_ERROR, "Cloudinary configuration error: " + e.getMessage()));
         }
+    }
+
+    protected Map<String, Object> buildCloudinaryConfig() {
+        return Map.of(
+                "cloudinaryConfigured", true,
+                KEY_MESSAGE, "Cloudinary service is properly configured",
+                "timestamp", java.time.LocalDateTime.now()
+        );
     }
 
     @PostMapping(value = "/{id}/files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

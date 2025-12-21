@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 
+import java.util.Map;
+
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
@@ -21,6 +23,7 @@ public class TextContent {
     private String content;
     private int order;
     private String type;
+    private Map<String, TextContentTranslation> translations;
 
     /**
      * Populated when type == "QUIZ". Contains questions with answer options,

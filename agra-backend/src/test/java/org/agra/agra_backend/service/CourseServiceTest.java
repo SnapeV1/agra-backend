@@ -3,6 +3,13 @@ package org.agra.agra_backend.service;
 import org.agra.agra_backend.dao.CourseRepository;
 import org.agra.agra_backend.model.Course;
 import org.agra.agra_backend.model.CourseProgress;
+import org.agra.agra_backend.model.CourseTranslation;
+import org.agra.agra_backend.model.QuizAnswer;
+import org.agra.agra_backend.model.QuizAnswerTranslation;
+import org.agra.agra_backend.model.QuizQuestion;
+import org.agra.agra_backend.model.QuizQuestionTranslation;
+import org.agra.agra_backend.model.TextContent;
+import org.agra.agra_backend.model.TextContentTranslation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -12,7 +19,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Locale;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -85,5 +94,91 @@ class CourseServiceTest {
         verify(courseProgressService).unenrollUser("user-1", "course-1");
         verify(courseProgressService).unenrollUser("user-2", "course-1");
         verify(courseRepository).deleteById("course-1");
+    }
+
+    @Test
+    void createCoursePopulatesNestedTranslations() throws IOException {
+        Course course = new Course();
+        course.setDefaultLanguage("en");
+
+        TextContent content = new TextContent();
+        content.setTitle("Lesson");
+        content.setContent("Body");
+
+        QuizQuestion question = new QuizQuestion();
+        question.setQuestion("Question?");
+        QuizAnswer answer = new QuizAnswer();
+        answer.setText("Answer");
+        question.setAnswers(List.of(answer));
+        content.setQuizQuestions(List.of(question));
+        course.setTextContent(List.of(content));
+
+        when(courseRepository.save(any(Course.class))).thenAnswer(invocation -> {
+            Course saved = invocation.getArgument(0);
+            if (saved.getId() == null) {
+                saved.setId("course-1");
+            }
+            return saved;
+        });
+
+        service.createCourse(course, null);
+
+        ArgumentCaptor<Course> captor = ArgumentCaptor.forClass(Course.class);
+        verify(courseRepository, atLeastOnce()).save(captor.capture());
+        assertThat(captor.getAllValues()).anySatisfy(saved -> {
+            TextContent savedContent = saved.getTextContent().get(0);
+            assertThat(savedContent.getTranslations()).containsKey("en");
+            assertThat(savedContent.getTranslations().get("en").getTitle()).isEqualTo("Lesson");
+            QuizQuestion savedQuestion = savedContent.getQuizQuestions().get(0);
+            assertThat(savedQuestion.getTranslations()).containsKey("en");
+            assertThat(savedQuestion.getTranslations().get("en").getQuestion()).isEqualTo("Question?");
+            QuizAnswer savedAnswer = savedQuestion.getAnswers().get(0);
+            assertThat(savedAnswer.getTranslations()).containsKey("en");
+            assertThat(savedAnswer.getTranslations().get("en").getText()).isEqualTo("Answer");
+        });
+    }
+
+    @Test
+    void localizeCourseTranslatesNestedContent() {
+        Course course = new Course();
+        course.setDefaultLanguage("en");
+        CourseTranslation courseFr = new CourseTranslation();
+        courseFr.setTitle("Titre");
+        course.setTranslations(Map.of("fr", courseFr));
+
+        TextContent content = new TextContent();
+        content.setTitle("Lesson");
+        content.setContent("Body");
+        TextContentTranslation contentFr = new TextContentTranslation();
+        contentFr.setTitle("Lecon");
+        contentFr.setContent("Corps");
+        content.setTranslations(Map.of("fr", contentFr));
+
+        QuizQuestion question = new QuizQuestion();
+        question.setQuestion("Question?");
+        QuizQuestionTranslation questionFr = new QuizQuestionTranslation();
+        questionFr.setQuestion("Question FR");
+        question.setTranslations(Map.of("fr", questionFr));
+
+        QuizAnswer answer = new QuizAnswer();
+        answer.setText("Answer");
+        QuizAnswerTranslation answerFr = new QuizAnswerTranslation();
+        answerFr.setText("Reponse");
+        answer.setTranslations(Map.of("fr", answerFr));
+        question.setAnswers(List.of(answer));
+
+        content.setQuizQuestions(List.of(question));
+        course.setTextContent(List.of(content));
+
+        Course localized = service.localizeCourse(course, Locale.FRENCH);
+
+        assertThat(localized.getTitle()).isEqualTo("Titre");
+        TextContent localizedContent = localized.getTextContent().get(0);
+        assertThat(localizedContent.getTitle()).isEqualTo("Lecon");
+        assertThat(localizedContent.getContent()).isEqualTo("Corps");
+        QuizQuestion localizedQuestion = localizedContent.getQuizQuestions().get(0);
+        assertThat(localizedQuestion.getQuestion()).isEqualTo("Question FR");
+        QuizAnswer localizedAnswer = localizedQuestion.getAnswers().get(0);
+        assertThat(localizedAnswer.getText()).isEqualTo("Reponse");
     }
 }

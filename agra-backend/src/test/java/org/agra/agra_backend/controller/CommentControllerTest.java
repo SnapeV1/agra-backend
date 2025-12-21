@@ -12,6 +12,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -24,24 +28,34 @@ class CommentControllerTest {
     private CommentController controller;
 
     @Test
-    void toggleCommentLikeReturnsBadRequestWhenMissingUserId() {
-        ResponseEntity<String> response = controller.toggleCommentLike("comment-1", null, null, null);
+    void toggleCommentLikeReturnsBadRequestWhenNoUserId() {
+        ResponseEntity<String> response = controller.toggleCommentLike("c1", null, null, null);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
     void toggleCommentLikeUsesAuthenticatedUser() {
-        Authentication authentication = org.mockito.Mockito.mock(Authentication.class);
         User user = new User();
         user.setId("user-1");
-        user.setName("User");
+        Authentication authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn(user);
-        when(postService.toggleCommentLike("comment-1", "user-1", user)).thenReturn(true);
+        when(postService.toggleCommentLike(eq("c1"), eq("user-1"), any(User.class))).thenReturn(true);
 
-        ResponseEntity<String> response = controller.toggleCommentLike("comment-1", null, null, authentication);
+        ResponseEntity<String> response = controller.toggleCommentLike("c1", null, null, authentication);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isEqualTo("Comment liked!");
+    }
+
+    @Test
+    void toggleCommentLikeUsesUserIdParam() {
+        when(postService.toggleCommentLike(eq("c1"), eq("user-2"), any(User.class))).thenReturn(false);
+
+        ResponseEntity<String> response = controller.toggleCommentLike("c1", "user-2", "Name", null);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo("Comment unliked!");
+        verify(postService).toggleCommentLike(eq("c1"), eq("user-2"), any(User.class));
     }
 }

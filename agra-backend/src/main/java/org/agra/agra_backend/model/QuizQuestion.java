@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -17,6 +18,7 @@ import java.util.List;
 public class QuizQuestion {
     private String id;
     private String question;
+    private Map<String, QuizQuestionTranslation> translations;
     /**
      * One answer in this list should have correct=true.
      * Accepts incoming payload key "options" for backwards compatibility.
