@@ -44,7 +44,7 @@ public class NewsService {
         for (String country : countries) {
             String url = baseUrl + "?q=agriculture&country=" + country + "&lang=fr&token=" + apiKey;
             log.debug("Fetching GNews for country={} url={}", country, url);
-            ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(
+            ResponseEntity<Map<String, Object>> responseEntity = restTemplate().exchange(
                     url,
                     HttpMethod.GET,
                     null,
@@ -92,7 +92,7 @@ public class NewsService {
         try {
             String url = baseUrl + "?q=agriculture&max=1&lang=fr&token=" + apiKey;
             log.debug("Testing GNews connectivity: url={}", url);
-            ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(
+            ResponseEntity<Map<String, Object>> responseEntity = restTemplate().exchange(
                     url,
                     HttpMethod.GET,
                     null,
@@ -130,7 +130,7 @@ public class NewsService {
             String url = baseUrl + "?q=agriculture&country=" + country + "&lang=fr&token=" + apiKey;
             log.debug("Fetching NOW for country={} url={}", country, url);
             try {
-                ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(
+                ResponseEntity<Map<String, Object>> responseEntity = restTemplate().exchange(
                         url,
                         HttpMethod.GET,
                         null,
@@ -195,5 +195,9 @@ public class NewsService {
 
     public AdminSettings updateNewsCron(String cron) {
         return adminSettingsService.updateNewsCron(cron);
+    }
+
+    protected RestTemplate restTemplate() {
+        return restTemplate;
     }
 }
