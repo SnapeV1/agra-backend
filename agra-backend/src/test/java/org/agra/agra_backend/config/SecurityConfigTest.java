@@ -31,7 +31,8 @@ class SecurityConfigTest {
         ReflectionTestUtils.setField(config, "contentSecurityPolicy", "default-src 'self'");
         org.springframework.security.config.annotation.web.builders.HttpSecurity http =
                 mock(org.springframework.security.config.annotation.web.builders.HttpSecurity.class, RETURNS_DEEP_STUBS);
-        SecurityFilterChain chain = mock(SecurityFilterChain.class);
+        org.springframework.security.web.DefaultSecurityFilterChain chain =
+                mock(org.springframework.security.web.DefaultSecurityFilterChain.class);
 
         when(http.cors(any())).thenReturn(http);
         when(http.csrf(any())).thenReturn(http);
