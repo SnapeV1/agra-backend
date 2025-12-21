@@ -16,6 +16,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.Locale;
@@ -25,6 +26,8 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -216,5 +219,55 @@ class CourseServiceTest {
         assertThat(localizedQuestion.getTranslations().get("en").getQuestion()).isEqualTo("Question?");
         QuizAnswer localizedAnswer = localizedQuestion.getAnswers().get(0);
         assertThat(localizedAnswer.getTranslations().get("en").getText()).isEqualTo("Answer");
+    }
+
+    @Test
+    void createCourseNormalizesNullTranslations() throws IOException {
+        Course course = new Course();
+
+        TextContent content = new TextContent();
+        QuizQuestion question = new QuizQuestion();
+        question.setTranslations(null);
+        question.setAnswers(null);
+        content.setQuizQuestions(List.of(question));
+        content.setTranslations(null);
+        course.setTextContent(List.of(content));
+
+        when(courseRepository.save(any(Course.class))).thenAnswer(invocation -> {
+            Course saved = invocation.getArgument(0);
+            if (saved.getId() == null) {
+                saved.setId("course-1");
+            }
+            return saved;
+        });
+
+        service.createCourse(course, null);
+
+        ArgumentCaptor<Course> captor = ArgumentCaptor.forClass(Course.class);
+        verify(courseRepository, atLeastOnce()).save(captor.capture());
+        assertThat(captor.getAllValues()).anySatisfy(saved -> {
+            TextContent savedContent = saved.getTextContent().get(0);
+            assertThat(savedContent.getTranslations()).isNull();
+            QuizQuestion savedQuestion = savedContent.getQuizQuestions().get(0);
+            assertThat(savedQuestion.getTranslations()).isNull();
+        });
+    }
+
+    @Test
+    void updateCourseRethrowsImageUploadWithContext() throws IOException {
+        Course existing = new Course();
+        existing.setId("course-1");
+        Course update = new Course();
+
+        MultipartFile file = mock(MultipartFile.class);
+        when(file.isEmpty()).thenReturn(false);
+        when(courseRepository.findById("course-1")).thenReturn(Optional.of(existing));
+        when(courseRepository.save(any(Course.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(cloudinaryService.uploadImageToFolder(eq(file), anyString()))
+                .thenThrow(new IOException("upload failed"));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.updateCourse("course-1", update, file))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("courseId=course-1");
     }
 }

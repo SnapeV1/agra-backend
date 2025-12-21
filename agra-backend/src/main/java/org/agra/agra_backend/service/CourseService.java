@@ -183,8 +183,7 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
             try {
                 return getCourse(courseImage, existingCourse);
             } catch (IOException e) {
-                log.error("Error uploading image for courseId={}", existingCourse.getId(), e);
-                throw new RuntimeException("Failed to upload image", e);
+                throw new RuntimeException("Failed to upload image for courseId=" + existingCourse.getId(), e);
             }
         }
         if (existingCourse.getImageUrl() == null || existingCourse.getImageUrl().isEmpty()) {
