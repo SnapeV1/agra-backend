@@ -11,7 +11,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class AgraBackendApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(AgraBackendApplication.class, args);
+        createApplication().run(args);
+    }
+
+    static SpringApplication createApplication() {
+        return new SpringApplication(AgraBackendApplication.class);
     }
 
 }

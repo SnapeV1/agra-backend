@@ -31,18 +31,7 @@ public class GoogleAuthService {
 
     public LoginResponse verifyGoogleToken(String idTokenString) {
         try {
-            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
-                    new NetHttpTransport(),
-                    new GsonFactory())
-                    .setAudience(Collections.singletonList(googleClientId))
-                    .build();
-
-            GoogleIdToken idToken = verifier.verify(idTokenString);
-            if (idToken == null) {
-                throw new IllegalArgumentException("Invalid Google ID token");
-            }
-
-            GoogleIdToken.Payload payload = idToken.getPayload();
+            GoogleIdToken.Payload payload = verifyAndGetPayload(idTokenString);
             String emailRaw = payload.getEmail();
             String email = emailRaw == null ? null : emailRaw.toLowerCase().trim();
             String name = (String) payload.get("name");
@@ -154,5 +143,19 @@ public class GoogleAuthService {
         } catch (Exception e) {
             throw new RuntimeException("Google verification failed", e);
         }
+    }
+
+    protected GoogleIdToken.Payload verifyAndGetPayload(String idTokenString) throws Exception {
+        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
+                new NetHttpTransport(),
+                new GsonFactory())
+                .setAudience(Collections.singletonList(googleClientId))
+                .build();
+
+        GoogleIdToken idToken = verifier.verify(idTokenString);
+        if (idToken == null) {
+            throw new IllegalArgumentException("Invalid Google ID token");
+        }
+        return idToken.getPayload();
     }
 }

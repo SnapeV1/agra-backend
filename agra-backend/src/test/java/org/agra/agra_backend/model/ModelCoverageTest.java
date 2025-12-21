@@ -83,4 +83,47 @@ class ModelCoverageTest {
     void userRoleIncludesAdmin() {
         assertThat(UserRole.valueOf("ADMIN")).isEqualTo(UserRole.ADMIN);
     }
+
+    @Test
+    void courseFileStoresFields() {
+        CourseFile file = new CourseFile();
+        file.setName("Doc");
+        file.setType("pdf");
+        file.setUrl("https://example.com/doc.pdf");
+
+        assertThat(file.getName()).isEqualTo("Doc");
+        assertThat(file.getType()).isEqualTo("pdf");
+        assertThat(file.getUrl()).contains("doc.pdf");
+    }
+
+    @Test
+    void fileRefStoresFields() {
+        FileRef ref = new FileRef();
+        ref.setName("Guide");
+        ref.setType("pdf");
+        ref.setUrl("https://example.com/guide.pdf");
+
+        assertThat(ref.getName()).isEqualTo("Guide");
+        assertThat(ref.getType()).isEqualTo("pdf");
+        assertThat(ref.getUrl()).contains("guide");
+    }
+
+    @Test
+    void likeStoresFields() {
+        Like like = new Like("u1", null, "COURSE", "c1");
+
+        assertThat(like.getTargetType()).isEqualTo("COURSE");
+        assertThat(like.getTargetId()).isEqualTo("c1");
+    }
+
+    @Test
+    void newsArticleStoresFields() {
+        NewsArticle article = new NewsArticle();
+        article.setTitle("Title");
+        article.setSource("Source");
+        article.setCountry("GH");
+
+        assertThat(article.getTitle()).isEqualTo("Title");
+        assertThat(article.getCountry()).isEqualTo("GH");
+    }
 }

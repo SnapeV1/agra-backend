@@ -89,4 +89,15 @@ class PayloadCoverageTest {
 
         assertThat(payload.getTicketId()).isEqualTo("ticket-1");
     }
+
+    @Test
+    void contactFormRequestStoresFields() {
+        ContactFormRequest request = new ContactFormRequest();
+        request.setFullName("Test User");
+        request.setEmail("user@example.com");
+        request.setSubject("Subject");
+        request.setMessage("Message");
+
+        assertThat(request.getEmail()).isEqualTo("user@example.com");
+    }
 }
