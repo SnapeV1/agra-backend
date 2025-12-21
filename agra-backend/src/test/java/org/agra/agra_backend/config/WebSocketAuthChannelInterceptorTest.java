@@ -56,6 +56,72 @@ class WebSocketAuthChannelInterceptorTest {
     }
 
     @Test
+    void preSendConnectSkipsWhenNoToken() {
+        WebSocketAuthChannelInterceptor interceptor = new WebSocketAuthChannelInterceptor(jwtUtil, presenceService);
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
+        accessor.setLeaveMutable(true);
+        accessor.setSessionId("session-1");
+        Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        MessageChannel channel = mock(MessageChannel.class);
+
+        Message<?> result = interceptor.preSend(message, channel);
+
+        StompHeaderAccessor wrapped = StompHeaderAccessor.wrap(result);
+        assertThat(wrapped.getUser()).isNull();
+        verifyNoInteractions(presenceService);
+    }
+
+    @Test
+    void preSendConnectUsesTokenHeaderFallback() {
+        WebSocketAuthChannelInterceptor interceptor = new WebSocketAuthChannelInterceptor(jwtUtil, presenceService);
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
+        accessor.setLeaveMutable(true);
+        accessor.setSessionId("session-2");
+        accessor.addNativeHeader("token", "raw-token");
+        when(jwtUtil.extractUserId("raw-token")).thenReturn("user-2");
+        Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        MessageChannel channel = mock(MessageChannel.class);
+
+        interceptor.preSend(message, channel);
+
+        verify(presenceService).markOnline("user-2", "session-2");
+    }
+
+    @Test
+    void preSendConnectUsesAccessTokenHeaderFallback() {
+        WebSocketAuthChannelInterceptor interceptor = new WebSocketAuthChannelInterceptor(jwtUtil, presenceService);
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
+        accessor.setLeaveMutable(true);
+        accessor.setSessionId("session-3");
+        accessor.addNativeHeader("access_token", "access-token");
+        when(jwtUtil.extractUserId("access-token")).thenReturn("user-3");
+        Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        MessageChannel channel = mock(MessageChannel.class);
+
+        interceptor.preSend(message, channel);
+
+        verify(presenceService).markOnline("user-3", "session-3");
+    }
+
+    @Test
+    void preSendConnectHandlesJwtException() {
+        WebSocketAuthChannelInterceptor interceptor = new WebSocketAuthChannelInterceptor(jwtUtil, presenceService);
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
+        accessor.setLeaveMutable(true);
+        accessor.setSessionId("session-4");
+        accessor.addNativeHeader("Authorization", "Bearer bad");
+        when(jwtUtil.extractUserId("bad")).thenThrow(new RuntimeException("invalid"));
+        Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        MessageChannel channel = mock(MessageChannel.class);
+
+        Message<?> result = interceptor.preSend(message, channel);
+
+        StompHeaderAccessor wrapped = StompHeaderAccessor.wrap(result);
+        assertThat(wrapped.getUser()).isNull();
+        verifyNoInteractions(presenceService);
+    }
+
+    @Test
     void preSendDisconnectMarksOffline() {
         WebSocketAuthChannelInterceptor interceptor = new WebSocketAuthChannelInterceptor(jwtUtil, presenceService);
         StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.DISCONNECT);
@@ -67,6 +133,19 @@ class WebSocketAuthChannelInterceptorTest {
         interceptor.preSend(message, channel);
 
         verify(presenceService).markOfflineIfNoSessions("user-1", "session-1");
+    }
+
+    @Test
+    void preSendDisconnectSkipsWhenNoUser() {
+        WebSocketAuthChannelInterceptor interceptor = new WebSocketAuthChannelInterceptor(jwtUtil, presenceService);
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.DISCONNECT);
+        accessor.setSessionId("session-1");
+        Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        MessageChannel channel = mock(MessageChannel.class);
+
+        interceptor.preSend(message, channel);
+
+        verifyNoInteractions(presenceService);
     }
 
     @Test
@@ -82,4 +161,5 @@ class WebSocketAuthChannelInterceptorTest {
 
         verify(presenceService).refresh("user-1", "session-1");
     }
+
 }

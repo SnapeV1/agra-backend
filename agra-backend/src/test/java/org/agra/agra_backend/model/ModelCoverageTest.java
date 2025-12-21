@@ -38,17 +38,19 @@ class ModelCoverageTest {
     }
 
     @Test
-    void quizAnswerDelegatingConstructorSetsText() {
-        QuizAnswer answer = new QuizAnswer("Option A");
+    void quizAnswerStoresTranslations() {
+        QuizAnswer answer = new QuizAnswer();
+        QuizAnswerTranslation translation = new QuizAnswerTranslation();
+        translation.setText("Option A");
+        answer.setTranslations(java.util.Map.of("en", translation));
 
-        assertThat(answer.getText()).isEqualTo("Option A");
-        assertThat(answer.isCorrect()).isFalse();
+        assertThat(answer.getTranslations().get("en").getText()).isEqualTo("Option A");
     }
 
     @Test
     void quizQuestionAcceptsAnswers() {
         QuizQuestion question = new QuizQuestion();
-        question.setAnswers(List.of(new QuizAnswer("A")));
+        question.setAnswers(List.of(new QuizAnswer()));
 
         assertThat(question.getAnswers()).hasSize(1);
     }
@@ -82,6 +84,79 @@ class ModelCoverageTest {
     @Test
     void userRoleIncludesAdmin() {
         assertThat(UserRole.valueOf("ADMIN")).isEqualTo(UserRole.ADMIN);
+    }
+
+    @Test
+    void refreshTokenStoresFields() {
+        RefreshToken token = new RefreshToken();
+        token.setTokenHash("refresh-1");
+        token.setUserId("user-1");
+        token.setRevoked(true);
+
+        assertThat(token.getTokenHash()).isEqualTo("refresh-1");
+        assertThat(token.getUserId()).isEqualTo("user-1");
+        assertThat(token.isRevoked()).isTrue();
+    }
+
+    @Test
+    void emailVerificationTokenStoresFields() {
+        EmailVerificationToken token = new EmailVerificationToken();
+        token.setTokenHash("verify-1");
+        token.setUserId("user-1");
+
+        assertThat(token.getTokenHash()).isEqualTo("verify-1");
+        assertThat(token.getUserId()).isEqualTo("user-1");
+    }
+
+    @Test
+    void emailVerificationTokenReportsExpired() {
+        EmailVerificationToken token = new EmailVerificationToken();
+        token.setExpirationDate(new Date(System.currentTimeMillis() - 1000));
+
+        assertThat(token.isExpired()).isTrue();
+    }
+
+    @Test
+    void userStoresProfileFields() {
+        User user = new User();
+        user.setId("user-1");
+        user.setEmail("user@example.com");
+        user.setRole("ADMIN");
+        user.setThemePreference("dark");
+        user.setTwoFactorEnabled(true);
+
+        assertThat(user.getId()).isEqualTo("user-1");
+        assertThat(user.getEmail()).isEqualTo("user@example.com");
+        assertThat(user.getRole()).isEqualTo("ADMIN");
+        assertThat(user.getThemePreference()).isEqualTo("dark");
+        assertThat(user.getTwoFactorEnabled()).isTrue();
+    }
+
+    @Test
+    void sessionStoresScheduleFields() {
+        Session session = new Session();
+        session.setId("s1");
+        session.setCourseId("course-1");
+        session.setTitle("Live Session");
+        session.setRoomName("room-1");
+        session.setLobbyEnabled(false);
+        session.setRecordingEnabled(true);
+
+        assertThat(session.getId()).isEqualTo("s1");
+        assertThat(session.getCourseId()).isEqualTo("course-1");
+        assertThat(session.getTitle()).isEqualTo("Live Session");
+        assertThat(session.getRoomName()).isEqualTo("room-1");
+        assertThat(session.getLobbyEnabled()).isFalse();
+        assertThat(session.getRecordingEnabled()).isTrue();
+    }
+
+    @Test
+    void commentLikeStoresFields() {
+        CommentLike like = new CommentLike("id", "user-1", "comment-1", LocalDateTime.now(), true);
+
+        assertThat(like.getUserId()).isEqualTo("user-1");
+        assertThat(like.getCommentId()).isEqualTo("comment-1");
+        assertThat(like.getActive()).isTrue();
     }
 
     @Test

@@ -40,6 +40,20 @@ class DebugRequestLoggingFilterTest {
         assertThat(invoked.get()).isTrue();
     }
 
+    @Test
+    void filterReadsResponseHeadersWhenOriginPresent() throws ServletException, IOException {
+        DebugRequestLoggingFilter filter = new DebugRequestLoggingFilter();
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/test");
+        request.addHeader("Origin", "https://example.com");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicBoolean invoked = new AtomicBoolean(false);
+
+        filter.doFilterInternal(request, response, new HeaderFilterChain(invoked));
+
+        assertThat(invoked.get()).isTrue();
+        assertThat(response.getHeader("Access-Control-Allow-Origin")).isEqualTo("https://example.com");
+    }
+
     private static class FlaggingFilterChain implements FilterChain {
         private final AtomicBoolean invoked;
 
@@ -51,6 +65,26 @@ class DebugRequestLoggingFilterTest {
         public void doFilter(jakarta.servlet.ServletRequest request,
                              jakarta.servlet.ServletResponse response) {
             invoked.set(true);
+        }
+    }
+
+    private static class HeaderFilterChain implements FilterChain {
+        private final AtomicBoolean invoked;
+
+        private HeaderFilterChain(AtomicBoolean invoked) {
+            this.invoked = invoked;
+        }
+
+        @Override
+        public void doFilter(jakarta.servlet.ServletRequest request,
+                             jakarta.servlet.ServletResponse response) {
+            invoked.set(true);
+            if (response instanceof MockHttpServletResponse mock) {
+                mock.addHeader("Access-Control-Allow-Origin", "https://example.com");
+                mock.addHeader("Access-Control-Allow-Credentials", "true");
+                mock.addHeader("Access-Control-Allow-Methods", "GET,POST");
+                mock.addHeader("Access-Control-Allow-Headers", "Authorization");
+            }
         }
     }
 }

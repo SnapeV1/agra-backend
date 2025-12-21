@@ -100,4 +100,17 @@ class PayloadCoverageTest {
 
         assertThat(request.getEmail()).isEqualTo("user@example.com");
     }
+
+    @Test
+    void registerRequestStoresFields() {
+        RegisterRequest request = new RegisterRequest();
+        request.setName("User");
+        request.setEmail("user@example.com");
+        request.setPassword("pass");
+        request.setCountry("GH");
+        request.setPhone("123");
+
+        assertThat(request.getEmail()).isEqualTo("user@example.com");
+        assertThat(request.getName()).isEqualTo("User");
+    }
 }

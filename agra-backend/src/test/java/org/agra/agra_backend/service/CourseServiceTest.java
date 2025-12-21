@@ -102,13 +102,19 @@ class CourseServiceTest {
         course.setDefaultLanguage("en");
 
         TextContent content = new TextContent();
-        content.setTitle("Lesson");
-        content.setContent("Body");
+        TextContentTranslation contentEn = new TextContentTranslation();
+        contentEn.setTitle("Lesson");
+        contentEn.setContent("Body");
+        content.setTranslations(Map.of("en", contentEn));
 
         QuizQuestion question = new QuizQuestion();
-        question.setQuestion("Question?");
+        QuizQuestionTranslation questionEn = new QuizQuestionTranslation();
+        questionEn.setQuestion("Question?");
+        question.setTranslations(Map.of("en", questionEn));
         QuizAnswer answer = new QuizAnswer();
-        answer.setText("Answer");
+        QuizAnswerTranslation answerEn = new QuizAnswerTranslation();
+        answerEn.setText("Answer");
+        answer.setTranslations(Map.of("en", answerEn));
         question.setAnswers(List.of(answer));
         content.setQuizQuestions(List.of(question));
         course.setTextContent(List.of(content));
@@ -147,21 +153,17 @@ class CourseServiceTest {
         course.setTranslations(Map.of("fr", courseFr));
 
         TextContent content = new TextContent();
-        content.setTitle("Lesson");
-        content.setContent("Body");
         TextContentTranslation contentFr = new TextContentTranslation();
         contentFr.setTitle("Lecon");
         contentFr.setContent("Corps");
         content.setTranslations(Map.of("fr", contentFr));
 
         QuizQuestion question = new QuizQuestion();
-        question.setQuestion("Question?");
         QuizQuestionTranslation questionFr = new QuizQuestionTranslation();
         questionFr.setQuestion("Question FR");
         question.setTranslations(Map.of("fr", questionFr));
 
         QuizAnswer answer = new QuizAnswer();
-        answer.setText("Answer");
         QuizAnswerTranslation answerFr = new QuizAnswerTranslation();
         answerFr.setText("Reponse");
         answer.setTranslations(Map.of("fr", answerFr));
@@ -174,11 +176,46 @@ class CourseServiceTest {
 
         assertThat(localized.getTitle()).isEqualTo("Titre");
         TextContent localizedContent = localized.getTextContent().get(0);
-        assertThat(localizedContent.getTitle()).isEqualTo("Lecon");
-        assertThat(localizedContent.getContent()).isEqualTo("Corps");
+        assertThat(localizedContent.getTranslations().get("fr").getTitle()).isEqualTo("Lecon");
+        assertThat(localizedContent.getTranslations().get("fr").getContent()).isEqualTo("Corps");
         QuizQuestion localizedQuestion = localizedContent.getQuizQuestions().get(0);
-        assertThat(localizedQuestion.getQuestion()).isEqualTo("Question FR");
+        assertThat(localizedQuestion.getTranslations().get("fr").getQuestion()).isEqualTo("Question FR");
         QuizAnswer localizedAnswer = localizedQuestion.getAnswers().get(0);
-        assertThat(localizedAnswer.getText()).isEqualTo("Reponse");
+        assertThat(localizedAnswer.getTranslations().get("fr").getText()).isEqualTo("Reponse");
+    }
+
+    @Test
+    void localizeCourseFallsBackToEnglishForLessons() {
+        Course course = new Course();
+
+        TextContent content = new TextContent();
+        TextContentTranslation contentEn = new TextContentTranslation();
+        contentEn.setTitle("Lesson");
+        contentEn.setContent("Body");
+        content.setTranslations(Map.of("en", contentEn));
+
+        QuizQuestion question = new QuizQuestion();
+        QuizQuestionTranslation questionEn = new QuizQuestionTranslation();
+        questionEn.setQuestion("Question?");
+        question.setTranslations(Map.of("en", questionEn));
+
+        QuizAnswer answer = new QuizAnswer();
+        QuizAnswerTranslation answerEn = new QuizAnswerTranslation();
+        answerEn.setText("Answer");
+        answer.setTranslations(Map.of("en", answerEn));
+        question.setAnswers(List.of(answer));
+
+        content.setQuizQuestions(List.of(question));
+        course.setTextContent(List.of(content));
+
+        Course localized = service.localizeCourse(course, Locale.GERMAN);
+
+        TextContent localizedContent = localized.getTextContent().get(0);
+        assertThat(localizedContent.getTranslations().get("en").getTitle()).isEqualTo("Lesson");
+        assertThat(localizedContent.getTranslations().get("en").getContent()).isEqualTo("Body");
+        QuizQuestion localizedQuestion = localizedContent.getQuizQuestions().get(0);
+        assertThat(localizedQuestion.getTranslations().get("en").getQuestion()).isEqualTo("Question?");
+        QuizAnswer localizedAnswer = localizedQuestion.getAnswers().get(0);
+        assertThat(localizedAnswer.getTranslations().get("en").getText()).isEqualTo("Answer");
     }
 }

@@ -55,4 +55,40 @@ class AdminSettingsServiceTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Fetch-now rate limited");
     }
+
+    @Test
+    void updateNewsCronTrimsAndSaves() {
+        AdminSettings settings = new AdminSettings("global");
+        when(repository.findById("global")).thenReturn(Optional.of(settings));
+        when(repository.save(any(AdminSettings.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AdminSettings updated = service.updateNewsCron(" 0 0 9 ? * MON ");
+
+        assertThat(updated.getNewsCron()).isEqualTo("0 0 9 ? * MON");
+    }
+
+    @Test
+    void updateAdminEmailPersistsValue() {
+        AdminSettings settings = new AdminSettings("global");
+        when(repository.findById("global")).thenReturn(Optional.of(settings));
+        when(repository.save(any(AdminSettings.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AdminSettings updated = service.updateAdminEmail("admin@example.com");
+
+        assertThat(updated.getAdminEmail()).isEqualTo("admin@example.com");
+    }
+
+    @Test
+    void markNewsFetchNowUpdatesTimestampAndCooldown() {
+        AdminSettings settings = new AdminSettings("global");
+        settings.setLastNewsFetchAt(null);
+        settings.setNewsFetchCooldownSeconds(null);
+        when(repository.findById("global")).thenReturn(Optional.of(settings));
+        when(repository.save(any(AdminSettings.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AdminSettings updated = service.markNewsFetchNow(Duration.ofSeconds(120));
+
+        assertThat(updated.getLastNewsFetchAt()).isNotNull();
+        assertThat(updated.getNewsFetchCooldownSeconds()).isEqualTo(120);
+    }
 }

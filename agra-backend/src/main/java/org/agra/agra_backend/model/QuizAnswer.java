@@ -1,7 +1,6 @@
 package org.agra.agra_backend.model;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -17,14 +16,7 @@ import java.util.Map;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class    QuizAnswer {
     private String id;
-    private String text;
     private Map<String, QuizAnswerTranslation> translations;
     @JsonAlias("isCorrect")
     private boolean correct;
-
-    @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
-    public QuizAnswer(String value) {
-        this.text = value;
-        this.correct = false;
-    }
 }

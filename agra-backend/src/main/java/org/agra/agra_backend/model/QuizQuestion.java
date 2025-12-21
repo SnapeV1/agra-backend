@@ -17,7 +17,6 @@ import java.util.Map;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class QuizQuestion {
     private String id;
-    private String question;
     private Map<String, QuizQuestionTranslation> translations;
     /**
      * One answer in this list should have correct=true.

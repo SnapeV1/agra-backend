@@ -11,10 +11,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Map;
 import java.util.Date;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -97,6 +100,126 @@ class GoogleAuthServiceTest {
         assertThat(response.getExistingAccount()).isFalse();
         assertThat(response.getPasswordResetToken()).isEqualTo("reset");
         verify(cloudinaryService).createUserFolder(org.mockito.ArgumentMatchers.contains("users/"));
+    }
+
+    @Test
+    void verifyGoogleTokenThrowsWhenEmailMissing() {
+        GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
+        payload.setEmail(null);
+
+        GoogleAuthService service = new TestableGoogleAuthService(
+                jwtUtil, userRepository, cloudinaryService, passwordResetService, refreshTokenService, payload);
+
+        assertThatThrownBy(() -> service.verifyGoogleToken("token"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Google verification failed");
+    }
+
+    @Test
+    void verifyGoogleTokenCreatesUserWithDefaultsAndUploadsAvatar() throws Exception {
+        GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
+        payload.setEmail("new@example.com");
+        payload.setEmailVerified(true);
+        payload.set("name", "New User");
+        payload.set("locale", "");
+        payload.set("picture", "https://google/avatar.png");
+        payload.set("phone_number", "+123");
+        payload.set("country", "GH");
+
+        when(userRepository.findByEmail("new@example.com")).thenReturn(null);
+        when(jwtUtil.generateToken(org.mockito.ArgumentMatchers.any(User.class))).thenReturn("jwt");
+        when(refreshTokenService.createRefreshToken(org.mockito.ArgumentMatchers.anyString())).thenReturn("refresh");
+        when(passwordResetService.issueResetTokenForUserId(org.mockito.ArgumentMatchers.anyString())).thenReturn("reset");
+        doNothing().when(cloudinaryService).createUserFolder(org.mockito.ArgumentMatchers.anyString());
+        when(cloudinaryService.uploadProfilePictureFromUrl("https://google/avatar.png", "new@example.com"))
+                .thenReturn(Map.of("secure_url", "https://cdn/avatar.png"));
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        when(userRepository.save(userCaptor.capture())).thenAnswer(invocation -> {
+            User saved = userCaptor.getValue();
+            if (saved.getId() == null) {
+                saved.setId("new-id");
+            }
+            if (saved.getRegisteredAt() == null) {
+                saved.setRegisteredAt(new Date());
+            }
+            return saved;
+        });
+
+        GoogleAuthService service = new TestableGoogleAuthService(
+                jwtUtil, userRepository, cloudinaryService, passwordResetService, refreshTokenService, payload);
+
+        LoginResponse response = service.verifyGoogleToken("token");
+
+        assertThat(response.getExistingAccount()).isFalse();
+        assertThat(response.getPasswordResetToken()).isEqualTo("reset");
+        assertThat(userCaptor.getAllValues().get(0).getLanguage()).isEqualTo("en");
+        assertThat(userCaptor.getAllValues().get(0).getRole()).isEqualTo("USER");
+        assertThat(userCaptor.getAllValues().get(0).getPhone()).isEqualTo("+123");
+        assertThat(userCaptor.getAllValues().get(0).getCountry()).isEqualTo("GH");
+        assertThat(userCaptor.getAllValues().get(userCaptor.getAllValues().size() - 1).getPicture())
+                .isEqualTo("https://cdn/avatar.png");
+    }
+
+    @Test
+    void verifyGoogleTokenHandlesAvatarUploadFailureForExistingUser() throws Exception {
+        GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
+        payload.setEmail("existing@example.com");
+        payload.setEmailVerified(false);
+        payload.set("name", "Existing User");
+        payload.set("locale", "fr");
+        payload.set("picture", "https://google/avatar.png");
+
+        User existing = new User();
+        existing.setId("u1");
+        existing.setEmail("existing@example.com");
+        existing.setPicture(null);
+        existing.setPassword("pass");
+        existing.setVerified(false);
+
+        when(userRepository.findByEmail("existing@example.com")).thenReturn(existing);
+        when(userRepository.save(existing)).thenReturn(existing);
+        when(jwtUtil.generateToken(existing)).thenReturn("jwt");
+        when(refreshTokenService.createRefreshToken("u1")).thenReturn("refresh");
+        doThrow(new RuntimeException("upload failed"))
+                .when(cloudinaryService)
+                .uploadProfilePictureFromUrl("https://google/avatar.png", "existing@example.com");
+
+        GoogleAuthService service = new TestableGoogleAuthService(
+                jwtUtil, userRepository, cloudinaryService, passwordResetService, refreshTokenService, payload);
+
+        LoginResponse response = service.verifyGoogleToken("token");
+
+        assertThat(response.getExistingAccount()).isTrue();
+        assertThat(existing.getPicture()).isEqualTo("https://google/avatar.png");
+    }
+
+    @Test
+    void verifyGoogleTokenHandlesResetTokenFailure() throws Exception {
+        GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
+        payload.setEmail("new@example.com");
+        payload.setEmailVerified(false);
+
+        when(userRepository.findByEmail("new@example.com")).thenReturn(null);
+        when(jwtUtil.generateToken(org.mockito.ArgumentMatchers.any(User.class))).thenReturn("jwt");
+        when(refreshTokenService.createRefreshToken(org.mockito.ArgumentMatchers.anyString())).thenReturn("refresh");
+        doThrow(new RuntimeException("reset down"))
+                .when(passwordResetService)
+                .issueResetTokenForUserId(org.mockito.ArgumentMatchers.anyString());
+        doNothing().when(cloudinaryService).createUserFolder(org.mockito.ArgumentMatchers.anyString());
+
+        when(userRepository.save(org.mockito.ArgumentMatchers.any(User.class))).thenAnswer(invocation -> {
+            User saved = invocation.getArgument(0);
+            saved.setId("new-id");
+            return saved;
+        });
+
+        GoogleAuthService service = new TestableGoogleAuthService(
+                jwtUtil, userRepository, cloudinaryService, passwordResetService, refreshTokenService, payload);
+
+        LoginResponse response = service.verifyGoogleToken("token");
+
+        assertThat(response.getPasswordResetToken()).isNull();
     }
 
     private static class TestableGoogleAuthService extends GoogleAuthService {

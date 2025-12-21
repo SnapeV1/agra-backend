@@ -18,9 +18,6 @@ import java.util.Map;
 public class TextContent {
     @Id
     private String id;
-
-    private String title;
-    private String content;
     private int order;
     private String type;
     private Map<String, TextContentTranslation> translations;
