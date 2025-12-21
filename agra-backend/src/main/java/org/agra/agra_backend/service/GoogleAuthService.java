@@ -9,15 +9,21 @@ import org.agra.agra_backend.misc.JwtUtil;
 import org.agra.agra_backend.dao.UserRepository;
 import org.agra.agra_backend.model.User;
 import org.agra.agra_backend.payload.LoginResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.util.Collections;
 import java.util.Date;
 
 @Service
 @RequiredArgsConstructor
 public class GoogleAuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(GoogleAuthService.class);
 
     @Value("${googleClientId}")
     private String googleClientId;
@@ -87,8 +93,8 @@ public class GoogleAuthService {
                     // Ensure user folder exists
                     String sanitizedEmail = email.replaceAll("[^a-zA-Z0-9]", "_").toLowerCase();
                     cloudinaryService.createUserFolder("users/" + sanitizedEmail);
-                } catch (Exception e) {
-                    System.err.println("Warning: Failed to create Cloudinary folder for user " + email + ": " + e.getMessage());
+                } catch (IOException e) {
+                    log.warn("Warning: Failed to create Cloudinary folder for user {}", email, e);
                 }
 
                 // If Google returned a picture URL, upload it into Cloudinary and persist its URL
@@ -99,8 +105,8 @@ public class GoogleAuthService {
                         user.setPicture(uploadedUrl);
                         user = userRepository.save(user);
                         
-                    } catch (Exception e) {
-                        System.err.println("Warning: Failed to mirror Google avatar for user " + email + ": " + e.getMessage());
+                    } catch (IOException | RuntimeException e) {
+                        log.warn("Warning: Failed to mirror Google avatar for user {}", email, e);
                     }
                 }
             } else {
@@ -112,11 +118,11 @@ public class GoogleAuthService {
                         user.setPicture(uploadedUrl);
                         user = userRepository.save(user);
                         
-                    } catch (Exception e) {
+                    } catch (IOException | RuntimeException e) {
                         // Fall back to using Google's URL directly if Cloudinary mirror fails
                         user.setPicture(picture);
                         user = userRepository.save(user);
-                        System.err.println("Warning: Failed to mirror Google avatar for existing user " + email + ": " + e.getMessage());
+                        log.warn("Warning: Failed to mirror Google avatar for existing user {}", email, e);
                     }
                 }
                 if (!Boolean.TRUE.equals(user.getVerified()) && isEmailVerified) {
@@ -130,8 +136,8 @@ public class GoogleAuthService {
             if (user.getPassword() == null || user.getPassword().isBlank()) {
                 try {
                     rawResetToken = passwordResetService.issueResetTokenForUserId(user.getId());
-                } catch (Exception e) {
-                    System.err.println("Warning: Failed to issue reset token for Google user " + email + ": " + e.getMessage());
+                } catch (RuntimeException e) {
+                    log.warn("Warning: Failed to issue reset token for Google user {}", email, e);
                 }
             }
 
@@ -140,12 +146,12 @@ public class GoogleAuthService {
             String refresh = refreshTokenService.createRefreshToken(user.getId());
             LoginResponse response = new LoginResponse(jwt, user, existed, rawResetToken, refresh);
             return response;
-        } catch (Exception e) {
-            throw new RuntimeException("Google verification failed", e);
+        } catch (GeneralSecurityException | IOException e) {
+            throw new GoogleAuthException("Google verification failed", e);
         }
     }
 
-    protected GoogleIdToken.Payload verifyAndGetPayload(String idTokenString) throws Exception {
+    protected GoogleIdToken.Payload verifyAndGetPayload(String idTokenString) throws GeneralSecurityException, IOException {
         GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
                 new NetHttpTransport(),
                 new GsonFactory())
@@ -157,5 +163,11 @@ public class GoogleAuthService {
             throw new IllegalArgumentException("Invalid Google ID token");
         }
         return idToken.getPayload();
+    }
+}
+
+class GoogleAuthException extends RuntimeException {
+    GoogleAuthException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

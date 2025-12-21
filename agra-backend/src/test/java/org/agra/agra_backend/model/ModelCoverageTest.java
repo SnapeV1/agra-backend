@@ -436,7 +436,6 @@ class ModelCoverageTest {
 
     @Test
     void likeAllArgsConstructorStoresFields() {
-        UserInfo info = new UserInfo();
         Like like = new Like("id", "user-1", new User(), "POST", "p1", LocalDateTime.now());
 
         assertThat(like.getId()).isEqualTo("id");

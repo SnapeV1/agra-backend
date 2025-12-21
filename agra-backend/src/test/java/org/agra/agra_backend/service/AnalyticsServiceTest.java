@@ -72,9 +72,10 @@ class AnalyticsServiceTest {
 
         Map<String, Object> summary = service.getCourseStatusSummary();
 
-        assertThat(summary).containsEntry("total", 2L);
-        assertThat(summary).containsEntry("archived", 1L);
-        assertThat(summary).containsEntry("published", 1L);
+        assertThat(summary)
+                .containsEntry("total", 2L)
+                .containsEntry("archived", 1L)
+                .containsEntry("published", 1L);
     }
 
     @Test
@@ -83,9 +84,10 @@ class AnalyticsServiceTest {
 
         Map<String, Object> summary = service.getCourseStatusSummary();
 
-        assertThat(summary).containsEntry("total", 0L);
-        assertThat(summary).containsEntry("archived", 0L);
-        assertThat(summary).containsEntry("published", 0L);
+        assertThat(summary)
+                .containsEntry("total", 0L)
+                .containsEntry("archived", 0L)
+                .containsEntry("published", 0L);
     }
 
     @Test
@@ -166,8 +168,9 @@ class AnalyticsServiceTest {
         List<Map<String, Object>> result = service.getCompletionRates();
 
         assertThat(result).hasSize(1);
-        assertThat(result.get(0)).containsEntry("completed", 0L);
-        assertThat(result.get(0)).containsEntry("total", 0L);
+        assertThat(result.get(0))
+                .containsEntry("completed", 0L)
+                .containsEntry("total", 0L);
     }
 
     @Test
@@ -314,9 +317,10 @@ class AnalyticsServiceTest {
 
         Map<String, Object> result = service.getActiveVsInactiveUsers(30);
 
-        assertThat(result).containsEntry("active", 1L);
-        assertThat(result).containsEntry("inactive", 1L);
-        assertThat(result).containsEntry("total", 2L);
+        assertThat(result)
+                .containsEntry("active", 1L)
+                .containsEntry("inactive", 1L)
+                .containsEntry("total", 2L);
     }
 
     @Test
@@ -345,8 +349,9 @@ class AnalyticsServiceTest {
 
         Map<String, Object> result = service.getActiveVsInactiveUsers(30);
 
-        assertThat(result).containsEntry("active", 4L);
-        assertThat(result).containsEntry("inactive", 6L);
+        assertThat(result)
+                .containsEntry("active", 4L)
+                .containsEntry("inactive", 6L);
     }
 
     @Test
@@ -402,8 +407,9 @@ class AnalyticsServiceTest {
 
         Map<String, Object> result = service.getUserEngagementAverages();
 
-        assertThat(result).containsEntry("avgLikesPerUser", 0.0);
-        assertThat(result).containsEntry("avgCommentsPerUser", 0.0);
+        assertThat(result)
+                .containsEntry("avgLikesPerUser", 0.0)
+                .containsEntry("avgCommentsPerUser", 0.0);
     }
 
     @Test
@@ -416,8 +422,9 @@ class AnalyticsServiceTest {
 
         Map<String, Object> result = service.getFeaturedPostsPerformance();
 
-        assertThat(result).containsEntry("featuredCount", 1L);
-        assertThat(result).containsEntry("regularCount", 0L);
+        assertThat(result)
+                .containsEntry("featuredCount", 1L)
+                .containsEntry("regularCount", 0L);
     }
 
     @Test
@@ -430,8 +437,9 @@ class AnalyticsServiceTest {
 
         Map<String, Object> result = service.getFeaturedPostsPerformance();
 
-        assertThat(result).containsEntry("featuredCount", 0L);
-        assertThat(result).containsEntry("regularCount", 1L);
+        assertThat(result)
+                .containsEntry("featuredCount", 0L)
+                .containsEntry("regularCount", 1L);
     }
 
     @Test
@@ -452,8 +460,9 @@ class AnalyticsServiceTest {
 
         Map<String, Object> result = service.getWebSocketActivity();
 
-        assertThat(result).containsEntry("connectedUsers", 5L);
-        assertThat(result).containsEntry("onlineUsers", 3L);
+        assertThat(result)
+                .containsEntry("connectedUsers", 5L)
+                .containsEntry("onlineUsers", 3L);
     }
 
     @Test
@@ -466,9 +475,10 @@ class AnalyticsServiceTest {
 
         Map<String, Object> result = service.getNotificationReadStatus();
 
-        assertThat(result).containsEntry("read", 1L);
-        assertThat(result).containsEntry("unread", 1L);
-        assertThat(result).containsEntry("total", 2L);
+        assertThat(result)
+                .containsEntry("read", 1L)
+                .containsEntry("unread", 1L)
+                .containsEntry("total", 2L);
     }
 
     @Test
@@ -477,10 +487,11 @@ class AnalyticsServiceTest {
 
         Map<String, Object> result = service.getNotificationReadStatus();
 
-        assertThat(result).containsEntry("read", 0L);
-        assertThat(result).containsEntry("unread", 0L);
-        assertThat(result).containsEntry("total", 0L);
-        assertThat(result).containsEntry("readPercentage", 0.0);
+        assertThat(result)
+                .containsEntry("read", 0L)
+                .containsEntry("unread", 0L)
+                .containsEntry("total", 0L)
+                .containsEntry("readPercentage", 0.0);
     }
 
     @Test

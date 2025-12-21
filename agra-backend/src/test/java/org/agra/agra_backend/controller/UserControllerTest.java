@@ -99,14 +99,14 @@ class UserControllerTest {
     }
 
     @Test
-    void updateUserProfileReturnsUnauthorizedWithoutAuth() throws Exception {
+    void updateUserProfileReturnsUnauthorizedWithoutAuth() {
         ResponseEntity<?> response = controller.updateUserProfile("{}", null, null, null);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
-    void updateUserProfileUpdatesUser() throws Exception {
+    void updateUserProfileUpdatesUser() throws java.io.IOException {
         Authentication authentication = authWithUser("user-1");
         User existing = new User();
         existing.setId("user-1");
@@ -124,7 +124,7 @@ class UserControllerTest {
     }
 
     @Test
-    void updateUserProfileReturnsServerErrorOnBadJson() throws Exception {
+    void updateUserProfileReturnsServerErrorOnBadJson() {
         Authentication authentication = authWithUser("user-1");
         User existing = new User();
         existing.setId("user-1");
@@ -136,7 +136,7 @@ class UserControllerTest {
     }
 
     @Test
-    void updateUserByAdminReturnsUpdatedUser() throws Exception {
+    void updateUserByAdminReturnsUpdatedUser() throws java.io.IOException {
         User existing = new User();
         existing.setId("user-1");
         when(userService.findById("user-1")).thenReturn(existing);
@@ -148,7 +148,7 @@ class UserControllerTest {
     }
 
     @Test
-    void updateUserByAdminReturnsNotFoundWhenMissing() throws Exception {
+    void updateUserByAdminReturnsNotFoundWhenMissing() {
         when(userService.findById("user-1")).thenReturn(null);
 
         ResponseEntity<?> response = controller.updateUserByAdmin("user-1", "{}", null);
@@ -157,7 +157,7 @@ class UserControllerTest {
     }
 
     @Test
-    void updateUserByAdminReturnsServerErrorOnBadJson() throws Exception {
+    void updateUserByAdminReturnsServerErrorOnBadJson() {
         ResponseEntity<?> response = controller.updateUserByAdmin("user-1", "{bad", null);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);

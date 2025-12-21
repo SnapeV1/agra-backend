@@ -141,7 +141,7 @@ class UserServiceTest {
         MultipartFile file = mock(MultipartFile.class);
         when(file.isEmpty()).thenReturn(false);
         when(userRepository.findById("user-1")).thenReturn(Optional.of(existing));
-        when(cloudinaryService.uploadProfilePicture(eq(file), eq("user@example.com")))
+        when(cloudinaryService.uploadProfilePicture(file, "user@example.com"))
                 .thenReturn(java.util.Map.of("secure_url", "https://img/new"));
         when(passwordEncoder.encode("new")).thenReturn("encoded-new");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -166,7 +166,7 @@ class UserServiceTest {
         MultipartFile file = mock(MultipartFile.class);
         when(file.isEmpty()).thenReturn(false);
         when(userRepository.findById("user-1")).thenReturn(Optional.of(existing));
-        when(cloudinaryService.uploadProfilePicture(eq(file), eq("user@example.com")))
+        when(cloudinaryService.uploadProfilePicture(file, "user@example.com"))
                 .thenThrow(new IOException("bad"));
 
         assertThatThrownBy(() -> service.updateUser(update, file))

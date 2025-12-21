@@ -11,7 +11,6 @@ import org.agra.agra_backend.model.CourseTranslation;
 import org.agra.agra_backend.model.User;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -43,9 +42,9 @@ class CertificateServiceTest {
 
     @Test
     void updateMetadataUpdatesFields() {
-        CertificateRecord record = new CertificateRecord();
-        record.setId("cert-1");
-        when(certificateRecordRepository.findById("cert-1")).thenReturn(Optional.of(record));
+        CertificateRecord certificateRecord = new CertificateRecord();
+        certificateRecord.setId("cert-1");
+        when(certificateRecordRepository.findById("cert-1")).thenReturn(Optional.of(certificateRecord));
         when(certificateRecordRepository.save(any(CertificateRecord.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -63,7 +62,9 @@ class CertificateServiceTest {
 
     @Test
     void recordIssuanceThrowsWhenProgressMissing() {
-        assertThatThrownBy(() -> service.recordIssuance(null, "url", new Date()))
+        Date issuedAt = new Date();
+
+        assertThatThrownBy(() -> service.recordIssuance(null, "url", issuedAt))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Course progress is required");
     }
@@ -101,27 +102,27 @@ class CertificateServiceTest {
         course.setTranslations(new HashMap<>(Map.of("en", translation)));
         when(courseRepository.findById("course-1")).thenReturn(Optional.of(course));
 
-        CertificateRecord record = service.recordIssuance(progress, null, null);
+        CertificateRecord certificateRecord = service.recordIssuance(progress, null, null);
 
-        assertThat(record.getCertificateCode()).isNotBlank();
-        assertThat(record.getCourseId()).isEqualTo("course-1");
-        assertThat(record.getUserId()).isEqualTo("user-1");
-        assertThat(record.getRecipientName()).isEqualTo("Student");
-        assertThat(record.getCourseTitle()).isEqualTo("Course Title");
-        assertThat(record.getCompletedAt()).isEqualTo(completionDate);
-        assertThat(record.getCertificateUrl()).contains("course-1").contains("user-1");
+        assertThat(certificateRecord.getCertificateCode()).isNotBlank();
+        assertThat(certificateRecord.getCourseId()).isEqualTo("course-1");
+        assertThat(certificateRecord.getUserId()).isEqualTo("user-1");
+        assertThat(certificateRecord.getRecipientName()).isEqualTo("Student");
+        assertThat(certificateRecord.getCourseTitle()).isEqualTo("Course Title");
+        assertThat(certificateRecord.getCompletedAt()).isEqualTo(completionDate);
+        assertThat(certificateRecord.getCertificateUrl()).contains("course-1").contains("user-1");
     }
 
     @Test
     void verifyCertificateMarksRevoked() {
-        CertificateRecord record = new CertificateRecord();
-        record.setId("cert-1");
-        record.setCertificateCode("ABC123");
-        record.setCourseId("course-1");
-        record.setUserId("user-1");
-        record.setRevoked(true);
-        record.setRevokedReason("Expired");
-        when(certificateRecordRepository.findByCertificateCode("ABC123")).thenReturn(Optional.of(record));
+        CertificateRecord certificateRecord = new CertificateRecord();
+        certificateRecord.setId("cert-1");
+        certificateRecord.setCertificateCode("ABC123");
+        certificateRecord.setCourseId("course-1");
+        certificateRecord.setUserId("user-1");
+        certificateRecord.setRevoked(true);
+        certificateRecord.setRevokedReason("Expired");
+        when(certificateRecordRepository.findByCertificateCode("ABC123")).thenReturn(Optional.of(certificateRecord));
 
         Optional<Map<String, Object>> result = service.verifyCertificate("ABC123");
 

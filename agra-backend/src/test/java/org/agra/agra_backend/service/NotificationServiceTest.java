@@ -12,7 +12,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -55,9 +54,9 @@ class NotificationServiceTest {
         ArgumentCaptor<NotificationStatus> captor = ArgumentCaptor.forClass(NotificationStatus.class);
         verify(notificationStatusRepository).save(captor.capture());
         NotificationStatus saved = captor.getValue();
-        assertThat(saved.getUserId()).isEqualTo("user-1");
-        assertThat(saved.getNotificationId()).isEqualTo("notif-1");
-        assertThat(saved.isSeen()).isTrue();
+        assertThat(saved)
+                .extracting(NotificationStatus::getUserId, NotificationStatus::getNotificationId, NotificationStatus::isSeen)
+                .containsExactly("user-1", "notif-1", true);
         assertThat(saved.getSeenAt()).isNotNull();
     }
 
@@ -75,8 +74,9 @@ class NotificationServiceTest {
         ArgumentCaptor<List<NotificationStatus>> captor = ArgumentCaptor.forClass(List.class);
         verify(notificationStatusRepository).saveAll(captor.capture());
         List<NotificationStatus> statuses = captor.getValue();
-        assertThat(statuses).hasSize(2);
-        assertThat(statuses).allMatch(NotificationStatus::isSeen);
-        assertThat(statuses).allMatch(status -> status.getSeenAt() != null);
+        assertThat(statuses)
+                .hasSize(2)
+                .allMatch(NotificationStatus::isSeen)
+                .allMatch(status -> status.getSeenAt() != null);
     }
 }

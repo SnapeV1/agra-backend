@@ -21,7 +21,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Date;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -91,7 +90,9 @@ class AdminSettingsControllerTest {
 
     @Test
     void updateNewsScheduleRejectsBlankCron() {
-        assertThatThrownBy(() -> controller.updateNewsSchedule(Map.of()))
+        Map<String, Object> payload = Map.of();
+
+        assertThatThrownBy(() -> controller.updateNewsSchedule(payload))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("cron is required");
     }
@@ -113,7 +114,7 @@ class AdminSettingsControllerTest {
         user.setRole("USER");
         when(userService.getCurrentUserOrThrow()).thenReturn(user);
 
-        assertThatThrownBy(() -> controller.getSecurity())
+        assertThatThrownBy(controller::getSecurity)
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("Admin role required");
     }
@@ -142,9 +143,10 @@ class AdminSettingsControllerTest {
 
         Map<String, Object> response = controller.enroll2fa();
 
-        assertThat(response).containsEntry("secret", "secret");
-        assertThat(response).containsEntry("otpauthUrl", "otpauth://test");
-        assertThat(response.get("recoveryCodes")).isEqualTo(List.of("code1", "code2"));
+        assertThat(response)
+                .containsEntry("secret", "secret")
+                .containsEntry("otpauthUrl", "otpauth://test")
+                .containsEntry("recoveryCodes", List.of("code1", "code2"));
         assertThat(admin.getTwoFactorSecret()).isEqualTo("secret");
         verify(userRepository).save(admin);
     }

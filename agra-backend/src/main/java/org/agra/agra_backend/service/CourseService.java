@@ -1,8 +1,7 @@
 package org.agra.agra_backend.service;
 
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.agra.agra_backend.dao.CourseRepository;
 import org.agra.agra_backend.model.Course;
 import org.agra.agra_backend.model.CourseProgress;
@@ -13,6 +12,8 @@ import org.agra.agra_backend.model.QuizQuestion;
 import org.agra.agra_backend.model.QuizQuestionTranslation;
 import org.agra.agra_backend.model.TextContent;
 import org.agra.agra_backend.model.TextContentTranslation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -32,7 +33,8 @@ import java.util.UUID;
 @Service
 public class CourseService {
     private static final String DEFAULT_COURSE_IMAGE_URL = "https://res.cloudinary.com/dmumvupow/image/upload/v1759008723/Default_Can_you_name_the_type_of_farming_Rinjhasfamily_is_enga_2_ciduil.webp";
-    
+    private static final Logger log = LoggerFactory.getLogger(CourseService.class);
+
     private CloudinaryService cloudinaryService;
     private CourseProgressService courseProgressService;
 
@@ -57,7 +59,6 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
         generateTextContentIds(course);
 
         course = courseRepository.save(course);
-        System.out.println(course.getImageUrl());
         if (courseImage != null && !courseImage.isEmpty()) {
             course = getCourse(courseImage, course);
         } else {
@@ -85,16 +86,10 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
 
     @Cacheable(cacheNames = "courses:detail", key = "#id")
     public Optional<Course> getCourseById(String id) {
-        System.out.println("CourseService: getCourseById called with id: " + id);
         Optional<Course> result = courseRepository.findById(id);
         if (result.isPresent()) {
-            Course course = result.get();
-            CourseTranslation translation = resolveTranslation(course, null);
-            String title = translation != null ? translation.getTitle() : null;
-            System.out.println("CourseService: Found course - Title: " + title + 
-                             ", Archived: " + course.isArchived());
+         
         } else {
-            System.out.println("CourseService: Course not found with id: " + id);
         }
         return result;
     }
@@ -109,21 +104,12 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
     }
 
     private Course updateCourseInternal(Course existingCourse, Course updatedCourse, MultipartFile courseImage) {
-        logIncomingCourse(updatedCourse);
         applyCourseUpdates(existingCourse, updatedCourse);
         existingCourse.setUpdatedAt(new java.util.Date());
-        System.out.println(existingCourse.getLanguagesAvailable());
         existingCourse = courseRepository.save(existingCourse);
         return applyCourseImage(existingCourse, courseImage);
     }
 
-    private void logIncomingCourse(Course updatedCourse) {
-        try {
-            System.out.println("incoming structure (JSON): " + new ObjectMapper().writeValueAsString(updatedCourse));
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     private void applyCourseUpdates(Course existingCourse, Course updatedCourse) {
         existingCourse.setDomain(updatedCourse.getDomain());
@@ -147,32 +133,54 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
             existingCourse.setFiles(updatedCourse.getFiles());
             return;
         }
-        java.util.Map<String, org.agra.agra_backend.model.CourseFile> byId = new java.util.HashMap<>();
-        for (org.agra.agra_backend.model.CourseFile f : existingCourse.getFiles()) {
-            if (f != null && f.getId() != null) byId.put(f.getId(), f);
-        }
-        for (org.agra.agra_backend.model.CourseFile nf : updatedCourse.getFiles()) {
-            if (nf == null) continue;
-            if (nf.getId() != null && byId.containsKey(nf.getId())) {
-                byId.put(nf.getId(), nf);
-            } else {
-                boolean duplicate = false;
-                if (nf.getPublicId() != null) {
-                    for (org.agra.agra_backend.model.CourseFile ex : byId.values()) {
-                        if (nf.getPublicId().equals(ex.getPublicId())) { duplicate = true; break; }
-                    }
-                }
-                if (!duplicate) {
-                    String fileId = nf.getId();
-                    if (fileId == null || fileId.isEmpty()) {
-                        fileId = java.util.UUID.randomUUID().toString();
-                        nf.setId(fileId);
-                    }
-                    byId.put(fileId, nf);
-                }
-            }
+        Map<String, org.agra.agra_backend.model.CourseFile> byId = indexFilesById(existingCourse.getFiles());
+        for (org.agra.agra_backend.model.CourseFile candidate : updatedCourse.getFiles()) {
+            upsertCourseFile(byId, candidate);
         }
         existingCourse.setFiles(new java.util.ArrayList<>(byId.values()));
+    }
+
+    private Map<String, org.agra.agra_backend.model.CourseFile> indexFilesById(List<org.agra.agra_backend.model.CourseFile> files) {
+        Map<String, org.agra.agra_backend.model.CourseFile> byId = new HashMap<>();
+        for (org.agra.agra_backend.model.CourseFile file : files) {
+            if (file != null && file.getId() != null) {
+                byId.put(file.getId(), file);
+            }
+        }
+        return byId;
+    }
+
+    private void upsertCourseFile(Map<String, org.agra.agra_backend.model.CourseFile> byId,
+                                  org.agra.agra_backend.model.CourseFile candidate) {
+        if (candidate == null) {
+            return;
+        }
+        String fileId = candidate.getId();
+        if (fileId != null && byId.containsKey(fileId)) {
+            byId.put(fileId, candidate);
+            return;
+        }
+        if (isDuplicatePublicId(byId, candidate)) {
+            return;
+        }
+        if (fileId == null || fileId.isEmpty()) {
+            fileId = UUID.randomUUID().toString();
+            candidate.setId(fileId);
+        }
+        byId.put(fileId, candidate);
+    }
+
+    private boolean isDuplicatePublicId(Map<String, org.agra.agra_backend.model.CourseFile> byId,
+                                        org.agra.agra_backend.model.CourseFile candidate) {
+        if (candidate.getPublicId() == null) {
+            return false;
+        }
+        for (org.agra.agra_backend.model.CourseFile existing : byId.values()) {
+            if (candidate.getPublicId().equals(existing.getPublicId())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private Course applyCourseImage(Course existingCourse, MultipartFile courseImage) {
@@ -180,7 +188,7 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
             try {
                 return getCourse(courseImage, existingCourse);
             } catch (IOException e) {
-                System.err.println("Error uploading image: " + e.getMessage());
+                log.error("Error uploading image for courseId={}", existingCourse.getId(), e);
                 throw new RuntimeException("Failed to upload image", e);
             }
         }
@@ -215,25 +223,21 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
             @CacheEvict(value = {"courses:all", "courses:detail", "courses:country", "courses:domain", "courses:featured", "courses:active"}, allEntries = true)
     })
     public void deleteCourse(String id) {
-        System.out.println("CourseService: Deleting course with id: " + id);
         
         // First, delete all enrollments for this course to prevent orphaned records
         try {
             List<CourseProgress> enrollments = courseProgressService.getCourseEnrollments(id);
-            System.out.println("CourseService: Found " + enrollments.size() + " enrollments to delete");
             
             for (CourseProgress enrollment : enrollments) {
                 courseProgressService.unenrollUser(enrollment.getUserId(), id);
-                System.out.println("CourseService: Deleted enrollment for user: " + enrollment.getUserId());
             }
         } catch (Exception e) {
-            System.err.println("CourseService: Error deleting enrollments for course " + id + ": " + e.getMessage());
+            log.warn("CourseService: Error deleting enrollments for courseId={}", id, e);
             // Continue with course deletion even if enrollment cleanup fails
         }
         
         // Then delete the course
         courseRepository.deleteById(id);
-        System.out.println("CourseService: Successfully deleted course: " + id);
     }
 
 
@@ -457,15 +461,13 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
             if (question == null) continue;
             QuizQuestion localizedQuestion = new QuizQuestion();
             BeanUtils.copyProperties(question, localizedQuestion);
-            localizedQuestion.setAnswers(localizeQuizAnswers(question.getAnswers(), locale, defaultLanguage));
+            localizedQuestion.setAnswers(localizeQuizAnswers(question.getAnswers()));
             localized.add(localizedQuestion);
         }
         return localized;
     }
 
-    private List<QuizAnswer> localizeQuizAnswers(List<QuizAnswer> answers,
-                                                 Locale locale,
-                                                 String defaultLanguage) {
+    private List<QuizAnswer> localizeQuizAnswers(List<QuizAnswer> answers) {
         if (answers == null || answers.isEmpty()) return answers;
         List<QuizAnswer> localized = new java.util.ArrayList<>(answers.size());
         for (QuizAnswer answer : answers) {
@@ -479,26 +481,35 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
 
     private <T> T resolveTranslation(Map<String, T> translations, Locale locale, String defaultLanguage) {
         if (translations == null || translations.isEmpty()) return null;
-        String language = locale != null ? locale.getLanguage() : null;
-        T translation = null;
-        if (language != null && !language.isBlank()) {
-            translation = translations.get(language);
-            if (translation == null) {
-                translation = translations.get(language.toLowerCase());
+        for (String key : buildTranslationKeys(locale, defaultLanguage)) {
+            if (key == null || key.isBlank()) {
+                continue;
+            }
+            T translation = translations.get(key);
+            if (translation != null) {
+                return translation;
             }
         }
-        if (translation == null && locale != null) {
-            translation = translations.get(locale.toString());
+        return translations.values().stream().findFirst().orElse(null);
+    }
+
+    private List<String> buildTranslationKeys(Locale locale, String defaultLanguage) {
+        List<String> keys = new java.util.ArrayList<>();
+        if (locale != null) {
+            String language = locale.getLanguage();
+            if (language != null && !language.isBlank()) {
+                keys.add(language);
+                keys.add(language.toLowerCase());
+            }
+            String localeKey = locale.toString();
+            if (localeKey != null && !localeKey.isBlank()) {
+                keys.add(localeKey);
+            }
         }
-        if (translation == null && defaultLanguage != null) {
-            translation = translations.get(defaultLanguage);
+        if (defaultLanguage != null && !defaultLanguage.isBlank()) {
+            keys.add(defaultLanguage);
         }
-        if (translation == null) {
-            translation = translations.get("en");
-        }
-        if (translation == null) {
-            translation = translations.values().stream().findFirst().orElse(null);
-        }
-        return translation;
+        keys.add("en");
+        return keys;
     }
 }

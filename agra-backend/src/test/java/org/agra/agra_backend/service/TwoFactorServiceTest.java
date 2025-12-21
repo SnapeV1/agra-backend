@@ -18,8 +18,9 @@ class TwoFactorServiceTest {
     void generateSecretReturnsBase32() {
         String secret = service.generateSecret();
 
-        assertThat(secret).isNotBlank();
-        assertThat(secret).doesNotContain("=");
+        assertThat(secret)
+                .isNotBlank()
+                .doesNotContain("=");
     }
 
     @Test
@@ -34,8 +35,9 @@ class TwoFactorServiceTest {
     void buildOtpAuthUrlUsesDefaultUser() {
         String url = service.buildOtpAuthUrl("SECRET", null);
 
-        assertThat(url).contains("admin");
-        assertThat(url).contains("secret=SECRET");
+        assertThat(url)
+                .contains("admin")
+                .contains("secret=SECRET");
     }
 
     @Test

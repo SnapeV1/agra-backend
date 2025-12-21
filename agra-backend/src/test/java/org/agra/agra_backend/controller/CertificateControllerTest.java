@@ -97,8 +97,8 @@ class CertificateControllerTest {
 
     @Test
     void validateCertificateReturnsOkWhenActive() {
-        CertificateRecord record = sampleRecord("CODE-1");
-        when(certificateService.findByCode("CODE-1")).thenReturn(Optional.of(record));
+        CertificateRecord certificateRecord = sampleRecord("CODE-1");
+        when(certificateService.findByCode("CODE-1")).thenReturn(Optional.of(certificateRecord));
         when(courseProgressService.getEnrollmentStatus("user-1", "course-1"))
                 .thenReturn(Optional.empty());
         when(courseService.getCourseById("course-1")).thenReturn(Optional.empty());
@@ -106,17 +106,18 @@ class CertificateControllerTest {
         ResponseEntity<Map<String, Object>> response = controller.validateCertificate("CODE-1");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).containsEntry("valid", true);
-        assertThat(response.getBody()).containsEntry("verificationUrl", "https://certificates.agra.com/verify/CODE-1");
-        assertThat(response.getBody()).containsEntry("organizationName", "YEFFA Learning Platform");
-        assertThat(response.getBody()).containsEntry("instructorName", "AGRA Trainer");
+        assertThat(response.getBody())
+                .containsEntry("valid", true)
+                .containsEntry("verificationUrl", "https://certificates.agra.com/verify/CODE-1")
+                .containsEntry("organizationName", "YEFFA Learning Platform")
+                .containsEntry("instructorName", "AGRA Trainer");
     }
 
     @Test
     void validateCertificateReturnsGoneWhenRevoked() {
-        CertificateRecord record = sampleRecord("CODE-2");
-        record.setRevoked(true);
-        when(certificateService.findByCode("CODE-2")).thenReturn(Optional.of(record));
+        CertificateRecord certificateRecord = sampleRecord("CODE-2");
+        certificateRecord.setRevoked(true);
+        when(certificateService.findByCode("CODE-2")).thenReturn(Optional.of(certificateRecord));
         when(courseProgressService.getEnrollmentStatus("user-1", "course-1"))
                 .thenReturn(Optional.empty());
         when(courseService.getCourseById("course-1")).thenReturn(Optional.empty());
@@ -191,8 +192,8 @@ class CertificateControllerTest {
     @Test
     void getCertificateForAuthenticatedUserReturnsSuccess() {
         Authentication authentication = authWithRole("user-1", "USER");
-        CertificateRecord record = sampleRecord("CODE-3");
-        when(certificateService.findByCourseAndUser("course-1", "user-1")).thenReturn(Optional.of(record));
+        CertificateRecord certificateRecord = sampleRecord("CODE-3");
+        when(certificateService.findByCourseAndUser("course-1", "user-1")).thenReturn(Optional.of(certificateRecord));
         when(courseProgressService.getEnrollmentStatus("user-1", "course-1"))
                 .thenReturn(Optional.of(sampleProgress()));
         Course course = sampleCourse();
@@ -226,8 +227,8 @@ class CertificateControllerTest {
     @Test
     void listIssuedCertificatesReturnsData() {
         Authentication authentication = authWithRole("admin-1", "ADMIN");
-        CertificateRecord record = sampleRecord("CODE-4");
-        when(certificateService.getAllCertificates()).thenReturn(List.of(record));
+        CertificateRecord certificateRecord = sampleRecord("CODE-4");
+        when(certificateService.getAllCertificates()).thenReturn(List.of(certificateRecord));
         when(courseProgressService.getEnrollmentStatus("user-1", "course-1"))
                 .thenReturn(Optional.empty());
         when(courseService.getCourseById("course-1")).thenReturn(Optional.empty());
@@ -249,7 +250,7 @@ class CertificateControllerTest {
     }
 
     @Test
-    void updateCertificateReturnsBadRequestOnServiceError() throws Exception {
+    void updateCertificateReturnsBadRequestOnServiceError() {
         Authentication authentication = authWithRole("admin-1", "ADMIN");
         Map<String, Object> updates = Map.of("issueDate", 123L);
         when(certificateService.updateMetadata("cert-1", null, null, new Date(123L), null, null))
@@ -261,7 +262,7 @@ class CertificateControllerTest {
     }
 
     @Test
-    void updateCertificateReturnsSuccess() throws Exception {
+    void updateCertificateReturnsSuccess() {
         Authentication authentication = authWithRole("admin-1", "ADMIN");
         Map<String, Object> updates = Map.of(
                 "issueDate", "2025-01-01T00:00:00.000Z",
@@ -270,7 +271,7 @@ class CertificateControllerTest {
                 "organizationName", "Org",
                 "notes", "Updated"
         );
-        CertificateRecord record = sampleRecord("CODE-5");
+        CertificateRecord certificateRecord = sampleRecord("CODE-5");
         when(certificateService.updateMetadata(
                 org.mockito.ArgumentMatchers.eq("cert-1"),
                 org.mockito.ArgumentMatchers.eq("Trainer"),
@@ -278,7 +279,7 @@ class CertificateControllerTest {
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.eq("Updated")
-        )).thenReturn(record);
+        )).thenReturn(certificateRecord);
 
         ResponseEntity<Map<String, Object>> response = controller.updateCertificate("cert-1", updates, authentication);
 
@@ -289,8 +290,8 @@ class CertificateControllerTest {
     @Test
     void revokeCertificateReturnsSuccess() {
         Authentication authentication = authWithRole("admin-1", "ADMIN");
-        CertificateRecord record = sampleRecord("CODE-6");
-        when(certificateService.revokeCertificate("cert-1", null)).thenReturn(record);
+        CertificateRecord certificateRecord = sampleRecord("CODE-6");
+        when(certificateService.revokeCertificate("cert-1", null)).thenReturn(certificateRecord);
         when(courseProgressService.getEnrollmentStatus("user-1", "course-1"))
                 .thenReturn(Optional.empty());
         when(courseService.getCourseById("course-1")).thenReturn(Optional.empty());
@@ -377,9 +378,9 @@ class CertificateControllerTest {
         progress.setCompleted(true);
         when(courseProgressService.getEnrollmentStatus("user-1", "course-1"))
                 .thenReturn(Optional.of(progress));
-        CertificateRecord record = sampleRecord("CODE-7");
+        CertificateRecord certificateRecord = sampleRecord("CODE-7");
         when(certificateService.recordIssuance(progress, "https://certificates.agra.com/course/course-1/user/user-1/certificate.pdf", null))
-                .thenReturn(record);
+                .thenReturn(certificateRecord);
 
         ResponseEntity<?> response = controller.generateCertificate("course-1", authentication);
 

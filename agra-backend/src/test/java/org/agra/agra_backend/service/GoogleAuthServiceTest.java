@@ -111,8 +111,8 @@ class GoogleAuthServiceTest {
                 jwtUtil, userRepository, cloudinaryService, passwordResetService, refreshTokenService, payload);
 
         assertThatThrownBy(() -> service.verifyGoogleToken("token"))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Google verification failed");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Google account email is missing");
     }
 
     @Test

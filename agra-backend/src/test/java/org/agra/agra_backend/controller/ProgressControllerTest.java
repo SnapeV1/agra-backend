@@ -119,8 +119,9 @@ class ProgressControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         @SuppressWarnings("unchecked")
         Map<String, Object> body = (Map<String, Object>) response.getBody();
-        assertThat(body).containsEntry("courseId", "course-1");
-        assertThat(body).containsEntry("currentLessonId", "lesson-99");
+        assertThat(body)
+                .containsEntry("courseId", "course-1")
+                .containsEntry("currentLessonId", "lesson-99");
     }
 
     @Test
@@ -408,10 +409,10 @@ class ProgressControllerTest {
         progress.setCompleted(true);
         progress.setProgressPercentage(100);
         progress.setCertificateUrl("https://certs/test");
-        CertificateRecord record = new CertificateRecord();
-        record.setCertificateUrl("https://certs/test");
-        record.setCertificateCode("CODE-1");
-        record.setIssuedAt(new Date());
+        CertificateRecord certificateRecord = new CertificateRecord();
+        certificateRecord.setCertificateUrl("https://certs/test");
+        certificateRecord.setCertificateCode("CODE-1");
+        certificateRecord.setIssuedAt(new Date());
 
         when(courseProgressService.markCourseComplete(
                 org.mockito.ArgumentMatchers.eq("user-1"),
@@ -422,7 +423,7 @@ class ProgressControllerTest {
                 org.mockito.ArgumentMatchers.eq(progress),
                 org.mockito.ArgumentMatchers.eq("https://certs/test"),
                 org.mockito.ArgumentMatchers.any(Date.class)))
-                .thenReturn(record);
+                .thenReturn(certificateRecord);
 
         ResponseEntity<?> response = controller.markCourseComplete(payload, authentication);
 
@@ -549,11 +550,11 @@ class ProgressControllerTest {
         progress.setCertificateUrl("https://certs/test");
         when(courseProgressService.getEnrollmentStatus("user-1", "course-1"))
                 .thenReturn(Optional.of(progress));
-        CertificateRecord record = new CertificateRecord();
-        record.setCertificateCode("CODE-2");
-        record.setIssuedAt(new Date());
+        CertificateRecord certificateRecord = new CertificateRecord();
+        certificateRecord.setCertificateCode("CODE-2");
+        certificateRecord.setIssuedAt(new Date());
         when(certificateService.findByCourseAndUser("course-1", "user-1"))
-                .thenReturn(Optional.of(record));
+                .thenReturn(Optional.of(certificateRecord));
 
         ResponseEntity<?> response = controller.getCertificate("course-1", authentication);
 

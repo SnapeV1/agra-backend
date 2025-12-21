@@ -330,7 +330,7 @@ class TicketServiceTest {
 
         Ticket ticket = new Ticket();
         ticket.setId("ticket-1");
-        ticket.setStatus(TicketStatus.CLOSED);
+        ticket.setStatus(TicketStatus.RESOLVED);
         ticket.setUserInfo(null);
         UserInfo adminInfo = new UserInfo();
         adminInfo.setId("admin-1");
@@ -607,7 +607,7 @@ class TicketServiceTest {
         when(ticketRepository.findById("ticket-1")).thenReturn(Optional.of(ticket));
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Ticket result = service.updateTicketStatus(actor, "ticket-1", "CLOSED");
+        Ticket result = service.updateTicketStatus(actor, "ticket-1", "RESOLVED");
 
         assertThat(result.getStatus()).isEqualTo(TicketStatus.RESOLVED);
     }

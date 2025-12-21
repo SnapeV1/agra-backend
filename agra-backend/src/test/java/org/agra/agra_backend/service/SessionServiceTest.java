@@ -171,7 +171,7 @@ class SessionServiceTest {
         ArgumentCaptor<Session> captor = ArgumentCaptor.forClass(Session.class);
         verify(repo).save(captor.capture());
         Session saved = captor.getValue();
-        assertThat(saved.getWatchSecondsByUserId().get("user-1")).isEqualTo(15L);
+        assertThat(saved.getWatchSecondsByUserId()).containsEntry("user-1", 15L);
     }
 
     @Test
@@ -220,7 +220,7 @@ class SessionServiceTest {
 
         service.recordEvent("session-1", "user-1", dto);
 
-        assertThat(session.getWatchSecondsByUserId().get("user-1")).isEqualTo(15L);
+        assertThat(session.getWatchSecondsByUserId()).containsEntry("user-1", 15L);
     }
 
     @Test

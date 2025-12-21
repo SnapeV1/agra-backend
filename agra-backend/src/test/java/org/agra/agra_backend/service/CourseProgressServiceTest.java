@@ -52,7 +52,7 @@ class CourseProgressServiceTest {
         assertThat(created.getUserId()).isEqualTo("user-1");
         assertThat(created.getCourseId()).isEqualTo("course-1");
         assertThat(created.isCompleted()).isFalse();
-        assertThat(created.getProgressPercentage()).isEqualTo(0);
+        assertThat(created.getProgressPercentage()).isZero();
         assertThat(created.getEnrolledAt()).isNotNull();
     }
 

@@ -12,6 +12,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
 import java.util.Date;
 
 @Service
@@ -75,7 +76,7 @@ public class AuthService implements IAuthService {
         try {
             String folderName = createUserFolderName(normalizedEmail);
             cloudinaryService.createUserFolder(folderName);
-        } catch (Exception e) {
+        } catch (IOException e) {
             System.err.println("Warning: Failed to create Cloudinary folder for user " + normalizedEmail + ": " + e.getMessage());
         }
 

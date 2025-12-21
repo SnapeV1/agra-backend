@@ -15,7 +15,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -197,8 +196,9 @@ class CloudinaryServiceTest {
         setField(service, "cloudinary", cloudinary);
 
         assertThatThrownBy(() -> service.createUserFolder("user-1"))
-                .isInstanceOf(Exception.class)
-                .hasMessageContaining("boom");
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("Cloudinary folder creation failed")
+                .hasCauseInstanceOf(Exception.class);
     }
 
     @Test

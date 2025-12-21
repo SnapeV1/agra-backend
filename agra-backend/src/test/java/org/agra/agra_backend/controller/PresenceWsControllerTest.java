@@ -37,8 +37,9 @@ class PresenceWsControllerTest {
 
         Map<String, Object> response = controller.heartbeat(null, "session-1", principal);
 
-        assertThat(response.get("userId")).isEqualTo("user-1");
-        assertThat(response.get("username")).isEqualTo("Alice");
+        assertThat(response)
+                .containsEntry("userId", "user-1")
+                .containsEntry("username", "Alice");
         verify(presenceService).refresh("user-1", "session-1");
     }
 
@@ -46,8 +47,9 @@ class PresenceWsControllerTest {
     void heartbeatReturnsAnonymousWhenNoPrincipal() {
         Map<String, Object> response = controller.heartbeat(null, "session-1", null);
 
-        assertThat(response.get("userId")).isEqualTo("");
-        assertThat(response.get("username")).isEqualTo("");
+        assertThat(response)
+                .containsEntry("userId", "")
+                .containsEntry("username", "");
     }
 
     @Test
@@ -59,6 +61,6 @@ class PresenceWsControllerTest {
 
         Map<String, Object> response = controller.heartbeat(null, "session-1", principal);
 
-        assertThat(response.get("username")).isEqualTo("unknown");
+        assertThat(response).containsEntry("username", "unknown");
     }
 }

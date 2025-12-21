@@ -17,7 +17,7 @@ class CommentTest {
         assertThat(comment.getPostId()).isEqualTo("post-1");
         assertThat(comment.getUserId()).isEqualTo("user-1");
         assertThat(comment.getContent()).isEqualTo("Hello");
-        assertThat(comment.getLikesCount()).isEqualTo(0L);
+        assertThat(comment.getLikesCount()).isZero();
         assertThat(comment.getCreatedAt()).isNotNull();
         assertThat(comment.getUpdatedAt()).isNotNull();
     }

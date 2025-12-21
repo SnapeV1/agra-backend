@@ -39,7 +39,9 @@ class AdminSettingsServiceTest {
 
     @Test
     void updateNewsCronRejectsBlank() {
-        assertThatThrownBy(() -> service.updateNewsCron(" "))
+        String cron = " ";
+
+        assertThatThrownBy(() -> service.updateNewsCron(cron))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Cron expression must not be empty");
     }
@@ -51,7 +53,9 @@ class AdminSettingsServiceTest {
         settings.setLastNewsFetchAt(Instant.now());
         when(repository.findById("global")).thenReturn(Optional.of(settings));
 
-        assertThatThrownBy(() -> service.markNewsFetchNow(Duration.ofSeconds(300)))
+        Duration cooldown = Duration.ofSeconds(300);
+
+        assertThatThrownBy(() -> service.markNewsFetchNow(cooldown))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Fetch-now rate limited");
     }

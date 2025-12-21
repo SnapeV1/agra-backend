@@ -36,7 +36,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -194,7 +193,7 @@ class CourseControllerTest {
     }
 
     @Test
-    void updateCourseReturnsBadRequestOnInvalidJson() throws IOException {
+    void updateCourseReturnsBadRequestOnInvalidJson() {
         ResponseEntity<Course> response = controller.updateCourse("c1", "{", null);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);

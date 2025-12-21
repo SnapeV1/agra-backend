@@ -86,7 +86,7 @@ public class CloudinaryService {
     }
 
     // Create user folder in Cloudinary
-    public void createUserFolder(String folderName) throws Exception {
+    public void createUserFolder(String folderName) throws IOException {
         try {
             cloudinary.api().createFolder(folderName, ObjectUtils.emptyMap());
             System.out.println("Created folder: " + folderName);
@@ -98,7 +98,7 @@ public class CloudinaryService {
 
         } catch (Exception e) {
             System.err.println("Error creating Cloudinary folder: " + e.getMessage());
-            throw e;
+            throw new IOException("Cloudinary folder creation failed", e);
         }
     }
 

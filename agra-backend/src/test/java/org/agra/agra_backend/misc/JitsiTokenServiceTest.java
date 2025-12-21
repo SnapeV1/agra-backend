@@ -20,8 +20,10 @@ class JitsiTokenServiceTest {
     void mintUserTokenRequiresSecret() {
         JitsiTokenService service = new JitsiTokenService();
         ReflectionTestUtils.setField(service, "appSecret", " ");
+        User user = new User();
+        Session session = new Session();
 
-        assertThatThrownBy(() -> service.mintUserToken(new User(), new Session(), false))
+        assertThatThrownBy(() -> service.mintUserToken(user, session, false))
                 .isInstanceOf(IllegalStateException.class);
     }
 
@@ -56,7 +58,7 @@ class JitsiTokenServiceTest {
 
         assertThat(claims.getIssuer()).isEqualTo("app-1");
         assertThat(claims.getSubject()).isEqualTo("meet.example.com");
-        assertThat(claims.get("room")).isEqualTo("*");
+        assertThat(claims).containsEntry("room", "*");
     }
 
     @Test
@@ -87,7 +89,7 @@ class JitsiTokenServiceTest {
                 .getBody();
 
         assertThat(claims.getSubject()).isEqualTo("meet.example.com");
-        assertThat(claims.get("room")).isEqualTo("room-2");
+        assertThat(claims).containsEntry("room", "room-2");
     }
 
     @Test
