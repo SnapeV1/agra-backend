@@ -64,8 +64,9 @@ class AdminSettingsControllerTest {
 
         Map<String, Object> response = controller.getNewsSchedule();
 
-        assertThat(response).containsEntry("cron", "cron");
-        assertThat(response).containsEntry("cooldownSeconds", 60);
+        assertThat(response)
+                .containsEntry("cron", "cron")
+                .containsEntry("cooldownSeconds", 60);
     }
 
     @Test
@@ -127,8 +128,9 @@ class AdminSettingsControllerTest {
 
         Map<String, Object> response = controller.getSecurity();
 
-        assertThat(response).containsEntry("twoFactorEnabled", true);
-        assertThat(response).containsEntry("email", "admin@example.com");
+        assertThat(response)
+                .containsEntry("twoFactorEnabled", true)
+                .containsEntry("email", "admin@example.com");
     }
 
     @Test

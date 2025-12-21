@@ -51,17 +51,17 @@ class CertificateControllerTest {
     }
 
     private CertificateRecord sampleRecord(String code) {
-        CertificateRecord record = new CertificateRecord();
-        record.setId("cert-1");
-        record.setCertificateCode(code);
-        record.setUserId("user-1");
-        record.setCourseId("course-1");
-        record.setRecipientName("Student");
-        record.setCourseTitle("Course");
-        record.setCertificateUrl("https://certs/test");
-        record.setIssuedAt(new Date());
-        record.setCompletedAt(new Date());
-        return record;
+        CertificateRecord certificateRecord = new CertificateRecord();
+        certificateRecord.setId("cert-1");
+        certificateRecord.setCertificateCode(code);
+        certificateRecord.setUserId("user-1");
+        certificateRecord.setCourseId("course-1");
+        certificateRecord.setRecipientName("Student");
+        certificateRecord.setCourseTitle("Course");
+        certificateRecord.setCertificateUrl("https://certs/test");
+        certificateRecord.setIssuedAt(new Date());
+        certificateRecord.setCompletedAt(new Date());
+        return certificateRecord;
     }
 
     private Course sampleCourse() {
@@ -148,8 +148,9 @@ class CertificateControllerTest {
         assertThat(response.getBody()).containsEntry("courseTitle", "Localized Course");
         @SuppressWarnings("unchecked")
         Map<String, Object> courseMap = (Map<String, Object>) response.getBody().get("course");
-        assertThat(courseMap).containsEntry("title", "Localized Course");
-        assertThat(courseMap).containsEntry("description", "Localized Description");
+        assertThat(courseMap)
+                .containsEntry("title", "Localized Course")
+                .containsEntry("description", "Localized Description");
     }
 
     @Test
