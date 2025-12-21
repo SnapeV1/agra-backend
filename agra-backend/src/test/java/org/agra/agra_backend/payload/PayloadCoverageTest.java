@@ -20,6 +20,7 @@ class PayloadCoverageTest {
         request.setPassword("pass");
 
         assertThat(request.getEmail()).isEqualTo("user@example.com");
+        assertThat(request.getPassword()).isEqualTo("pass");
     }
 
     @Test
@@ -41,10 +42,33 @@ class PayloadCoverageTest {
     }
 
     @Test
+    void loginResponseProfileCompletionHandlesNulls() {
+        LoginResponse response = new LoginResponse("jwt", null, false, null, null);
+
+        assertThat(response.isProfileCompleted()).isFalse();
+    }
+
+    @Test
+    void loginResponseProfileCompletionRequiresFields() {
+        User user = new User();
+        user.setPassword(" ");
+        user.setName("Name");
+        user.setEmail("user@example.com");
+        user.setPicture("pic");
+        user.setPhone("123");
+        user.setCountry("GH");
+        user.setBirthdate(new Date());
+        LoginResponse response = new LoginResponse("jwt", user, true, "reset", "refresh");
+
+        assertThat(response.isProfileCompleted()).isFalse();
+    }
+
+    @Test
     void joinResponseStoresFields() {
         JoinResponse response = new JoinResponse("room", "domain", "jwt", "display", "avatar");
 
         assertThat(response.getRoomName()).isEqualTo("room");
+        assertThat(response.getDisplayName()).isEqualTo("display");
     }
 
     @Test
@@ -56,6 +80,7 @@ class PayloadCoverageTest {
 
         assertThat(dto.getLobbyEnabled()).isTrue();
         assertThat(dto.getRecordingEnabled()).isFalse();
+        assertThat(dto.getTitle()).isEqualTo("Session");
     }
 
     @Test
@@ -72,6 +97,7 @@ class PayloadCoverageTest {
         dto.setSecondsWatched(30L);
 
         assertThat(dto.getType()).isEqualTo(AttendanceEventDto.EventType.JOIN);
+        assertThat(dto.getSecondsWatched()).isEqualTo(30L);
     }
 
     @Test
@@ -88,6 +114,7 @@ class PayloadCoverageTest {
         TicketEventPayload payload = new TicketEventPayload("type", "ticket-1", new Ticket(), new TicketMessage());
 
         assertThat(payload.getTicketId()).isEqualTo("ticket-1");
+        assertThat(payload.getType()).isEqualTo("type");
     }
 
     @Test
@@ -99,18 +126,26 @@ class PayloadCoverageTest {
         request.setMessage("Message");
 
         assertThat(request.getEmail()).isEqualTo("user@example.com");
+        assertThat(request.getFullName()).isEqualTo("Test User");
     }
 
     @Test
     void registerRequestStoresFields() {
-        RegisterRequest request = new RegisterRequest();
-        request.setName("User");
-        request.setEmail("user@example.com");
-        request.setPassword("pass");
-        request.setCountry("GH");
-        request.setPhone("123");
+        RegisterRequest request = new RegisterRequest(
+                "User",
+                "user@example.com",
+                "123",
+                "pass",
+                "GH",
+                "en",
+                "agri",
+                "USER",
+                "pic",
+                new Date()
+        );
 
         assertThat(request.getEmail()).isEqualTo("user@example.com");
         assertThat(request.getName()).isEqualTo("User");
+        assertThat(request.getLanguage()).isEqualTo("en");
     }
 }

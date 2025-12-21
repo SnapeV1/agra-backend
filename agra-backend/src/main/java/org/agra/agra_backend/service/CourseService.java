@@ -104,82 +104,93 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
             @CacheEvict(value = {"courses:all", "courses:detail", "courses:country", "courses:domain", "courses:featured", "courses:active"}, allEntries = true)
     })
     public Optional<Course> updateCourse(String id, Course updatedCourse, MultipartFile courseImage) throws IOException {
-        return courseRepository.findById(id).map(existingCourse -> {
-            try {
-                System.out.println(
-                        "incoming structure (JSON): " + new ObjectMapper().writeValueAsString(updatedCourse)
-                );
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
-            existingCourse.setDomain(updatedCourse.getDomain());
-            existingCourse.setCountry(updatedCourse.getCountry());
-            existingCourse.setTrainerId(updatedCourse.getTrainerId());
-            existingCourse.setSessionIds(updatedCourse.getSessionIds());
-            existingCourse.setLanguagesAvailable(updatedCourse.getLanguagesAvailable());
-            ensureTranslations(existingCourse, updatedCourse);
-            // Merge files: preserve existing files and add/update from payload
-            if (updatedCourse.getFiles() != null) {
-                if (existingCourse.getFiles() == null || existingCourse.getFiles().isEmpty()) {
-                    existingCourse.setFiles(updatedCourse.getFiles());
-                } else {
-                    java.util.Map<String, org.agra.agra_backend.model.CourseFile> byId = new java.util.HashMap<>();
-                    for (org.agra.agra_backend.model.CourseFile f : existingCourse.getFiles()) {
-                        if (f != null && f.getId() != null) byId.put(f.getId(), f);
-                    }
-                    for (org.agra.agra_backend.model.CourseFile nf : updatedCourse.getFiles()) {
-                        if (nf == null) continue;
-                        if (nf.getId() != null && byId.containsKey(nf.getId())) {
-                            byId.put(nf.getId(), nf);
-                        } else {
-                            // avoid duplicates by publicId if present
-                            boolean duplicate = false;
-                            if (nf.getPublicId() != null) {
-                                for (org.agra.agra_backend.model.CourseFile ex : byId.values()) {
-                                    if (nf.getPublicId().equals(ex.getPublicId())) { duplicate = true; break; }
-                                }
-                            }
-                            if (!duplicate) {
-                                String fileId = nf.getId();
-                                if (fileId == null || fileId.isEmpty()) {
-                                    fileId = java.util.UUID.randomUUID().toString();
-                                    nf.setId(fileId);
-                                }
-                                byId.put(fileId, nf);
-                            }
-                        }
-                    }
-                    existingCourse.setFiles(new java.util.ArrayList<>(byId.values()));
-                }
-            }
-            existingCourse.setTextContent(updatedCourse.getTextContent());
-            // also update activeCall flag
-            existingCourse.setActiveCall(updatedCourse.isActiveCall());
-            
-            // Generate IDs for TextContent objects if they don't have them
-            generateTextContentIds(existingCourse);
-            ensureTextContentTranslations(existingCourse);
-            
-            existingCourse.setUpdatedAt(new java.util.Date());
-            System.out.println(existingCourse.getLanguagesAvailable());
-            existingCourse = courseRepository.save(existingCourse);
-            if (courseImage != null && !courseImage.isEmpty()) {
-                try {
-                    existingCourse = getCourse(courseImage, existingCourse);
-                } catch (IOException e) {
-                    System.err.println("Error uploading image: " + e.getMessage()); 
-                    throw new RuntimeException("Failed to upload image", e);
-                }
-            } else if (existingCourse.getImageUrl() == null || existingCourse.getImageUrl().isEmpty()) {
-                // Set default image if course doesn't have any image
-                existingCourse.setImageUrl(DEFAULT_COURSE_IMAGE_URL);
-                existingCourse.setThumbnailUrl(DEFAULT_COURSE_IMAGE_URL);
-                existingCourse.setDetailImageUrl(DEFAULT_COURSE_IMAGE_URL);
-                existingCourse = courseRepository.save(existingCourse);
-            }
+        return courseRepository.findById(id)
+                .map(existingCourse -> updateCourseInternal(existingCourse, updatedCourse, courseImage));
+    }
 
-            return existingCourse;
-        });
+    private Course updateCourseInternal(Course existingCourse, Course updatedCourse, MultipartFile courseImage) {
+        logIncomingCourse(updatedCourse);
+        applyCourseUpdates(existingCourse, updatedCourse);
+        existingCourse.setUpdatedAt(new java.util.Date());
+        System.out.println(existingCourse.getLanguagesAvailable());
+        existingCourse = courseRepository.save(existingCourse);
+        return applyCourseImage(existingCourse, courseImage);
+    }
+
+    private void logIncomingCourse(Course updatedCourse) {
+        try {
+            System.out.println("incoming structure (JSON): " + new ObjectMapper().writeValueAsString(updatedCourse));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void applyCourseUpdates(Course existingCourse, Course updatedCourse) {
+        existingCourse.setDomain(updatedCourse.getDomain());
+        existingCourse.setCountry(updatedCourse.getCountry());
+        existingCourse.setTrainerId(updatedCourse.getTrainerId());
+        existingCourse.setSessionIds(updatedCourse.getSessionIds());
+        existingCourse.setLanguagesAvailable(updatedCourse.getLanguagesAvailable());
+        ensureTranslations(existingCourse, updatedCourse);
+        mergeCourseFiles(existingCourse, updatedCourse);
+        existingCourse.setTextContent(updatedCourse.getTextContent());
+        existingCourse.setActiveCall(updatedCourse.isActiveCall());
+        generateTextContentIds(existingCourse);
+        ensureTextContentTranslations(existingCourse);
+    }
+
+    private void mergeCourseFiles(Course existingCourse, Course updatedCourse) {
+        if (updatedCourse.getFiles() == null) {
+            return;
+        }
+        if (existingCourse.getFiles() == null || existingCourse.getFiles().isEmpty()) {
+            existingCourse.setFiles(updatedCourse.getFiles());
+            return;
+        }
+        java.util.Map<String, org.agra.agra_backend.model.CourseFile> byId = new java.util.HashMap<>();
+        for (org.agra.agra_backend.model.CourseFile f : existingCourse.getFiles()) {
+            if (f != null && f.getId() != null) byId.put(f.getId(), f);
+        }
+        for (org.agra.agra_backend.model.CourseFile nf : updatedCourse.getFiles()) {
+            if (nf == null) continue;
+            if (nf.getId() != null && byId.containsKey(nf.getId())) {
+                byId.put(nf.getId(), nf);
+            } else {
+                boolean duplicate = false;
+                if (nf.getPublicId() != null) {
+                    for (org.agra.agra_backend.model.CourseFile ex : byId.values()) {
+                        if (nf.getPublicId().equals(ex.getPublicId())) { duplicate = true; break; }
+                    }
+                }
+                if (!duplicate) {
+                    String fileId = nf.getId();
+                    if (fileId == null || fileId.isEmpty()) {
+                        fileId = java.util.UUID.randomUUID().toString();
+                        nf.setId(fileId);
+                    }
+                    byId.put(fileId, nf);
+                }
+            }
+        }
+        existingCourse.setFiles(new java.util.ArrayList<>(byId.values()));
+    }
+
+    private Course applyCourseImage(Course existingCourse, MultipartFile courseImage) {
+        if (courseImage != null && !courseImage.isEmpty()) {
+            try {
+                return getCourse(courseImage, existingCourse);
+            } catch (IOException e) {
+                System.err.println("Error uploading image: " + e.getMessage());
+                throw new RuntimeException("Failed to upload image", e);
+            }
+        }
+        if (existingCourse.getImageUrl() == null || existingCourse.getImageUrl().isEmpty()) {
+            existingCourse.setImageUrl(DEFAULT_COURSE_IMAGE_URL);
+            existingCourse.setThumbnailUrl(DEFAULT_COURSE_IMAGE_URL);
+            existingCourse.setDetailImageUrl(DEFAULT_COURSE_IMAGE_URL);
+            existingCourse = courseRepository.save(existingCourse);
+        }
+        return existingCourse;
     }
 
     private Course getCourse(MultipartFile courseImage, Course existingCourse) throws IOException {
@@ -289,7 +300,6 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
 
     private void ensureTextContentTranslations(Course course) {
         if (course == null || course.getTextContent() == null) return;
-        String defaultLanguage = "en";
         for (TextContent textContent : course.getTextContent()) {
             if (textContent == null) continue;
             Map<String, TextContentTranslation> merged = new HashMap<>();
@@ -300,10 +310,10 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
 
             if (textContent.getQuizQuestions() != null) {
                 for (QuizQuestion question : textContent.getQuizQuestions()) {
-                    ensureQuizQuestionTranslations(question, defaultLanguage);
+                    ensureQuizQuestionTranslations(question);
                     if (question != null && question.getAnswers() != null) {
                         for (QuizAnswer answer : question.getAnswers()) {
-                            ensureQuizAnswerTranslations(answer, defaultLanguage);
+                            ensureQuizAnswerTranslations(answer);
                         }
                     }
                 }
@@ -311,7 +321,7 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
         }
     }
 
-    private void ensureQuizQuestionTranslations(QuizQuestion question, String defaultLanguage) {
+    private void ensureQuizQuestionTranslations(QuizQuestion question) {
         if (question == null) return;
         Map<String, QuizQuestionTranslation> merged = new HashMap<>();
         if (question.getTranslations() != null) {
@@ -320,7 +330,7 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
         question.setTranslations(merged.isEmpty() ? null : merged);
     }
 
-    private void ensureQuizAnswerTranslations(QuizAnswer answer, String defaultLanguage) {
+    private void ensureQuizAnswerTranslations(QuizAnswer answer) {
         if (answer == null) return;
         Map<String, QuizAnswerTranslation> merged = new HashMap<>();
         if (answer.getTranslations() != null) {

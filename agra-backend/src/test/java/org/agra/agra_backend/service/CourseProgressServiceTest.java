@@ -9,6 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,6 +57,71 @@ class CourseProgressServiceTest {
     }
 
     @Test
+    void isUserEnrolledDelegatesToRepository() {
+        when(courseProgressRepository.existsByUserIdAndCourseId("user-1", "course-1")).thenReturn(true);
+
+        assertThat(service.isUserEnrolledInCourse("user-1", "course-1")).isTrue();
+    }
+
+    @Test
+    void getEnrollmentStatusReturnsEmptyWhenMissing() {
+        when(courseProgressRepository.findByUserIdAndCourseId("user-1", "course-1"))
+                .thenReturn(Optional.empty());
+
+        assertThat(service.getEnrollmentStatus("user-1", "course-1")).isEmpty();
+    }
+
+    @Test
+    void getUserEnrollmentsDelegates() {
+        when(courseProgressRepository.findByUserId("user-1")).thenReturn(List.of(new CourseProgress()));
+
+        assertThat(service.getUserEnrollments("user-1")).hasSize(1);
+    }
+
+    @Test
+    void getCourseEnrollmentsDelegates() {
+        when(courseProgressRepository.findByCourseId("course-1")).thenReturn(List.of(new CourseProgress()));
+
+        assertThat(service.getCourseEnrollments("course-1")).hasSize(1);
+    }
+
+    @Test
+    void updateProgressSetsCompletedWhen100() {
+        CourseProgress progress = new CourseProgress();
+        progress.setProgressPercentage(10);
+        when(courseProgressRepository.findByUserIdAndCourseId("user-1", "course-1"))
+                .thenReturn(Optional.of(progress));
+        when(courseProgressRepository.save(any(CourseProgress.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CourseProgress updated = service.updateProgress("user-1", "course-1", 100);
+
+        assertThat(updated.getProgressPercentage()).isEqualTo(100);
+        assertThat(updated.isCompleted()).isTrue();
+    }
+
+    @Test
+    void updateProgressThrowsWhenMissing() {
+        when(courseProgressRepository.findByUserIdAndCourseId("user-1", "course-1"))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.updateProgress("user-1", "course-1", 10))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("not enrolled");
+    }
+
+    @Test
+    void unenrollDeletesWhenPresent() {
+        CourseProgress progress = new CourseProgress();
+        when(courseProgressRepository.findByUserIdAndCourseId("user-1", "course-1"))
+                .thenReturn(Optional.of(progress));
+
+        service.unenrollUser("user-1", "course-1");
+
+        verify(courseProgressRepository).delete(progress);
+    }
+
+    @Test
     void markLessonCompleteInitializesCollections() {
         CourseProgress progress = new CourseProgress();
         progress.setUserId("user-1");
@@ -71,6 +137,45 @@ class CourseProgressServiceTest {
 
         assertThat(updated.getCompletedLessons()).contains("lesson-1");
         assertThat(updated.getLessonCompletionDates()).containsKey("lesson-1");
+        assertThat(updated.getStartedAt()).isNotNull();
+    }
+
+    @Test
+    void markLessonCompleteSkipsDuplicateLesson() {
+        CourseProgress progress = new CourseProgress();
+        progress.setCompletedLessons(new java.util.ArrayList<>(List.of("lesson-1")));
+        progress.setLessonCompletionDates(new java.util.HashMap<>());
+        when(courseProgressRepository.findByUserIdAndCourseId("user-1", "course-1"))
+                .thenReturn(Optional.of(progress));
+        when(courseProgressRepository.save(any(CourseProgress.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CourseProgress updated = service.markLessonComplete("user-1", "course-1", "lesson-1", new Date());
+
+        assertThat(updated.getCompletedLessons()).containsExactly("lesson-1");
+    }
+
+    @Test
+    void markLessonCompleteThrowsWhenMissing() {
+        when(courseProgressRepository.findByUserIdAndCourseId("user-1", "course-1"))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.markLessonComplete("user-1", "course-1", "lesson-1", null))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("not enrolled");
+    }
+
+    @Test
+    void setCurrentLessonSetsStartedAt() {
+        CourseProgress progress = new CourseProgress();
+        when(courseProgressRepository.findByUserIdAndCourseId("user-1", "course-1"))
+                .thenReturn(Optional.of(progress));
+        when(courseProgressRepository.save(any(CourseProgress.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CourseProgress updated = service.setCurrentLesson("user-1", "course-1", "lesson-1");
+
+        assertThat(updated.getCurrentLessonId()).isEqualTo("lesson-1");
         assertThat(updated.getStartedAt()).isNotNull();
     }
 
@@ -101,5 +206,58 @@ class CourseProgressServiceTest {
         assertThat(updated.getProgressPercentage()).isEqualTo(100);
         assertThat(updated.getCertificateUrl()).contains("course-1").contains("user-1");
         assertThat(updated.getStartedAt()).isNotNull();
+    }
+
+    @Test
+    void markCourseCompleteKeepsExistingCertificate() {
+        CourseProgress progress = new CourseProgress();
+        progress.setUserId("user-1");
+        progress.setCourseId("course-1");
+        progress.setCertificateUrl("existing");
+        progress.setStartedAt(new Date());
+        when(courseProgressRepository.findByUserIdAndCourseId("user-1", "course-1"))
+                .thenReturn(Optional.of(progress));
+        when(courseProgressRepository.save(any(CourseProgress.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CourseProgress updated = service.markCourseComplete("user-1", "course-1", new Date());
+
+        assertThat(updated.getCertificateUrl()).isEqualTo("existing");
+    }
+
+    @Test
+    void cleanupOrphanedEnrollmentsDeletesMissingCourses() {
+        CourseProgress progress1 = new CourseProgress();
+        progress1.setCourseId("course-1");
+        progress1.setUserId("user-1");
+        CourseProgress progress2 = new CourseProgress();
+        progress2.setCourseId("course-2");
+        progress2.setUserId("user-2");
+        when(courseProgressRepository.findAll()).thenReturn(List.of(progress1, progress2));
+
+        CourseService courseService = mock(CourseService.class);
+        when(courseService.getCourseById("course-1")).thenReturn(Optional.empty());
+        when(courseService.getCourseById("course-2")).thenReturn(Optional.of(new org.agra.agra_backend.model.Course()));
+
+        int deleted = service.cleanupOrphanedEnrollments(courseService);
+
+        assertThat(deleted).isEqualTo(1);
+        verify(courseProgressRepository).delete(progress1);
+    }
+
+    @Test
+    void cleanupOrphanedEnrollmentsIgnoresErrors() {
+        CourseProgress progress = new CourseProgress();
+        progress.setCourseId("course-1");
+        progress.setUserId("user-1");
+        when(courseProgressRepository.findAll()).thenReturn(List.of(progress));
+
+        CourseService courseService = mock(CourseService.class);
+        when(courseService.getCourseById("course-1")).thenThrow(new RuntimeException("boom"));
+
+        int deleted = service.cleanupOrphanedEnrollments(courseService);
+
+        assertThat(deleted).isZero();
+        verify(courseProgressRepository, never()).delete(any(CourseProgress.class));
     }
 }

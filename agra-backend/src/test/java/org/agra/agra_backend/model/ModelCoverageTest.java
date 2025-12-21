@@ -1,10 +1,12 @@
 package org.agra.agra_backend.model;
 
+import org.agra.agra_backend.payload.UserInfo;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -24,6 +26,7 @@ class ModelCoverageTest {
 
         assertThat(like.getUserId()).isEqualTo("user-1");
         assertThat(like.getPostId()).isEqualTo("post-1");
+        assertThat(like.getActive()).isTrue();
     }
 
     @Test
@@ -48,10 +51,41 @@ class ModelCoverageTest {
     }
 
     @Test
+    void quizAnswerAllArgsConstructorStoresFields() {
+        QuizAnswerTranslation translation = new QuizAnswerTranslation();
+        translation.setText("A");
+        QuizAnswer answer = new QuizAnswer("a1", Map.of("en", translation), true);
+
+        assertThat(answer.getId()).isEqualTo("a1");
+        assertThat(answer.isCorrect()).isTrue();
+        assertThat(answer.getTranslations()).containsKey("en");
+    }
+
+    @Test
     void quizQuestionAcceptsAnswers() {
         QuizQuestion question = new QuizQuestion();
         question.setAnswers(List.of(new QuizAnswer()));
 
+        assertThat(question.getAnswers()).hasSize(1);
+    }
+
+    @Test
+    void quizQuestionStoresTranslations() {
+        QuizQuestion question = new QuizQuestion();
+        QuizQuestionTranslation translation = new QuizQuestionTranslation();
+        translation.setQuestion("Q?");
+        question.setTranslations(Map.of("en", translation));
+
+        assertThat(question.getTranslations().get("en").getQuestion()).isEqualTo("Q?");
+    }
+
+    @Test
+    void quizQuestionAllArgsConstructorStoresFields() {
+        QuizQuestionTranslation translation = new QuizQuestionTranslation();
+        translation.setQuestion("Q?");
+        QuizQuestion question = new QuizQuestion("q1", Map.of("en", translation), List.of(new QuizAnswer()));
+
+        assertThat(question.getId()).isEqualTo("q1");
         assertThat(question.getAnswers()).hasSize(1);
     }
 
@@ -64,21 +98,48 @@ class ModelCoverageTest {
     }
 
     @Test
+    void textContentStoresTranslations() {
+        TextContent content = new TextContent();
+        TextContentTranslation translation = new TextContentTranslation();
+        translation.setTitle("Lesson");
+        content.setTranslations(Map.of("en", translation));
+
+        assertThat(content.getTranslations().get("en").getTitle()).isEqualTo("Lesson");
+    }
+
+    @Test
+    void textContentAllArgsConstructorStoresFields() {
+        TextContentTranslation translation = new TextContentTranslation();
+        translation.setTitle("Lesson");
+        TextContent content = new TextContent("t1", 1, "QUIZ", Map.of("en", translation), List.of(new QuizQuestion()));
+
+        assertThat(content.getId()).isEqualTo("t1");
+        assertThat(content.getOrder()).isEqualTo(1);
+        assertThat(content.getType()).isEqualTo("QUIZ");
+        assertThat(content.getQuizQuestions()).hasSize(1);
+    }
+
+    @Test
     void trainingKitStoresFields() {
         TrainingKit kit = new TrainingKit();
         kit.setTitle("Guide");
         kit.setCourseId("course-1");
+        kit.setLanguage("en");
+        kit.setUploadDate(new Date());
 
         assertThat(kit.getTitle()).isEqualTo("Guide");
         assertThat(kit.getCourseId()).isEqualTo("course-1");
+        assertThat(kit.getLanguage()).isEqualTo("en");
     }
 
     @Test
     void ticketMessageStoresFlags() {
         TicketMessage message = new TicketMessage();
         message.setAdminMessage(true);
+        message.setContent("Reply");
 
         assertThat(message.isAdminMessage()).isTrue();
+        assertThat(message.getContent()).isEqualTo("Reply");
     }
 
     @Test
@@ -96,6 +157,13 @@ class ModelCoverageTest {
         assertThat(token.getTokenHash()).isEqualTo("refresh-1");
         assertThat(token.getUserId()).isEqualTo("user-1");
         assertThat(token.isRevoked()).isTrue();
+    }
+
+    @Test
+    void refreshTokenReportsNotExpiredWhenMissingDate() {
+        RefreshToken token = new RefreshToken();
+
+        assertThat(token.isExpired()).isFalse();
     }
 
     @Test
@@ -141,6 +209,7 @@ class ModelCoverageTest {
         session.setRoomName("room-1");
         session.setLobbyEnabled(false);
         session.setRecordingEnabled(true);
+        session.setWatchSecondsByUserId(Map.of("u1", 30L));
 
         assertThat(session.getId()).isEqualTo("s1");
         assertThat(session.getCourseId()).isEqualTo("course-1");
@@ -148,6 +217,7 @@ class ModelCoverageTest {
         assertThat(session.getRoomName()).isEqualTo("room-1");
         assertThat(session.getLobbyEnabled()).isFalse();
         assertThat(session.getRecordingEnabled()).isTrue();
+        assertThat(session.getWatchSecondsByUserId()).containsEntry("u1", 30L);
     }
 
     @Test
@@ -157,6 +227,179 @@ class ModelCoverageTest {
         assertThat(like.getUserId()).isEqualTo("user-1");
         assertThat(like.getCommentId()).isEqualTo("comment-1");
         assertThat(like.getActive()).isTrue();
+    }
+
+    @Test
+    void commentConstructorsSetDefaults() {
+        UserInfo info = new UserInfo();
+        Comment comment = new Comment("post-1", "user-1", info, "Hello");
+        Comment reply = new Comment("post-1", "user-2", info, "Reply", "parent-1", "user-1");
+
+        assertThat(comment.getLikesCount()).isZero();
+        assertThat(comment.getCreatedAt()).isNotNull();
+        assertThat(reply.getParentCommentId()).isEqualTo("parent-1");
+        assertThat(reply.getReplyToUserId()).isEqualTo("user-1");
+    }
+
+    @Test
+    void postStoresDefaultsAndUserInfo() {
+        Post post = new Post();
+        post.setUserId("user-1");
+        post.setUserInfo(new UserInfo("u1", "User", "e", "pic", new Date()));
+
+        assertThat(post.getCommentIds()).isNotNull();
+        assertThat(post.getCommentsCount()).isZero();
+        assertThat(post.getLikesCount()).isZero();
+        assertThat(post.getUserInfo().getName()).isEqualTo("User");
+    }
+
+    @Test
+    void postAllArgsConstructorStoresFields() {
+        Post post = new Post(
+                "p1",
+                "u1",
+                new UserInfo("u1", "User", "e", "pic", new Date()),
+                "content",
+                "img",
+                LocalDateTime.now(),
+                LocalDateTime.now(),
+                true,
+                "course-1",
+                List.of("c1"),
+                2L,
+                3L,
+                null,
+                true
+        );
+
+        assertThat(post.getId()).isEqualTo("p1");
+        assertThat(post.getIsCoursePost()).isTrue();
+        assertThat(post.getCommentsCount()).isEqualTo(2L);
+        assertThat(post.getLikesCount()).isEqualTo(3L);
+    }
+
+    @Test
+    void postSettersAndGettersCoverAllFields() {
+        Post post = new Post();
+        post.setId("p2");
+        post.setUserId("u2");
+        post.setUserInfo(new UserInfo("u2", "User2", "e2", "pic2", new Date()));
+        post.setContent("content");
+        post.setImageUrl("img");
+        post.setCreatedAt(LocalDateTime.now());
+        post.setUpdatedAt(LocalDateTime.now());
+        post.setIsCoursePost(false);
+        post.setCourseId("course-2");
+        post.setCommentIds(List.of("c1"));
+        post.setCommentsCount(1L);
+        post.setLikesCount(2L);
+        post.setComments(List.of(new Comment()));
+        post.setIsLikedByCurrentUser(true);
+
+        assertThat(post.getId()).isEqualTo("p2");
+        assertThat(post.getUserId()).isEqualTo("u2");
+        assertThat(post.getUserInfo().getName()).isEqualTo("User2");
+        assertThat(post.getContent()).isEqualTo("content");
+        assertThat(post.getImageUrl()).isEqualTo("img");
+        assertThat(post.getCreatedAt()).isNotNull();
+        assertThat(post.getUpdatedAt()).isNotNull();
+        assertThat(post.getIsCoursePost()).isFalse();
+        assertThat(post.getCourseId()).isEqualTo("course-2");
+        assertThat(post.getCommentIds()).containsExactly("c1");
+        assertThat(post.getCommentsCount()).isEqualTo(1L);
+        assertThat(post.getLikesCount()).isEqualTo(2L);
+        assertThat(post.getComments()).hasSize(1);
+        assertThat(post.getIsLikedByCurrentUser()).isTrue();
+    }
+    @Test
+    void quizAnswerSettersAndGetters() {
+        QuizAnswer answer = new QuizAnswer();
+        answer.setId("a1");
+        QuizAnswerTranslation translation = new QuizAnswerTranslation();
+        translation.setText("Answer");
+        answer.setTranslations(Map.of("en", translation));
+        answer.setCorrect(false);
+
+        assertThat(answer.getId()).isEqualTo("a1");
+        assertThat(answer.getTranslations()).containsKey("en");
+        assertThat(answer.isCorrect()).isFalse();
+    }
+
+    @Test
+    void quizQuestionSettersAndGetters() {
+        QuizQuestion question = new QuizQuestion();
+        question.setId("q1");
+        QuizQuestionTranslation translation = new QuizQuestionTranslation();
+        translation.setQuestion("Q1");
+        question.setTranslations(Map.of("en", translation));
+        question.setAnswers(List.of(new QuizAnswer()));
+
+        assertThat(question.getId()).isEqualTo("q1");
+        assertThat(question.getTranslations()).containsKey("en");
+        assertThat(question.getAnswers()).hasSize(1);
+    }
+
+    @Test
+    void textContentSettersAndGetters() {
+        TextContent content = new TextContent();
+        content.setId("t1");
+        content.setOrder(2);
+        content.setType("QUIZ");
+        TextContentTranslation translation = new TextContentTranslation();
+        translation.setTitle("Title");
+        content.setTranslations(Map.of("en", translation));
+        content.setQuizQuestions(List.of(new QuizQuestion()));
+
+        assertThat(content.getId()).isEqualTo("t1");
+        assertThat(content.getOrder()).isEqualTo(2);
+        assertThat(content.getType()).isEqualTo("QUIZ");
+        assertThat(content.getTranslations()).containsKey("en");
+        assertThat(content.getQuizQuestions()).hasSize(1);
+    }
+
+    @Test
+    void adminSettingsConstructorsAndFields() {
+        AdminSettings settings = new AdminSettings("id");
+        settings.setNewsCron("0 0 9 ? * MON");
+        settings.setNewsFetchCooldownSeconds(60);
+        settings.setLastNewsFetchAt(java.time.Instant.now());
+        settings.setTwoFactorEnforced(true);
+        settings.setAdminEmail("admin@example.com");
+
+        assertThat(settings.getId()).isEqualTo("id");
+        assertThat(settings.getNewsCron()).isEqualTo("0 0 9 ? * MON");
+        assertThat(settings.getNewsFetchCooldownSeconds()).isEqualTo(60);
+        assertThat(settings.getLastNewsFetchAt()).isNotNull();
+        assertThat(settings.getTwoFactorEnforced()).isTrue();
+        assertThat(settings.getAdminEmail()).isEqualTo("admin@example.com");
+    }
+
+    @Test
+    void adminSettingsNoArgsConstructorStoresFields() {
+        AdminSettings settings = new AdminSettings();
+        settings.setId("id-2");
+        settings.setNewsCron("cron");
+        settings.setNewsFetchCooldownSeconds(30);
+        settings.setLastNewsFetchAt(java.time.Instant.now());
+        settings.setTwoFactorEnforced(false);
+        settings.setAdminEmail("root@example.com");
+
+        assertThat(settings.getId()).isEqualTo("id-2");
+        assertThat(settings.getNewsCron()).isEqualTo("cron");
+        assertThat(settings.getNewsFetchCooldownSeconds()).isEqualTo(30);
+        assertThat(settings.getLastNewsFetchAt()).isNotNull();
+        assertThat(settings.getTwoFactorEnforced()).isFalse();
+        assertThat(settings.getAdminEmail()).isEqualTo("root@example.com");
+    }
+
+    @Test
+    void notificationPreferencesDigestSettingsStoresFields() {
+        NotificationPreferences.DigestSettings digest = new NotificationPreferences.DigestSettings();
+        digest.setEnabled(true);
+        digest.setFrequency("weekly");
+
+        assertThat(digest.isEnabled()).isTrue();
+        assertThat(digest.getFrequency()).isEqualTo("weekly");
     }
 
     @Test
@@ -192,6 +435,18 @@ class ModelCoverageTest {
     }
 
     @Test
+    void likeAllArgsConstructorStoresFields() {
+        UserInfo info = new UserInfo();
+        Like like = new Like("id", "user-1", new User(), "POST", "p1", LocalDateTime.now());
+
+        assertThat(like.getId()).isEqualTo("id");
+        assertThat(like.getUserId()).isEqualTo("user-1");
+        assertThat(like.getTargetType()).isEqualTo("POST");
+        assertThat(like.getTargetId()).isEqualTo("p1");
+        assertThat(like.getUserInfo()).isNotNull();
+    }
+
+    @Test
     void newsArticleStoresFields() {
         NewsArticle article = new NewsArticle();
         article.setTitle("Title");
@@ -200,6 +455,24 @@ class ModelCoverageTest {
 
         assertThat(article.getTitle()).isEqualTo("Title");
         assertThat(article.getCountry()).isEqualTo("GH");
+    }
+
+    @Test
+    void notificationPreferencesDefaults() {
+        NotificationPreferences prefs = new NotificationPreferences();
+
+        assertThat(prefs.isNotificationsEnabled()).isTrue();
+        assertThat(prefs.getChannels()).contains("email", "websocket");
+        assertThat(prefs.getDigest()).isNotNull();
+        assertThat(prefs.getDigest().isEnabled()).isFalse();
+    }
+
+    @Test
+    void ticketDefaultsStatus() {
+        Ticket ticket = new Ticket();
+        ticket.setSubject("Help");
+
+        assertThat(ticket.getStatus()).isEqualTo(TicketStatus.OPEN);
     }
 
     @Test
@@ -226,5 +499,14 @@ class ModelCoverageTest {
         translation.setText("Answer");
 
         assertThat(translation.getText()).isEqualTo("Answer");
+    }
+
+    @Test
+    void courseFileAllArgsConstructorStoresFields() {
+        CourseFile file = new CourseFile("id", "Doc", "pdf", "url", "public", 12L, new Date());
+
+        assertThat(file.getId()).isEqualTo("id");
+        assertThat(file.getType()).isEqualTo("pdf");
+        assertThat(file.getSize()).isEqualTo(12L);
     }
 }
