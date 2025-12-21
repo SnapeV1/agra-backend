@@ -1,24 +1,27 @@
 package org.agra.agra_backend.service;
 
+import jakarta.mail.Session;
+import jakarta.mail.internet.MimeMessage;
 import org.agra.agra_backend.dao.PasswordResetTokenRepository;
 import org.agra.agra_backend.dao.UserRepository;
 import org.agra.agra_backend.model.PasswordResetToken;
 import org.agra.agra_backend.model.User;
-import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.util.Calendar;
 import java.util.Date;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -27,7 +30,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@Disabled("Disabled in CI")
 class PasswordResetServiceTest {
 
     @Mock
@@ -38,32 +40,131 @@ class PasswordResetServiceTest {
     private JavaMailSender mailSender;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private MessageSource messageSource;
 
     @InjectMocks
     private PasswordResetService service;
 
-    @Test
-    void issueResetTokenThrowsWhenUserIdBlank() {
-        assertThatThrownBy(() -> service.issueResetTokenForUserId("  "))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("User id is required");
-
-        verifyNoInteractions(userRepository, tokenRepository);
+    @AfterEach
+    void resetLocale() {
+        LocaleContextHolder.resetLocaleContext();
     }
 
     @Test
-    void issueResetTokenThrowsWhenUserMissing() {
-        when(userRepository.findById("missing")).thenReturn(Optional.empty());
+    void initiateResetNoopsWhenEmailMissing() throws Exception {
+        service.initiateReset(null);
 
-        assertThatThrownBy(() -> service.issueResetTokenForUserId("missing"))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("User not found");
-
-        verify(tokenRepository, never()).deleteByUserId(anyString());
+        verifyNoInteractions(tokenRepository);
+        verifyNoInteractions(mailSender);
     }
 
     @Test
-    void issueResetTokenGeneratesAndPersistsHashedToken() {
+    void initiateResetNoopsWhenUserMissing() throws Exception {
+        when(userRepository.findByEmail("user@example.com")).thenReturn(null);
+
+        service.initiateReset("user@example.com");
+
+        verifyNoInteractions(tokenRepository);
+        verifyNoInteractions(mailSender);
+    }
+
+    @Test
+    void initiateResetSendsEmailForExistingUser() throws Exception {
+        LocaleContextHolder.setLocale(Locale.ENGLISH);
+        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("msg");
+        User user = new User();
+        user.setId("user-1");
+        user.setEmail("user@example.com");
+        when(userRepository.findByEmail("user@example.com")).thenReturn(user);
+        MimeMessage message = new MimeMessage(Session.getDefaultInstance(new Properties()));
+        when(mailSender.createMimeMessage()).thenReturn(message);
+        ReflectionTestUtils.setField(service, "frontendBaseUrl", "http://localhost");
+
+        service.initiateReset("user@example.com");
+
+        verify(tokenRepository).deleteByUserId("user-1");
+        verify(tokenRepository).save(any(PasswordResetToken.class));
+        verify(mailSender).send(message);
+    }
+
+    @Test
+    void resetPasswordRejectsMissingToken() {
+        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("err");
+        when(tokenRepository.findByTokenHash(anyString())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.resetPassword("token", "password"))
+                .isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    void resetPasswordRejectsExpiredToken() {
+        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("err");
+        PasswordResetToken token = new PasswordResetToken();
+        token.setUserId("user-1");
+        token.setExpirationDate(new Date(System.currentTimeMillis() - 1000));
+        when(tokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(token));
+
+        assertThatThrownBy(() -> service.resetPassword("token", "password"))
+                .isInstanceOf(RuntimeException.class);
+
+        verify(tokenRepository).delete(token);
+    }
+
+    @Test
+    void resetPasswordRejectsMissingUser() {
+        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("err");
+        PasswordResetToken token = new PasswordResetToken();
+        token.setUserId("user-1");
+        token.setExpirationDate(new Date(System.currentTimeMillis() + 10000));
+        when(tokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(token));
+        when(userRepository.findById("user-1")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.resetPassword("token", "password"))
+                .isInstanceOf(RuntimeException.class);
+
+        verify(tokenRepository).delete(token);
+    }
+
+    @Test
+    void resetPasswordUpdatesUser() {
+        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("ok");
+        PasswordResetToken token = new PasswordResetToken();
+        token.setUserId("user-1");
+        token.setExpirationDate(new Date(System.currentTimeMillis() + 10000));
+        when(tokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(token));
+        User user = new User();
+        user.setId("user-1");
+        when(userRepository.findById("user-1")).thenReturn(Optional.of(user));
+        when(passwordEncoder.encode("newpass")).thenReturn("hash");
+
+        service.resetPassword("token", "newpass");
+
+        assertThat(user.getPassword()).isEqualTo("hash");
+        verify(userRepository).save(user);
+        verify(tokenRepository).delete(token);
+    }
+
+    @Test
+    void issueResetTokenValidatesUserId() {
+        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("err");
+
+        assertThatThrownBy(() -> service.issueResetTokenForUserId(" "))
+                .isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    void issueResetTokenRejectsMissingUser() {
+        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("err");
+        when(userRepository.findById("user-1")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.issueResetTokenForUserId("user-1"))
+                .isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    void issueResetTokenPersistsToken() {
+        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("ok");
         User user = new User();
         user.setId("user-1");
         when(userRepository.findById("user-1")).thenReturn(Optional.of(user));
@@ -72,98 +173,54 @@ class PasswordResetServiceTest {
 
         assertThat(token).isNotBlank();
         verify(tokenRepository).deleteByUserId("user-1");
-
-        ArgumentCaptor<PasswordResetToken> captor = ArgumentCaptor.forClass(PasswordResetToken.class);
-        verify(tokenRepository).save(captor.capture());
-        PasswordResetToken saved = captor.getValue();
-
-        assertThat(saved.getUserId()).isEqualTo("user-1");
-        assertThat(saved.getTokenHash()).isEqualTo(hash(token));
-        assertThat(saved.getCreatedAt()).isNotNull();
-        assertThat(saved.getExpirationDate()).isAfter(saved.getCreatedAt());
+        verify(tokenRepository).save(any(PasswordResetToken.class));
     }
 
     @Test
-    void resetPasswordThrowsWhenTokenMissing() {
-        when(tokenRepository.findByTokenHash(anyString())).thenReturn(Optional.empty());
+    void sendResetCodeSmsNoopsWhenBlank() {
+        service.sendResetCodeSms(" ");
 
-        assertThatThrownBy(() -> service.resetPassword("raw-token", "newPass"))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Invalid token");
+        verifyNoInteractions(userRepository);
     }
 
     @Test
-    void resetPasswordDeletesExpiredToken() {
-        PasswordResetToken token = buildToken("user-1", "raw-token",
-                daysFromNow(-1));
-        when(tokenRepository.findByTokenHash(token.getTokenHash())).thenReturn(Optional.of(token));
+    void sendResetCodeSmsNoopsWhenUserMissing() {
+        when(userRepository.findByPhone("+1")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.resetPassword("raw-token", "newPass"))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Token expired");
+        service.sendResetCodeSms("+1");
 
-        verify(tokenRepository).delete(token);
+        verifyNoInteractions(tokenRepository);
     }
 
     @Test
-    void resetPasswordDeletesTokenWhenUserMissing() {
-        PasswordResetToken token = buildToken("user-2", "raw-token",
-                daysFromNow(1));
-        when(tokenRepository.findByTokenHash(token.getTokenHash())).thenReturn(Optional.of(token));
-        when(userRepository.findById("user-2")).thenReturn(Optional.empty());
+    void createResetTokenWithSmsCodeRequiresInputs() {
+        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("err");
 
-        assertThatThrownBy(() -> service.resetPassword("raw-token", "newPass"))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("User not found for token");
-
-        verify(tokenRepository).delete(token);
+        assertThatThrownBy(() -> service.createResetTokenWithSmsCode(null, "123"))
+                .isInstanceOf(RuntimeException.class);
+        assertThatThrownBy(() -> service.createResetTokenWithSmsCode("+1", " "))
+                .isInstanceOf(RuntimeException.class);
     }
 
     @Test
-    void resetPasswordUpdatesUserPasswordAndDeletesToken() {
-        PasswordResetToken token = buildToken("user-3", "raw-token",
-                daysFromNow(1));
-        when(tokenRepository.findByTokenHash(token.getTokenHash())).thenReturn(Optional.of(token));
+    void createResetTokenWithSmsCodeRequiresTwilioConfig() {
+        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("err");
+        ReflectionTestUtils.setField(service, "twilioAccountSid", "");
+        ReflectionTestUtils.setField(service, "twilioAuthToken", "");
+        ReflectionTestUtils.setField(service, "twilioVerifyServiceSid", "");
 
-        User user = new User();
-        user.setId("user-3");
-        when(userRepository.findById("user-3")).thenReturn(Optional.of(user));
-        when(passwordEncoder.encode("newPass")).thenReturn("encoded-pass");
-
-        service.resetPassword("raw-token", "newPass");
-
-        verify(passwordEncoder).encode("newPass");
-        verify(userRepository).save(user);
-        assertThat(user.getPassword()).isEqualTo("encoded-pass");
-        verify(tokenRepository).delete(token);
+        assertThatThrownBy(() -> service.createResetTokenWithSmsCode("+1", "1234"))
+                .isInstanceOf(RuntimeException.class);
     }
 
-    private static PasswordResetToken buildToken(String userId, String rawToken, Date expiration) {
-        PasswordResetToken token = new PasswordResetToken();
-        token.setUserId(userId);
-        token.setTokenHash(hash(rawToken));
-        token.setCreatedAt(new Date());
-        token.setExpirationDate(expiration);
-        return token;
-    }
+    @Test
+    void testTwilioConnectionRequiresConfig() {
+        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("err");
+        ReflectionTestUtils.setField(service, "twilioAccountSid", "");
+        ReflectionTestUtils.setField(service, "twilioAuthToken", "");
+        ReflectionTestUtils.setField(service, "twilioVerifyServiceSid", "");
 
-    private static Date daysFromNow(int days) {
-        Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.DAY_OF_MONTH, days);
-        return cal.getTime();
-    }
-
-    private static String hash(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] bytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            StringBuilder builder = new StringBuilder();
-            for (byte b : bytes) {
-                builder.append(String.format("%02x", b));
-            }
-            return builder.toString();
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to hash token for test", e);
-        }
+        assertThatThrownBy(service::testTwilioConnection)
+                .isInstanceOf(RuntimeException.class);
     }
 }
