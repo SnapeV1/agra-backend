@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -72,7 +73,22 @@ class PasswordResetServiceTest {
     @Test
     void initiateResetSendsEmailForExistingUser() throws Exception {
         LocaleContextHolder.setLocale(Locale.ENGLISH);
-        when(messageSource.getMessage(anyString(), any(Object[].class), any(Locale.class))).thenReturn("msg");
+        when(messageSource.getMessage(eq("email.reset.subject"), any(Object[].class), any(Locale.class)))
+                .thenReturn("subject");
+        when(messageSource.getMessage(eq("email.reset.heading"), any(Object[].class), any(Locale.class)))
+                .thenReturn("heading");
+        when(messageSource.getMessage(eq("email.reset.greeting"), any(Object[].class), any(Locale.class)))
+                .thenReturn("greeting");
+        when(messageSource.getMessage(eq("email.reset.intro"), any(Object[].class), any(Locale.class)))
+                .thenReturn("intro");
+        when(messageSource.getMessage(eq("email.reset.button"), any(Object[].class), any(Locale.class)))
+                .thenReturn("button");
+        when(messageSource.getMessage(eq("email.reset.fallback"), any(Object[].class), any(Locale.class)))
+                .thenReturn("fallback");
+        when(messageSource.getMessage(eq("email.reset.ignore"), any(Object[].class), any(Locale.class)))
+                .thenReturn("ignore");
+        when(messageSource.getMessage(eq("email.reset.signature"), any(Object[].class), any(Locale.class)))
+                .thenReturn("signature");
         User user = new User();
         user.setId("user-1");
         user.setEmail("user@example.com");

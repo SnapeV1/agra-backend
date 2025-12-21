@@ -40,6 +40,7 @@ class WebSocketAuthChannelInterceptorTest {
     void preSendConnectSetsUserAndMarksOnline() {
         WebSocketAuthChannelInterceptor interceptor = new WebSocketAuthChannelInterceptor(jwtUtil, presenceService);
         StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
+        accessor.setLeaveMutable(true);
         accessor.setSessionId("session-1");
         accessor.addNativeHeader("Authorization", "Bearer token");
         when(jwtUtil.extractUserId("token")).thenReturn("user-1");

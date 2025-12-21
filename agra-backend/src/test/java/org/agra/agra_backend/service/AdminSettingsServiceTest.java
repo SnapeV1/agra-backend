@@ -50,7 +50,6 @@ class AdminSettingsServiceTest {
         settings.setNewsFetchCooldownSeconds(300);
         settings.setLastNewsFetchAt(Instant.now());
         when(repository.findById("global")).thenReturn(Optional.of(settings));
-        when(repository.save(any(AdminSettings.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         assertThatThrownBy(() -> service.markNewsFetchNow(Duration.ofSeconds(300)))
                 .isInstanceOf(IllegalStateException.class)
