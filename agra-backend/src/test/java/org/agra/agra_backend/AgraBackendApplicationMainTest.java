@@ -26,9 +26,11 @@ class AgraBackendApplicationMainTest {
                             "--spring.cloud.discovery.enabled=false",
                             "--eureka.client.enabled=false",
                             "--spring.cloud.service-registry.auto-registration.enabled=false",
+                            "--spring.data.mongodb.repositories.enabled=false",
                             "--spring.autoconfigure.exclude="
                                     + "org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration,"
                                     + "org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration,"
+                                    + "org.springframework.boot.autoconfigure.data.mongo.MongoRepositoriesAutoConfiguration,"
                                     + "org.springframework.cloud.netflix.eureka.EurekaClientAutoConfiguration,"
                                     + "org.springframework.cloud.netflix.eureka.loadbalancer.LoadBalancerEurekaAutoConfiguration"
                     }))
