@@ -128,13 +128,13 @@ class CourseServiceTest {
         assertThat(captor.getAllValues()).anySatisfy(saved -> {
             TextContent savedContent = saved.getTextContent().get(0);
             assertThat(savedContent.getTitle()).containsKey("en");
-            assertThat(savedContent.getTitle().get("en")).isEqualTo("Lesson");
+            assertThat(savedContent.getTitle()).containsEntry("en", "Lesson");
             QuizQuestion savedQuestion = savedContent.getQuizQuestions().get(0);
             assertThat(savedQuestion.getQuestion()).containsKey("en");
-            assertThat(savedQuestion.getQuestion().get("en")).isEqualTo("Question?");
+            assertThat(savedQuestion.getQuestion()).containsEntry("en", "Question?");
             QuizAnswer savedAnswer = savedQuestion.getAnswers().get(0);
             assertThat(savedAnswer.getText()).containsKey("en");
-            assertThat(savedAnswer.getText().get("en")).isEqualTo("Answer");
+            assertThat(savedAnswer.getText()).containsEntry("en", "Answer");
         });
     }
 
@@ -164,12 +164,12 @@ class CourseServiceTest {
 
         assertThat(localized.getTitle()).isEqualTo("Titre");
         TextContent localizedContent = localized.getTextContent().get(0);
-        assertThat(localizedContent.getTitle().get("fr")).isEqualTo("Lecon");
-        assertThat(localizedContent.getContent().get("fr")).isEqualTo("Corps");
+        assertThat(localizedContent.getTitle()).containsEntry("fr", "Lecon");
+        assertThat(localizedContent.getContent()).containsEntry("fr", "Corps");
         QuizQuestion localizedQuestion = localizedContent.getQuizQuestions().get(0);
-        assertThat(localizedQuestion.getQuestion().get("fr")).isEqualTo("Question FR");
+        assertThat(localizedQuestion.getQuestion()).containsEntry("fr", "Question FR");
         QuizAnswer localizedAnswer = localizedQuestion.getAnswers().get(0);
-        assertThat(localizedAnswer.getText().get("fr")).isEqualTo("Reponse");
+        assertThat(localizedAnswer.getText()).containsEntry("fr", "Reponse");
     }
 
     @Test
@@ -193,12 +193,12 @@ class CourseServiceTest {
         Course localized = service.localizeCourse(course, Locale.GERMAN);
 
         TextContent localizedContent = localized.getTextContent().get(0);
-        assertThat(localizedContent.getTitle().get("en")).isEqualTo("Lesson");
-        assertThat(localizedContent.getContent().get("en")).isEqualTo("Body");
+        assertThat(localizedContent.getTitle()).containsEntry("en", "Lesson");
+        assertThat(localizedContent.getContent()).containsEntry("en", "Body");
         QuizQuestion localizedQuestion = localizedContent.getQuizQuestions().get(0);
-        assertThat(localizedQuestion.getQuestion().get("en")).isEqualTo("Question?");
+        assertThat(localizedQuestion.getQuestion()).containsEntry("en", "Question?");
         QuizAnswer localizedAnswer = localizedQuestion.getAnswers().get(0);
-        assertThat(localizedAnswer.getText().get("en")).isEqualTo("Answer");
+        assertThat(localizedAnswer.getText()).containsEntry("en", "Answer");
     }
 
     @Test
@@ -228,9 +228,10 @@ class CourseServiceTest {
         verify(courseRepository, atLeastOnce()).save(captor.capture());
         assertThat(captor.getAllValues()).anySatisfy(saved -> {
             TextContent savedContent = saved.getTextContent().get(0);
-            assertThat(savedContent.getTitle()).isNull();
+            assertThat(savedContent.getTitle()).isEmpty();
+            assertThat(savedContent.getContent()).isEmpty();
             QuizQuestion savedQuestion = savedContent.getQuizQuestions().get(0);
-            assertThat(savedQuestion.getQuestion()).isNull();
+            assertThat(savedQuestion.getQuestion()).isEmpty();
         });
     }
 

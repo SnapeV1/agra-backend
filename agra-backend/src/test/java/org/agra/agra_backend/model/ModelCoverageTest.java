@@ -45,7 +45,7 @@ class ModelCoverageTest {
         QuizAnswer answer = new QuizAnswer();
         answer.setText(Map.of("en", "Option A"));
 
-        assertThat(answer.getText().get("en")).isEqualTo("Option A");
+        assertThat(answer.getText()).containsEntry("en", "Option A");
     }
 
     @Test
@@ -70,7 +70,7 @@ class ModelCoverageTest {
         QuizQuestion question = new QuizQuestion();
         question.setQuestion(Map.of("en", "Q?"));
 
-        assertThat(question.getQuestion().get("en")).isEqualTo("Q?");
+        assertThat(question.getQuestion()).containsEntry("en", "Q?");
     }
 
     @Test
@@ -94,7 +94,7 @@ class ModelCoverageTest {
         TextContent content = new TextContent();
         content.setTitle(Map.of("en", "Lesson"));
 
-        assertThat(content.getTitle().get("en")).isEqualTo("Lesson");
+        assertThat(content.getTitle()).containsEntry("en", "Lesson");
     }
 
     @Test

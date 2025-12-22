@@ -15,7 +15,7 @@ class I18nResolverTest {
         String resolved = I18nResolver.resolve(translations, "fr", "en");
 
         assertThat(resolved).isEqualTo("Bonjour");
-        assertThat(I18nResolver.resolveKey(translations, "fr", "en")).isEqualTo("fr");
+        assertThat(translations).containsEntry(I18nResolver.resolveKey(translations, "fr", "en"), resolved);
     }
 
     @Test
@@ -25,7 +25,7 @@ class I18nResolverTest {
         String resolved = I18nResolver.resolve(translations, "de", "en");
 
         assertThat(resolved).isEqualTo("Hello");
-        assertThat(I18nResolver.resolveKey(translations, "de", "en")).isEqualTo("en");
+        assertThat(translations).containsEntry(I18nResolver.resolveKey(translations, "de", "en"), resolved);
     }
 
     @Test
@@ -37,6 +37,6 @@ class I18nResolverTest {
 
         assertThat(resolved).isNotNull();
         assertThat(key).isNotNull();
-        assertThat(translations.get(key)).isEqualTo(resolved);
+        assertThat(translations).containsEntry(key, resolved);
     }
 }

@@ -24,6 +24,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -475,20 +476,20 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
 
     private Map<String, String> normalizeMap(Map<String, String> translations) {
         if (translations == null || translations.isEmpty()) {
-            return null;
+            return Collections.emptyMap();
         }
         return translations;
     }
 
     private Map<String, String> localizeMap(Map<String, String> translations, Locale locale, String defaultLanguage) {
         if (translations == null || translations.isEmpty()) {
-            return null;
+            return Collections.emptyMap();
         }
         String lang = locale != null ? locale.getLanguage() : null;
         String resolved = I18nResolver.resolve(translations, lang, defaultLanguage);
         String resolvedKey = I18nResolver.resolveKey(translations, lang, defaultLanguage);
         if (resolved == null || resolvedKey == null) {
-            return null;
+            return Collections.emptyMap();
         }
         return Map.of(resolvedKey, resolved);
     }
