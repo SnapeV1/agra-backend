@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
 import java.util.Date;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -81,6 +82,42 @@ class AuthServiceTest {
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(captor.capture());
         assertThat(captor.getValue().getEmail()).isEqualTo("test@example.com");
+    }
+
+    @Test
+    void registerUserContinuesWhenCloudinaryFolderFails() throws IOException {
+        RegisterRequest request = new RegisterRequest();
+        request.setEmail("User+Test@example.com");
+        request.setName("Tester");
+        request.setPassword("plain");
+
+        when(userRepository.existsByEmail("user+test@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("plain")).thenReturn("encoded");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        doThrow(new IOException("down")).when(cloudinaryService).createUserFolder("users/user_test_example_com");
+
+        User saved = service.registerUser(request);
+
+        assertThat(saved.getEmail()).isEqualTo("user+test@example.com");
+        verify(cloudinaryService).createUserFolder("users/user_test_example_com");
+    }
+
+    @Test
+    void registerUserContinuesWhenVerificationEmailFails() {
+        RegisterRequest request = new RegisterRequest();
+        request.setEmail("test@example.com");
+        request.setName("Tester");
+        request.setPassword("plain");
+
+        when(userRepository.existsByEmail("test@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("plain")).thenReturn("encoded");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        doThrow(new RuntimeException("mail down")).when(emailVerificationService).sendVerificationEmail(any(User.class));
+
+        User saved = service.registerUser(request);
+
+        assertThat(saved.getEmail()).isEqualTo("test@example.com");
+        verify(emailVerificationService).sendVerificationEmail(saved);
     }
 
     @Test

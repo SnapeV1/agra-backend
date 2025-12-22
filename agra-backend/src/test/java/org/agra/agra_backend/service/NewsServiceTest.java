@@ -10,6 +10,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -135,6 +136,20 @@ class NewsServiceTest {
     @Test
     void testGNewsConnectivityReturnsFalseWhenNoArticles() {
         ResponseEntity<Map<String, Object>> response = ResponseEntity.ok(Map.of("status", "ok"));
+        when(restTemplate.exchange(
+                anyString(),
+                eq(HttpMethod.GET),
+                isNull(),
+                any(ParameterizedTypeReference.class)
+        )).thenReturn(response);
+
+        assertThat(service.testGNewsConnectivity()).isFalse();
+    }
+
+    @Test
+    void testGNewsConnectivityReturnsFalseOnNon2xx() {
+        ResponseEntity<Map<String, Object>> response = ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("articles", List.of()));
         when(restTemplate.exchange(
                 anyString(),
                 eq(HttpMethod.GET),

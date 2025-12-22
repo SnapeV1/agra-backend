@@ -222,6 +222,44 @@ class GoogleAuthServiceTest {
         assertThat(response.getPasswordResetToken()).isNull();
     }
 
+    @Test
+    void verifyGoogleTokenUsesPhoneNumberFallbackAndHostedDomain() throws Exception {
+        GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
+        payload.setEmail("domain@example.com");
+        payload.setEmailVerified(true);
+        payload.set("name", "Domain User");
+        payload.set("phoneNumber", "+987");
+        payload.set("hd", "example.com");
+
+        when(userRepository.findByEmail("domain@example.com")).thenReturn(null);
+        when(jwtUtil.generateToken(org.mockito.ArgumentMatchers.any(User.class))).thenReturn("jwt");
+        when(refreshTokenService.createRefreshToken(org.mockito.ArgumentMatchers.anyString())).thenReturn("refresh");
+        when(passwordResetService.issueResetTokenForUserId(org.mockito.ArgumentMatchers.anyString())).thenReturn("reset");
+        doNothing().when(cloudinaryService).createUserFolder(org.mockito.ArgumentMatchers.anyString());
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        when(userRepository.save(userCaptor.capture())).thenAnswer(invocation -> {
+            User saved = userCaptor.getValue();
+            if (saved.getId() == null) {
+                saved.setId("new-id");
+            }
+            if (saved.getRegisteredAt() == null) {
+                saved.setRegisteredAt(new Date());
+            }
+            return saved;
+        });
+
+        GoogleAuthService service = new TestableGoogleAuthService(
+                jwtUtil, userRepository, cloudinaryService, passwordResetService, refreshTokenService, payload);
+
+        LoginResponse response = service.verifyGoogleToken("token");
+
+        assertThat(response.getExistingAccount()).isFalse();
+        User created = userCaptor.getAllValues().get(0);
+        assertThat(created.getPhone()).isEqualTo("+987");
+        assertThat(created.getDomain()).isEqualTo("example.com");
+    }
+
     private static class TestableGoogleAuthService extends GoogleAuthService {
         private final GoogleIdToken.Payload payload;
 

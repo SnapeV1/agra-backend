@@ -108,6 +108,21 @@ class AuthControllerTest {
     }
 
     @Test
+    void getCurrentUserReturnsOkWhenPresent() {
+        DefaultClaims claims = new DefaultClaims();
+        claims.setSubject("user-1");
+        when(jwtUtil.extractAllClaims("token")).thenReturn(claims);
+        User user = new User();
+        user.setId("user-1");
+        when(userRepository.findById("user-1")).thenReturn(Optional.of(user));
+
+        ResponseEntity<Object> response = controller.getCurrentUser("Bearer token");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isSameAs(user);
+    }
+
+    @Test
     void refreshReturnsNewTokens() {
         RefreshToken stored = new RefreshToken();
         stored.setUserId("user-1");
@@ -123,8 +138,68 @@ class AuthControllerTest {
     }
 
     @Test
+    void refreshReturnsUnauthorizedOnValidationFailure() {
+        when(refreshTokenService.validateRefreshToken("refresh"))
+                .thenThrow(new RuntimeException("invalid"));
+
+        ResponseEntity<Object> response = controller.refresh(Map.of("refreshToken", "refresh"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
     void googleLoginRejectsMissingToken() {
         ResponseEntity<Object> response = controller.googleLogin(Map.of());
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void googleLoginAcceptsCredentialField() {
+        LoginResponse loginResponse = new LoginResponse("jwt", new User(), false, null, "refresh");
+        when(googleAuthService.verifyGoogleToken("cred")).thenReturn(loginResponse);
+
+        ResponseEntity<Object> response = controller.googleLogin(Map.of("credential", "cred"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isSameAs(loginResponse);
+    }
+
+    @Test
+    void verifyEmailReturnsOkOnSuccess() {
+        ResponseEntity<Object> response = controller.verifyEmail("token");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        verify(emailVerificationService).verifyToken("token");
+    }
+
+    @Test
+    void verifyEmailReturnsBadRequestOnFailure() {
+        doThrow(new RuntimeException("bad token"))
+                .when(emailVerificationService)
+                .verifyToken("token");
+
+        ResponseEntity<Object> response = controller.verifyEmail("token");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void resendVerificationReturnsOkOnSuccess() {
+        User user = new User();
+        when(userService.getCurrentUserOrThrow()).thenReturn(user);
+
+        ResponseEntity<Object> response = controller.resendVerification();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        verify(emailVerificationService).sendVerificationEmail(user);
+    }
+
+    @Test
+    void resendVerificationReturnsBadRequestOnFailure() {
+        when(userService.getCurrentUserOrThrow()).thenThrow(new RuntimeException("no user"));
+
+        ResponseEntity<Object> response = controller.resendVerification();
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }

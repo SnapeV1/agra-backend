@@ -71,18 +71,21 @@ class UserControllerTest {
         User existing = new User();
         existing.setId("user-1");
         existing.setName("Old");
+        existing.setIsArchived(false);
         when(userService.findById("user-1")).thenReturn(existing);
         when(userService.updateUser(existing)).thenReturn(existing);
 
         User incoming = new User();
         incoming.setName("New");
         incoming.setCountry("GH");
+        incoming.setIsArchived(true);
 
         ResponseEntity<?> response = controller.updateUserProfileJson(incoming, authentication);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(existing.getName()).isEqualTo("New");
         assertThat(existing.getCountry()).isEqualTo("GH");
+        assertThat(existing.getIsArchived()).isTrue();
     }
 
     @Test

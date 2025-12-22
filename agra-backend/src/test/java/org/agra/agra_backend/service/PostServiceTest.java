@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -478,5 +479,31 @@ class PostServiceTest {
         List<Comment> result = service.getCommentsForPost("post-1", "user-1", 0);
 
         assertThat(result.get(0).getIsLikedByCurrentUser()).isTrue();
+    }
+
+    @Test
+    void getPostLikeStatusMapHandlesNullInputs() {
+        @SuppressWarnings("unchecked")
+        Map<String, Boolean> emptyResult = (Map<String, Boolean>) ReflectionTestUtils.invokeMethod(
+                service, "getPostLikeStatusMap", null, null);
+        assertThat(emptyResult).isEmpty();
+
+        @SuppressWarnings("unchecked")
+        Map<String, Boolean> nullUserResult = (Map<String, Boolean>) ReflectionTestUtils.invokeMethod(
+                service, "getPostLikeStatusMap", null, List.of("p1", "p2"));
+        assertThat(nullUserResult).containsEntry("p1", false).containsEntry("p2", false);
+    }
+
+    @Test
+    void getCommentLikeStatusMapHandlesNullInputs() {
+        @SuppressWarnings("unchecked")
+        Map<String, Boolean> emptyResult = (Map<String, Boolean>) ReflectionTestUtils.invokeMethod(
+                service, "getCommentLikeStatusMap", "u1", null);
+        assertThat(emptyResult).isEmpty();
+
+        @SuppressWarnings("unchecked")
+        Map<String, Boolean> nullUserResult = (Map<String, Boolean>) ReflectionTestUtils.invokeMethod(
+                service, "getCommentLikeStatusMap", null, List.of("c1"));
+        assertThat(nullUserResult).containsEntry("c1", false);
     }
 }

@@ -2,6 +2,7 @@ package org.agra.agra_backend.service;
 
 import org.agra.agra_backend.dao.CourseRepository;
 import org.agra.agra_backend.model.Course;
+import org.agra.agra_backend.model.CourseFile;
 import org.agra.agra_backend.model.CourseProgress;
 import org.agra.agra_backend.model.CourseTranslation;
 import org.agra.agra_backend.model.QuizAnswer;
@@ -269,5 +270,137 @@ class CourseServiceTest {
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.updateCourse("course-1", update, file))
                 .isInstanceOf(CourseImageUploadException.class)
                 .hasMessageContaining("courseId=course-1");
+    }
+
+    @Test
+    void updateCourseMergesFilesAndAssignsIds() throws IOException {
+        Course existing = new Course();
+        existing.setId("course-1");
+        CourseFile file1 = new CourseFile();
+        file1.setId("f1");
+        file1.setPublicId("p1");
+        CourseFile file2 = new CourseFile();
+        file2.setId("f2");
+        file2.setPublicId("p2");
+        existing.setFiles(List.of(file1, file2));
+
+        Course update = new Course();
+        CourseFile updatedFile1 = new CourseFile();
+        updatedFile1.setId("f1");
+        updatedFile1.setPublicId("p1");
+        updatedFile1.setName("new-name");
+        CourseFile duplicatePublic = new CourseFile();
+        duplicatePublic.setPublicId("p2");
+        CourseFile newFile = new CourseFile();
+        newFile.setPublicId("p3");
+        update.setFiles(List.of(updatedFile1, duplicatePublic, newFile));
+
+        when(courseRepository.findById("course-1")).thenReturn(Optional.of(existing));
+        when(courseRepository.save(any(Course.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Course result = service.updateCourse("course-1", update, null).orElseThrow();
+
+        assertThat(result.getFiles()).hasSize(3);
+        assertThat(result.getFiles())
+                .anySatisfy(file -> assertThat(file.getId()).isEqualTo("f1"))
+                .anySatisfy(file -> assertThat(file.getId()).isEqualTo("f2"))
+                .anySatisfy(file -> {
+                    assertThat(file.getPublicId()).isEqualTo("p3");
+                    assertThat(file.getId()).isNotBlank();
+                });
+    }
+
+    @Test
+    void createCourseCreatesDefaultTranslationFromFields() throws IOException {
+        Course course = new Course();
+        course.setTitle("Title");
+        course.setDescription("Desc");
+        course.setGoals(List.of("g1"));
+
+        when(courseRepository.save(any(Course.class))).thenAnswer(invocation -> {
+            Course saved = invocation.getArgument(0);
+            if (saved.getId() == null) {
+                saved.setId("course-1");
+            }
+            return saved;
+        });
+
+        service.createCourse(course, null);
+
+        ArgumentCaptor<Course> captor = ArgumentCaptor.forClass(Course.class);
+        verify(courseRepository, atLeastOnce()).save(captor.capture());
+        assertThat(captor.getAllValues()).anySatisfy(saved -> {
+            assertThat(saved.getDefaultLanguage()).isEqualTo("en");
+            assertThat(saved.getTranslations()).containsKey("en");
+            CourseTranslation translation = saved.getTranslations().get("en");
+            assertThat(translation.getTitle()).isEqualTo("Title");
+            assertThat(translation.getDescription()).isEqualTo("Desc");
+            assertThat(translation.getGoals()).containsExactly("g1");
+        });
+    }
+
+    @Test
+    void createCourseGeneratesIdsForNestedTextContent() throws IOException {
+        Course course = new Course();
+        TextContent content = new TextContent();
+        QuizQuestion question = new QuizQuestion();
+        QuizAnswer answer = new QuizAnswer();
+        question.setAnswers(List.of(answer));
+        content.setQuizQuestions(List.of(question));
+        course.setTextContent(List.of(content));
+
+        when(courseRepository.save(any(Course.class))).thenAnswer(invocation -> {
+            Course saved = invocation.getArgument(0);
+            if (saved.getId() == null) {
+                saved.setId("course-1");
+            }
+            return saved;
+        });
+
+        service.createCourse(course, null);
+
+        ArgumentCaptor<Course> captor = ArgumentCaptor.forClass(Course.class);
+        verify(courseRepository, atLeastOnce()).save(captor.capture());
+        assertThat(captor.getAllValues()).anySatisfy(saved -> {
+            TextContent savedContent = saved.getTextContent().get(0);
+            assertThat(savedContent.getId()).isNotBlank();
+            QuizQuestion savedQuestion = savedContent.getQuizQuestions().get(0);
+            assertThat(savedQuestion.getId()).isNotBlank();
+            QuizAnswer savedAnswer = savedQuestion.getAnswers().get(0);
+            assertThat(savedAnswer.getId()).isNotBlank();
+        });
+    }
+
+    @Test
+    void localizeCourseFallsBackToFirstTranslationWhenNoMatch() {
+        Course course = new Course();
+        course.setDefaultLanguage("fr");
+        CourseTranslation translation = new CourseTranslation();
+        translation.setTitle("Titulo");
+        course.setTranslations(Map.of("es", translation));
+
+        Course localized = service.localizeCourse(course, Locale.GERMAN);
+
+        assertThat(localized.getTitle()).isEqualTo("Titulo");
+    }
+
+    @Test
+    void localizeCourseUsesDefaultLanguageWhenLocaleNull() {
+        Course course = new Course();
+        course.setDefaultLanguage("ar");
+        CourseTranslation translation = new CourseTranslation();
+        translation.setTitle("Arabic");
+        course.setTranslations(Map.of("ar", translation));
+
+        Course localized = service.localizeCourse(course, null);
+
+        assertThat(localized.getTitle()).isEqualTo("Arabic");
+    }
+
+    @Test
+    void localizeCoursesReturnsEmptyWhenNoCourses() {
+        List<Course> result = service.localizeCourses(List.of(), Locale.ENGLISH);
+
+        assertThat(result).isEmpty();
     }
 }

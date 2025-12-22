@@ -35,6 +35,16 @@ class CommentControllerTest {
     }
 
     @Test
+    void toggleCommentLikeReturnsBadRequestWhenPrincipalNotUser() {
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getPrincipal()).thenReturn("not-a-user");
+
+        ResponseEntity<String> response = controller.toggleCommentLike("c1", null, null, authentication);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
     void toggleCommentLikeUsesAuthenticatedUser() {
         User user = new User();
         user.setId("user-1");
