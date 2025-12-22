@@ -458,7 +458,6 @@ class ModelCoverageTest {
     }
 
     @Test
-    @Test
     void courseFileAllArgsConstructorStoresFields() {
         CourseFile file = new CourseFile("id", "Doc", "pdf", "url", "public", 12L, new Date());
 
