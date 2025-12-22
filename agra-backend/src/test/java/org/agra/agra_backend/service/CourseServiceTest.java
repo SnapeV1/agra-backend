@@ -267,7 +267,7 @@ class CourseServiceTest {
                 .thenThrow(new IOException("upload failed"));
 
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.updateCourse("course-1", update, file))
-                .isInstanceOf(RuntimeException.class)
+                .isInstanceOf(CourseImageUploadException.class)
                 .hasMessageContaining("courseId=course-1");
     }
 }
