@@ -10,6 +10,7 @@ import org.springframework.data.annotation.Id;
 
 import java.util.Map;
 
+
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
@@ -20,7 +21,8 @@ public class TextContent {
     private String id;
     private int order;
     private String type;
-    private Map<String, TextContentTranslation> translations;
+    private Map<String, String> title;
+    private Map<String, String> content;
 
     /**
      * Populated when type == "QUIZ". Contains questions with answer options,

@@ -6,11 +6,8 @@ import org.agra.agra_backend.model.CourseFile;
 import org.agra.agra_backend.model.CourseProgress;
 import org.agra.agra_backend.model.CourseTranslation;
 import org.agra.agra_backend.model.QuizAnswer;
-import org.agra.agra_backend.model.QuizAnswerTranslation;
 import org.agra.agra_backend.model.QuizQuestion;
-import org.agra.agra_backend.model.QuizQuestionTranslation;
 import org.agra.agra_backend.model.TextContent;
-import org.agra.agra_backend.model.TextContentTranslation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -105,19 +102,13 @@ class CourseServiceTest {
         course.setDefaultLanguage("en");
 
         TextContent content = new TextContent();
-        TextContentTranslation contentEn = new TextContentTranslation();
-        contentEn.setTitle("Lesson");
-        contentEn.setContent("Body");
-        content.setTranslations(Map.of("en", contentEn));
+        content.setTitle(Map.of("en", "Lesson"));
+        content.setContent(Map.of("en", "Body"));
 
         QuizQuestion question = new QuizQuestion();
-        QuizQuestionTranslation questionEn = new QuizQuestionTranslation();
-        questionEn.setQuestion("Question?");
-        question.setTranslations(Map.of("en", questionEn));
+        question.setQuestion(Map.of("en", "Question?"));
         QuizAnswer answer = new QuizAnswer();
-        QuizAnswerTranslation answerEn = new QuizAnswerTranslation();
-        answerEn.setText("Answer");
-        answer.setTranslations(Map.of("en", answerEn));
+        answer.setText(Map.of("en", "Answer"));
         question.setAnswers(List.of(answer));
         content.setQuizQuestions(List.of(question));
         course.setTextContent(List.of(content));
@@ -136,14 +127,14 @@ class CourseServiceTest {
         verify(courseRepository, atLeastOnce()).save(captor.capture());
         assertThat(captor.getAllValues()).anySatisfy(saved -> {
             TextContent savedContent = saved.getTextContent().get(0);
-            assertThat(savedContent.getTranslations()).containsKey("en");
-            assertThat(savedContent.getTranslations().get("en").getTitle()).isEqualTo("Lesson");
+            assertThat(savedContent.getTitle()).containsKey("en");
+            assertThat(savedContent.getTitle().get("en")).isEqualTo("Lesson");
             QuizQuestion savedQuestion = savedContent.getQuizQuestions().get(0);
-            assertThat(savedQuestion.getTranslations()).containsKey("en");
-            assertThat(savedQuestion.getTranslations().get("en").getQuestion()).isEqualTo("Question?");
+            assertThat(savedQuestion.getQuestion()).containsKey("en");
+            assertThat(savedQuestion.getQuestion().get("en")).isEqualTo("Question?");
             QuizAnswer savedAnswer = savedQuestion.getAnswers().get(0);
-            assertThat(savedAnswer.getTranslations()).containsKey("en");
-            assertThat(savedAnswer.getTranslations().get("en").getText()).isEqualTo("Answer");
+            assertThat(savedAnswer.getText()).containsKey("en");
+            assertThat(savedAnswer.getText().get("en")).isEqualTo("Answer");
         });
     }
 
@@ -156,20 +147,14 @@ class CourseServiceTest {
         course.setTranslations(Map.of("fr", courseFr));
 
         TextContent content = new TextContent();
-        TextContentTranslation contentFr = new TextContentTranslation();
-        contentFr.setTitle("Lecon");
-        contentFr.setContent("Corps");
-        content.setTranslations(Map.of("fr", contentFr));
+        content.setTitle(Map.of("fr", "Lecon"));
+        content.setContent(Map.of("fr", "Corps"));
 
         QuizQuestion question = new QuizQuestion();
-        QuizQuestionTranslation questionFr = new QuizQuestionTranslation();
-        questionFr.setQuestion("Question FR");
-        question.setTranslations(Map.of("fr", questionFr));
+        question.setQuestion(Map.of("fr", "Question FR"));
 
         QuizAnswer answer = new QuizAnswer();
-        QuizAnswerTranslation answerFr = new QuizAnswerTranslation();
-        answerFr.setText("Reponse");
-        answer.setTranslations(Map.of("fr", answerFr));
+        answer.setText(Map.of("fr", "Reponse"));
         question.setAnswers(List.of(answer));
 
         content.setQuizQuestions(List.of(question));
@@ -179,12 +164,12 @@ class CourseServiceTest {
 
         assertThat(localized.getTitle()).isEqualTo("Titre");
         TextContent localizedContent = localized.getTextContent().get(0);
-        assertThat(localizedContent.getTranslations().get("fr").getTitle()).isEqualTo("Lecon");
-        assertThat(localizedContent.getTranslations().get("fr").getContent()).isEqualTo("Corps");
+        assertThat(localizedContent.getTitle().get("fr")).isEqualTo("Lecon");
+        assertThat(localizedContent.getContent().get("fr")).isEqualTo("Corps");
         QuizQuestion localizedQuestion = localizedContent.getQuizQuestions().get(0);
-        assertThat(localizedQuestion.getTranslations().get("fr").getQuestion()).isEqualTo("Question FR");
+        assertThat(localizedQuestion.getQuestion().get("fr")).isEqualTo("Question FR");
         QuizAnswer localizedAnswer = localizedQuestion.getAnswers().get(0);
-        assertThat(localizedAnswer.getTranslations().get("fr").getText()).isEqualTo("Reponse");
+        assertThat(localizedAnswer.getText().get("fr")).isEqualTo("Reponse");
     }
 
     @Test
@@ -192,20 +177,14 @@ class CourseServiceTest {
         Course course = new Course();
 
         TextContent content = new TextContent();
-        TextContentTranslation contentEn = new TextContentTranslation();
-        contentEn.setTitle("Lesson");
-        contentEn.setContent("Body");
-        content.setTranslations(Map.of("en", contentEn));
+        content.setTitle(Map.of("en", "Lesson"));
+        content.setContent(Map.of("en", "Body"));
 
         QuizQuestion question = new QuizQuestion();
-        QuizQuestionTranslation questionEn = new QuizQuestionTranslation();
-        questionEn.setQuestion("Question?");
-        question.setTranslations(Map.of("en", questionEn));
+        question.setQuestion(Map.of("en", "Question?"));
 
         QuizAnswer answer = new QuizAnswer();
-        QuizAnswerTranslation answerEn = new QuizAnswerTranslation();
-        answerEn.setText("Answer");
-        answer.setTranslations(Map.of("en", answerEn));
+        answer.setText(Map.of("en", "Answer"));
         question.setAnswers(List.of(answer));
 
         content.setQuizQuestions(List.of(question));
@@ -214,12 +193,12 @@ class CourseServiceTest {
         Course localized = service.localizeCourse(course, Locale.GERMAN);
 
         TextContent localizedContent = localized.getTextContent().get(0);
-        assertThat(localizedContent.getTranslations().get("en").getTitle()).isEqualTo("Lesson");
-        assertThat(localizedContent.getTranslations().get("en").getContent()).isEqualTo("Body");
+        assertThat(localizedContent.getTitle().get("en")).isEqualTo("Lesson");
+        assertThat(localizedContent.getContent().get("en")).isEqualTo("Body");
         QuizQuestion localizedQuestion = localizedContent.getQuizQuestions().get(0);
-        assertThat(localizedQuestion.getTranslations().get("en").getQuestion()).isEqualTo("Question?");
+        assertThat(localizedQuestion.getQuestion().get("en")).isEqualTo("Question?");
         QuizAnswer localizedAnswer = localizedQuestion.getAnswers().get(0);
-        assertThat(localizedAnswer.getTranslations().get("en").getText()).isEqualTo("Answer");
+        assertThat(localizedAnswer.getText().get("en")).isEqualTo("Answer");
     }
 
     @Test
@@ -228,10 +207,11 @@ class CourseServiceTest {
 
         TextContent content = new TextContent();
         QuizQuestion question = new QuizQuestion();
-        question.setTranslations(null);
+        question.setQuestion(null);
         question.setAnswers(null);
         content.setQuizQuestions(List.of(question));
-        content.setTranslations(null);
+        content.setTitle(null);
+        content.setContent(null);
         course.setTextContent(List.of(content));
 
         when(courseRepository.save(any(Course.class))).thenAnswer(invocation -> {
@@ -248,9 +228,9 @@ class CourseServiceTest {
         verify(courseRepository, atLeastOnce()).save(captor.capture());
         assertThat(captor.getAllValues()).anySatisfy(saved -> {
             TextContent savedContent = saved.getTextContent().get(0);
-            assertThat(savedContent.getTranslations()).isNull();
+            assertThat(savedContent.getTitle()).isNull();
             QuizQuestion savedQuestion = savedContent.getQuizQuestions().get(0);
-            assertThat(savedQuestion.getTranslations()).isNull();
+            assertThat(savedQuestion.getQuestion()).isNull();
         });
     }
 

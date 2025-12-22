@@ -16,7 +16,7 @@ import java.util.Map;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class    QuizAnswer {
     private String id;
-    private Map<String, QuizAnswerTranslation> translations;
+    private Map<String, String> text;
     @JsonAlias("isCorrect")
     private boolean correct;
 }

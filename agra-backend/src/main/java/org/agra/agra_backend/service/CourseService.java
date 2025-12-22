@@ -7,11 +7,9 @@ import org.agra.agra_backend.model.Course;
 import org.agra.agra_backend.model.CourseProgress;
 import org.agra.agra_backend.model.CourseTranslation;
 import org.agra.agra_backend.model.QuizAnswer;
-import org.agra.agra_backend.model.QuizAnswerTranslation;
 import org.agra.agra_backend.model.QuizQuestion;
-import org.agra.agra_backend.model.QuizQuestionTranslation;
 import org.agra.agra_backend.model.TextContent;
-import org.agra.agra_backend.model.TextContentTranslation;
+import org.agra.agra_backend.misc.I18nResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
@@ -307,11 +305,8 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
     }
 
     private void normalizeTextContentTranslations(TextContent textContent) {
-        Map<String, TextContentTranslation> merged = new HashMap<>();
-        if (textContent.getTranslations() != null) {
-            merged.putAll(textContent.getTranslations());
-        }
-        textContent.setTranslations(merged.isEmpty() ? null : merged);
+        textContent.setTitle(normalizeMap(textContent.getTitle()));
+        textContent.setContent(normalizeMap(textContent.getContent()));
     }
 
     private void normalizeQuizTranslations(TextContent textContent) {
@@ -334,20 +329,12 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
     }
     private void ensureQuizQuestionTranslations(QuizQuestion question) {
         if (question == null) return;
-        Map<String, QuizQuestionTranslation> merged = new HashMap<>();
-        if (question.getTranslations() != null) {
-            merged.putAll(question.getTranslations());
-        }
-        question.setTranslations(merged.isEmpty() ? null : merged);
+        question.setQuestion(normalizeMap(question.getQuestion()));
     }
 
     private void ensureQuizAnswerTranslations(QuizAnswer answer) {
         if (answer == null) return;
-        Map<String, QuizAnswerTranslation> merged = new HashMap<>();
-        if (answer.getTranslations() != null) {
-            merged.putAll(answer.getTranslations());
-        }
-        answer.setTranslations(merged.isEmpty() ? null : merged);
+        answer.setText(normalizeMap(answer.getText()));
     }
 
     public Course localizeCourse(Course course, Locale locale) {
@@ -355,7 +342,7 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
         Course localized = new Course();
         BeanUtils.copyProperties(course, localized);
         if (course.getTranslations() == null || course.getTranslations().isEmpty()) {
-            localized.setTextContent(localizeTextContents(course.getTextContent()));
+            localized.setTextContent(localizeTextContents(course.getTextContent(), locale, course.getDefaultLanguage()));
             return localized;
         }
 
@@ -367,7 +354,7 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
             if (translation.getGoals() != null) localized.setGoals(translation.getGoals());
         }
 
-        localized.setTextContent(localizeTextContents(course.getTextContent()));
+        localized.setTextContent(localizeTextContents(course.getTextContent(), locale, course.getDefaultLanguage()));
         return localized;
     }
 
@@ -444,42 +431,66 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
         return resolveTranslation(course.getTranslations(), locale, course.getDefaultLanguage());
     }
 
-    private List<TextContent> localizeTextContents(List<TextContent> contents) {
+    private List<TextContent> localizeTextContents(List<TextContent> contents, Locale locale, String defaultLanguage) {
         if (contents == null || contents.isEmpty()) return contents;
         List<TextContent> localized = new java.util.ArrayList<>(contents.size());
         for (TextContent content : contents) {
             if (content == null) continue;
             TextContent localizedContent = new TextContent();
             BeanUtils.copyProperties(content, localizedContent);
-            localizedContent.setQuizQuestions(localizeQuizQuestions(content.getQuizQuestions()));
+            localizedContent.setTitle(localizeMap(content.getTitle(), locale, defaultLanguage));
+            localizedContent.setContent(localizeMap(content.getContent(), locale, defaultLanguage));
+            localizedContent.setQuizQuestions(localizeQuizQuestions(content.getQuizQuestions(), locale, defaultLanguage));
             localized.add(localizedContent);
         }
         return localized;
     }
 
-    private List<QuizQuestion> localizeQuizQuestions(List<QuizQuestion> questions) {
+    private List<QuizQuestion> localizeQuizQuestions(List<QuizQuestion> questions, Locale locale, String defaultLanguage) {
         if (questions == null || questions.isEmpty()) return questions;
         List<QuizQuestion> localized = new java.util.ArrayList<>(questions.size());
         for (QuizQuestion question : questions) {
             if (question == null) continue;
             QuizQuestion localizedQuestion = new QuizQuestion();
             BeanUtils.copyProperties(question, localizedQuestion);
-            localizedQuestion.setAnswers(localizeQuizAnswers(question.getAnswers()));
+            localizedQuestion.setQuestion(localizeMap(question.getQuestion(), locale, defaultLanguage));
+            localizedQuestion.setAnswers(localizeQuizAnswers(question.getAnswers(), locale, defaultLanguage));
             localized.add(localizedQuestion);
         }
         return localized;
     }
 
-    private List<QuizAnswer> localizeQuizAnswers(List<QuizAnswer> answers) {
+    private List<QuizAnswer> localizeQuizAnswers(List<QuizAnswer> answers, Locale locale, String defaultLanguage) {
         if (answers == null || answers.isEmpty()) return answers;
         List<QuizAnswer> localized = new java.util.ArrayList<>(answers.size());
         for (QuizAnswer answer : answers) {
             if (answer == null) continue;
             QuizAnswer localizedAnswer = new QuizAnswer();
             BeanUtils.copyProperties(answer, localizedAnswer);
+            localizedAnswer.setText(localizeMap(answer.getText(), locale, defaultLanguage));
             localized.add(localizedAnswer);
         }
         return localized;
+    }
+
+    private Map<String, String> normalizeMap(Map<String, String> translations) {
+        if (translations == null || translations.isEmpty()) {
+            return null;
+        }
+        return translations;
+    }
+
+    private Map<String, String> localizeMap(Map<String, String> translations, Locale locale, String defaultLanguage) {
+        if (translations == null || translations.isEmpty()) {
+            return null;
+        }
+        String lang = locale != null ? locale.getLanguage() : null;
+        String resolved = I18nResolver.resolve(translations, lang, defaultLanguage);
+        String resolvedKey = I18nResolver.resolveKey(translations, lang, defaultLanguage);
+        if (resolved == null || resolvedKey == null) {
+            return null;
+        }
+        return Map.of(resolvedKey, resolved);
     }
 
     private <T> T resolveTranslation(Map<String, T> translations, Locale locale, String defaultLanguage) {

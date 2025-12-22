@@ -43,22 +43,18 @@ class ModelCoverageTest {
     @Test
     void quizAnswerStoresTranslations() {
         QuizAnswer answer = new QuizAnswer();
-        QuizAnswerTranslation translation = new QuizAnswerTranslation();
-        translation.setText("Option A");
-        answer.setTranslations(java.util.Map.of("en", translation));
+        answer.setText(Map.of("en", "Option A"));
 
-        assertThat(answer.getTranslations().get("en").getText()).isEqualTo("Option A");
+        assertThat(answer.getText().get("en")).isEqualTo("Option A");
     }
 
     @Test
     void quizAnswerAllArgsConstructorStoresFields() {
-        QuizAnswerTranslation translation = new QuizAnswerTranslation();
-        translation.setText("A");
-        QuizAnswer answer = new QuizAnswer("a1", Map.of("en", translation), true);
+        QuizAnswer answer = new QuizAnswer("a1", Map.of("en", "A"), true);
 
         assertThat(answer.getId()).isEqualTo("a1");
         assertThat(answer.isCorrect()).isTrue();
-        assertThat(answer.getTranslations()).containsKey("en");
+        assertThat(answer.getText()).containsKey("en");
     }
 
     @Test
@@ -72,18 +68,14 @@ class ModelCoverageTest {
     @Test
     void quizQuestionStoresTranslations() {
         QuizQuestion question = new QuizQuestion();
-        QuizQuestionTranslation translation = new QuizQuestionTranslation();
-        translation.setQuestion("Q?");
-        question.setTranslations(Map.of("en", translation));
+        question.setQuestion(Map.of("en", "Q?"));
 
-        assertThat(question.getTranslations().get("en").getQuestion()).isEqualTo("Q?");
+        assertThat(question.getQuestion().get("en")).isEqualTo("Q?");
     }
 
     @Test
     void quizQuestionAllArgsConstructorStoresFields() {
-        QuizQuestionTranslation translation = new QuizQuestionTranslation();
-        translation.setQuestion("Q?");
-        QuizQuestion question = new QuizQuestion("q1", Map.of("en", translation), List.of(new QuizAnswer()));
+        QuizQuestion question = new QuizQuestion("q1", Map.of("en", "Q?"), List.of(new QuizAnswer()));
 
         assertThat(question.getId()).isEqualTo("q1");
         assertThat(question.getAnswers()).hasSize(1);
@@ -100,18 +92,15 @@ class ModelCoverageTest {
     @Test
     void textContentStoresTranslations() {
         TextContent content = new TextContent();
-        TextContentTranslation translation = new TextContentTranslation();
-        translation.setTitle("Lesson");
-        content.setTranslations(Map.of("en", translation));
+        content.setTitle(Map.of("en", "Lesson"));
 
-        assertThat(content.getTranslations().get("en").getTitle()).isEqualTo("Lesson");
+        assertThat(content.getTitle().get("en")).isEqualTo("Lesson");
     }
 
     @Test
     void textContentAllArgsConstructorStoresFields() {
-        TextContentTranslation translation = new TextContentTranslation();
-        translation.setTitle("Lesson");
-        TextContent content = new TextContent("t1", 1, "QUIZ", Map.of("en", translation), List.of(new QuizQuestion()));
+        TextContent content = new TextContent("t1", 1, "QUIZ", Map.of("en", "Lesson"), Map.of("en", "Body"),
+                List.of(new QuizQuestion()));
 
         assertThat(content.getId()).isEqualTo("t1");
         assertThat(content.getOrder()).isEqualTo(1);
@@ -315,13 +304,11 @@ class ModelCoverageTest {
     void quizAnswerSettersAndGetters() {
         QuizAnswer answer = new QuizAnswer();
         answer.setId("a1");
-        QuizAnswerTranslation translation = new QuizAnswerTranslation();
-        translation.setText("Answer");
-        answer.setTranslations(Map.of("en", translation));
+        answer.setText(Map.of("en", "Answer"));
         answer.setCorrect(false);
 
         assertThat(answer.getId()).isEqualTo("a1");
-        assertThat(answer.getTranslations()).containsKey("en");
+        assertThat(answer.getText()).containsKey("en");
         assertThat(answer.isCorrect()).isFalse();
     }
 
@@ -329,13 +316,11 @@ class ModelCoverageTest {
     void quizQuestionSettersAndGetters() {
         QuizQuestion question = new QuizQuestion();
         question.setId("q1");
-        QuizQuestionTranslation translation = new QuizQuestionTranslation();
-        translation.setQuestion("Q1");
-        question.setTranslations(Map.of("en", translation));
+        question.setQuestion(Map.of("en", "Q1"));
         question.setAnswers(List.of(new QuizAnswer()));
 
         assertThat(question.getId()).isEqualTo("q1");
-        assertThat(question.getTranslations()).containsKey("en");
+        assertThat(question.getQuestion()).containsKey("en");
         assertThat(question.getAnswers()).hasSize(1);
     }
 
@@ -345,15 +330,13 @@ class ModelCoverageTest {
         content.setId("t1");
         content.setOrder(2);
         content.setType("QUIZ");
-        TextContentTranslation translation = new TextContentTranslation();
-        translation.setTitle("Title");
-        content.setTranslations(Map.of("en", translation));
+        content.setTitle(Map.of("en", "Title"));
         content.setQuizQuestions(List.of(new QuizQuestion()));
 
         assertThat(content.getId()).isEqualTo("t1");
         assertThat(content.getOrder()).isEqualTo(2);
         assertThat(content.getType()).isEqualTo("QUIZ");
-        assertThat(content.getTranslations()).containsKey("en");
+        assertThat(content.getTitle()).containsKey("en");
         assertThat(content.getQuizQuestions()).hasSize(1);
     }
 
@@ -475,31 +458,6 @@ class ModelCoverageTest {
     }
 
     @Test
-    void textContentTranslationStoresFields() {
-        TextContentTranslation translation = new TextContentTranslation();
-        translation.setTitle("Lesson");
-        translation.setContent("Body");
-
-        assertThat(translation.getTitle()).isEqualTo("Lesson");
-        assertThat(translation.getContent()).isEqualTo("Body");
-    }
-
-    @Test
-    void quizQuestionTranslationStoresFields() {
-        QuizQuestionTranslation translation = new QuizQuestionTranslation();
-        translation.setQuestion("Question?");
-
-        assertThat(translation.getQuestion()).isEqualTo("Question?");
-    }
-
-    @Test
-    void quizAnswerTranslationStoresFields() {
-        QuizAnswerTranslation translation = new QuizAnswerTranslation();
-        translation.setText("Answer");
-
-        assertThat(translation.getText()).isEqualTo("Answer");
-    }
-
     @Test
     void courseFileAllArgsConstructorStoresFields() {
         CourseFile file = new CourseFile("id", "Doc", "pdf", "url", "public", 12L, new Date());
