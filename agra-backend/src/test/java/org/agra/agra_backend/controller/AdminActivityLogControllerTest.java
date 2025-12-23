@@ -67,7 +67,8 @@ class AdminActivityLogControllerTest {
                 LocalDateTime.of(2025, 1, 1, 0, 0),
                 LocalDateTime.of(2025, 1, 2, 0, 0),
                 50);
-        ArgumentCaptor<Map<String, Object>> metadataCaptor = ArgumentCaptor.forClass(Map.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> metadataCaptor = ArgumentCaptor.forClass((Class) Map.class);
         verify(adminAuditLogService).logAccess(eq(admin), eq("ACTIVITY_LOG_QUERY"), metadataCaptor.capture());
         assertThat(metadataCaptor.getValue()).containsEntry("reason", "audit-check");
     }

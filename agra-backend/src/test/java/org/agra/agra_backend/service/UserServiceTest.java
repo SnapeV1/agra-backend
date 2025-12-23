@@ -27,6 +27,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.InstanceOfAssertFactories.list;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -123,7 +124,7 @@ class UserServiceTest {
         );
         Object fields = metadataCaptor.getValue().get("updatedFields");
         assertThat(fields).isInstanceOf(List.class);
-        assertThat((List<?>) fields).contains("password");
+        assertThat(fields).asInstanceOf(list(String.class)).contains("password");
     }
 
     @Test
@@ -171,17 +172,17 @@ class UserServiceTest {
         assertThat(saved.getPassword()).isEqualTo("encoded-new");
         ArgumentCaptor<Map<String, Object>> metadataCaptor = ArgumentCaptor.forClass(Map.class);
         verify(activityLogService).logUserActivity(
-                saved,
-                ActivityType.PROFILE_UPDATE,
-                "Updated profile",
-                "USER",
-                "user-1",
+                eq(saved),
+                eq(ActivityType.PROFILE_UPDATE),
+                eq("Updated profile"),
+                eq("USER"),
+                eq("user-1"),
                 metadataCaptor.capture()
         );
         assertThat(metadataCaptor.getValue()).containsEntry("profilePictureProvided", true);
         Object fields = metadataCaptor.getValue().get("updatedFields");
         assertThat(fields).isInstanceOf(List.class);
-        assertThat((List<?>) fields).contains("picture");
+        assertThat(fields).asInstanceOf(list(String.class)).contains("picture");
     }
 
     @Test
