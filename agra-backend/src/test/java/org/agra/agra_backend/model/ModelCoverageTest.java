@@ -515,7 +515,7 @@ class ModelCoverageTest {
         second.setActivityType(ActivityType.LIKE);
 
         assertThat(first).isEqualTo(second);
-        assertThat(first.hashCode()).isEqualTo(second.hashCode());
+        assertThat(first).hasSameHashCodeAs(second);
         assertThat(first.toString()).contains("log-1");
     }
 
@@ -532,7 +532,7 @@ class ModelCoverageTest {
         second.setAction("ACTIVITY_LOG_QUERY");
 
         assertThat(first).isEqualTo(second);
-        assertThat(first.hashCode()).isEqualTo(second.hashCode());
+        assertThat(first).hasSameHashCodeAs(second);
         assertThat(first.toString()).contains("audit-1");
     }
 
