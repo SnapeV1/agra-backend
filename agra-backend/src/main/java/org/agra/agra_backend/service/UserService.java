@@ -71,16 +71,7 @@ public class UserService implements IUserService {
             user.setVerified(false);
         }
         user.setRegisteredAt(new Date());
-        User saved = userRepository.save(user);
-        activityLogService.logUserActivity(
-                saved,
-                ActivityType.PROFILE_UPDATE,
-                "Updated profile",
-                "USER",
-                saved.getId(),
-                buildProfileUpdateMetadata(existingUser, user, false)
-        );
-        return saved;
+        return userRepository.save(user);
     }
 
 
@@ -138,7 +129,7 @@ public class UserService implements IUserService {
                 "Updated profile",
                 "USER",
                 saved.getId(),
-                buildProfileUpdateMetadata(existingUser, user, profilePicProvided)
+                buildProfileUpdateMetadata(existingUser, user, false)
         );
         return saved;
     }
@@ -201,7 +192,16 @@ public class UserService implements IUserService {
             user.setVerified(existingUser.getVerified());
         }
 
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        activityLogService.logUserActivity(
+                saved,
+                ActivityType.PROFILE_UPDATE,
+                "Updated profile",
+                "USER",
+                saved.getId(),
+                buildProfileUpdateMetadata(existingUser, user, profilePicProvided)
+        );
+        return saved;
     }
 
     private void logUserUpdateRequested(User oldUser, User newUser, boolean profilePicProvided) {
