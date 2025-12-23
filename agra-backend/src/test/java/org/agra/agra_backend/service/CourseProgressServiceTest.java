@@ -17,6 +17,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -118,6 +120,29 @@ class CourseProgressServiceTest {
                 "COURSE",
                 "course-1",
                 Map.of("courseId", "course-1")
+        );
+    }
+
+    @Test
+    void updateProgressSkipsLoggingWhenAlreadyCompleted() {
+        CourseProgress progress = new CourseProgress();
+        progress.setProgressPercentage(100);
+        progress.setCompleted(true);
+        when(courseProgressRepository.findByUserIdAndCourseId("user-1", "course-1"))
+                .thenReturn(Optional.of(progress));
+        when(courseProgressRepository.save(any(CourseProgress.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CourseProgress updated = service.updateProgress("user-1", "course-1", 100);
+
+        assertThat(updated.isCompleted()).isTrue();
+        verify(activityLogService, never()).logUserActivity(
+                anyString(),
+                any(ActivityType.class),
+                anyString(),
+                anyString(),
+                anyString(),
+                anyMap()
         );
     }
 

@@ -6,9 +6,9 @@ import org.agra.agra_backend.model.ActivityLog;
 import org.agra.agra_backend.model.ActivityType;
 import org.agra.agra_backend.model.User;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -29,8 +30,12 @@ class ActivityLogServiceTest {
     @Mock
     private UserRepository userRepository;
 
-    @InjectMocks
     private ActivityLogService service;
+
+    @BeforeEach
+    void setUp() {
+        service = new ActivityLogService(activityLogRepository, userRepository, 180, "content,message");
+    }
 
     @Test
     void logUserActivityWithUserStoresSnapshot() {
@@ -101,5 +106,36 @@ class ActivityLogServiceTest {
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getId()).isEqualTo("a1");
+    }
+
+    @Test
+    void searchForAdminRedactsMetadataKeys() {
+        ActivityLog log = new ActivityLog();
+        log.setId("a1");
+        log.setUserId("u1");
+        log.setActivityType(ActivityType.LIKE);
+        log.setCreatedAt(LocalDateTime.of(2025, 1, 1, 10, 0));
+        log.setMetadata(Map.of("content", "secret", "safe", "ok"));
+
+        when(activityLogRepository.findAll()).thenReturn(List.of(log));
+
+        List<ActivityLog> result = service.searchForAdmin(
+                "u1",
+                ActivityType.LIKE,
+                LocalDateTime.of(2025, 1, 1, 0, 0),
+                LocalDateTime.of(2025, 1, 2, 0, 0),
+                10
+        );
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getMetadata()).doesNotContainKey("content");
+        assertThat(result.get(0).getMetadata()).containsEntry("safe", "ok");
+    }
+
+    @Test
+    void cleanupOldLogsDeletesBeforeCutoff() {
+        service.cleanupOldLogs();
+
+        verify(activityLogRepository).deleteByCreatedAtBefore(any(LocalDateTime.class));
     }
 }

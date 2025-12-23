@@ -2,17 +2,24 @@ package org.agra.agra_backend.controller;
 
 import org.agra.agra_backend.model.ActivityLog;
 import org.agra.agra_backend.model.ActivityType;
+import org.agra.agra_backend.model.User;
 import org.agra.agra_backend.service.ActivityLogService;
+import org.agra.agra_backend.service.AdminAuditLogService;
+import org.agra.agra_backend.service.UserService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -21,32 +28,107 @@ class AdminActivityLogControllerTest {
 
     @Mock
     private ActivityLogService activityLogService;
+    @Mock
+    private AdminAuditLogService adminAuditLogService;
+    @Mock
+    private UserService userService;
 
-    @InjectMocks
     private AdminActivityLogController controller;
+
+    @BeforeEach
+    void setUp() {
+        controller = new AdminActivityLogController(activityLogService, adminAuditLogService, userService, 31);
+    }
 
     @Test
     void listActivityLogsDelegatesToService() {
         ActivityLog log = new ActivityLog();
         log.setId("a1");
-        when(activityLogService.search("u1", ActivityType.LIKE,
+        when(activityLogService.searchForAdmin("u1", ActivityType.LIKE,
                 LocalDateTime.of(2025, 1, 1, 0, 0),
                 LocalDateTime.of(2025, 1, 2, 0, 0),
                 50)).thenReturn(List.of(log));
+        User admin = new User();
+        admin.setId("admin-1");
+        when(userService.getCurrentUserOrThrow()).thenReturn(admin);
 
         List<ActivityLog> result = controller.listActivityLogs(
                 "u1",
                 ActivityType.LIKE,
                 LocalDateTime.of(2025, 1, 1, 0, 0),
                 LocalDateTime.of(2025, 1, 2, 0, 0),
+                "audit-check",
                 50
         );
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getId()).isEqualTo("a1");
-        verify(activityLogService).search("u1", ActivityType.LIKE,
+        verify(activityLogService).searchForAdmin("u1", ActivityType.LIKE,
                 LocalDateTime.of(2025, 1, 1, 0, 0),
                 LocalDateTime.of(2025, 1, 2, 0, 0),
                 50);
+        ArgumentCaptor<Map<String, Object>> metadataCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(adminAuditLogService).logAccess(eq(admin), eq("ACTIVITY_LOG_QUERY"), metadataCaptor.capture());
+        assertThat(metadataCaptor.getValue()).containsEntry("reason", "audit-check");
+    }
+
+    @Test
+    void listActivityLogsRequiresUserId() {
+        assertThatThrownBy(() -> controller.listActivityLogs(
+                " ",
+                ActivityType.LIKE,
+                LocalDateTime.of(2025, 1, 1, 0, 0),
+                LocalDateTime.of(2025, 1, 2, 0, 0),
+                "audit-check",
+                50
+        )).hasMessageContaining("userId is required");
+    }
+
+    @Test
+    void listActivityLogsRequiresDateRange() {
+        assertThatThrownBy(() -> controller.listActivityLogs(
+                "u1",
+                ActivityType.LIKE,
+                null,
+                LocalDateTime.of(2025, 1, 2, 0, 0),
+                "audit-check",
+                50
+        )).hasMessageContaining("start and end are required");
+    }
+
+    @Test
+    void listActivityLogsRequiresReason() {
+        assertThatThrownBy(() -> controller.listActivityLogs(
+                "u1",
+                ActivityType.LIKE,
+                LocalDateTime.of(2025, 1, 1, 0, 0),
+                LocalDateTime.of(2025, 1, 2, 0, 0),
+                " ",
+                50
+        )).hasMessageContaining("reason is required");
+    }
+
+    @Test
+    void listActivityLogsRejectsInvalidWindow() {
+        assertThatThrownBy(() -> controller.listActivityLogs(
+                "u1",
+                ActivityType.LIKE,
+                LocalDateTime.of(2025, 1, 2, 0, 0),
+                LocalDateTime.of(2025, 1, 1, 0, 0),
+                "audit-check",
+                50
+        )).hasMessageContaining("end must be after start");
+    }
+
+    @Test
+    void listActivityLogsRejectsTooLargeWindow() {
+        assertThatThrownBy(() -> controller.listActivityLogs(
+                "u1",
+                ActivityType.LIKE,
+                LocalDateTime.of(2025, 1, 1, 0, 0),
+                LocalDateTime.of(2025, 2, 15, 0, 0),
+                "audit-check",
+                50
+        )).hasMessageContaining("date window exceeds");
     }
 }

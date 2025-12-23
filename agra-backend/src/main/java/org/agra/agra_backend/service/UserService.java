@@ -27,6 +27,8 @@ import java.util.Objects;
 @Service
 public class UserService implements IUserService {
 
+    private static final String FIELD_PICTURE = "picture";
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final CloudinaryService cloudinaryService;
@@ -222,7 +224,7 @@ public class UserService implements IUserService {
         appendChange(sb, "language", oldUser.getLanguage(), newUser.getLanguage());
         appendChange(sb, "domain", oldUser.getDomain(), newUser.getDomain());
         appendChange(sb, "role", oldUser.getRole(), newUser.getRole());
-        appendChange(sb, "picture", oldUser.getPicture(), newUser.getPicture());
+        appendChange(sb, FIELD_PICTURE, oldUser.getPicture(), newUser.getPicture());
         appendChange(sb, "birthdate", oldUser.getBirthdate(), newUser.getBirthdate());
 
         boolean passwordProvided = newUser.getPassword() != null && !newUser.getPassword().isBlank();
@@ -246,22 +248,34 @@ public class UserService implements IUserService {
 
     private Map<String, Object> buildProfileUpdateMetadata(User oldUser, User newUser, boolean profilePicProvided) {
         List<String> updatedFields = new ArrayList<>();
-        if (newUser.getName() != null && !Objects.equals(oldUser.getName(), newUser.getName())) updatedFields.add("name");
-        if (newUser.getEmail() != null && !Objects.equals(oldUser.getEmail(), newUser.getEmail())) updatedFields.add("email");
-        if (newUser.getPhone() != null && !Objects.equals(oldUser.getPhone(), newUser.getPhone())) updatedFields.add("phone");
-        if (newUser.getCountry() != null && !Objects.equals(oldUser.getCountry(), newUser.getCountry())) updatedFields.add("country");
-        if (newUser.getLanguage() != null && !Objects.equals(oldUser.getLanguage(), newUser.getLanguage())) updatedFields.add("language");
-        if (newUser.getDomain() != null && !Objects.equals(oldUser.getDomain(), newUser.getDomain())) updatedFields.add("domain");
-        if (newUser.getRole() != null && !Objects.equals(oldUser.getRole(), newUser.getRole())) updatedFields.add("role");
-        if (newUser.getPicture() != null && !Objects.equals(oldUser.getPicture(), newUser.getPicture())) updatedFields.add("picture");
-        if (newUser.getBirthdate() != null && !Objects.equals(oldUser.getBirthdate(), newUser.getBirthdate())) updatedFields.add("birthdate");
-        if (newUser.getPassword() != null && !newUser.getPassword().isBlank()) updatedFields.add("password");
-        if (profilePicProvided && !updatedFields.contains("picture")) updatedFields.add("profilePicture");
+        addIfChanged(updatedFields, "name", oldUser.getName(), newUser.getName());
+        addIfChanged(updatedFields, "email", oldUser.getEmail(), newUser.getEmail());
+        addIfChanged(updatedFields, "phone", oldUser.getPhone(), newUser.getPhone());
+        addIfChanged(updatedFields, "country", oldUser.getCountry(), newUser.getCountry());
+        addIfChanged(updatedFields, "language", oldUser.getLanguage(), newUser.getLanguage());
+        addIfChanged(updatedFields, "domain", oldUser.getDomain(), newUser.getDomain());
+        addIfChanged(updatedFields, "role", oldUser.getRole(), newUser.getRole());
+        addIfChanged(updatedFields, FIELD_PICTURE, oldUser.getPicture(), newUser.getPicture());
+        addIfChanged(updatedFields, "birthdate", oldUser.getBirthdate(), newUser.getBirthdate());
+        addIfProvided(updatedFields, "password", newUser.getPassword() != null && !newUser.getPassword().isBlank());
+        addIfProvided(updatedFields, "profilePicture", profilePicProvided && !updatedFields.contains(FIELD_PICTURE));
 
         Map<String, Object> metadata = new HashMap<>();
         metadata.put("updatedFields", updatedFields);
         metadata.put("profilePictureProvided", profilePicProvided);
         return metadata;
+    }
+
+    private void addIfChanged(List<String> updatedFields, String field, Object oldVal, Object newVal) {
+        if (newVal != null && !Objects.equals(oldVal, newVal)) {
+            updatedFields.add(field);
+        }
+    }
+
+    private void addIfProvided(List<String> updatedFields, String field, boolean shouldAdd) {
+        if (shouldAdd) {
+            updatedFields.add(field);
+        }
     }
 
     private boolean isBcrypt(String value) {

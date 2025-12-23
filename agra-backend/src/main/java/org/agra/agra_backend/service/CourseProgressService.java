@@ -15,6 +15,9 @@ import java.util.Optional;
 @Service
 public class CourseProgressService {
 
+    private static final String TARGET_TYPE_COURSE = "COURSE";
+    private static final String META_COURSE_ID = "courseId";
+
     private final CourseProgressRepository courseProgressRepository;
     private final ActivityLogService activityLogService;
 
@@ -66,9 +69,9 @@ public class CourseProgressService {
                     userId,
                     ActivityType.COURSE_ENROLLMENT,
                     "Enrolled in course",
-                    "COURSE",
+                    TARGET_TYPE_COURSE,
                     courseId,
-                    Map.of("courseId", courseId)
+                    Map.of(META_COURSE_ID, courseId)
             );
         }
         return saved;
@@ -95,17 +98,15 @@ public class CourseProgressService {
             }
 
             CourseProgress saved = courseProgressRepository.save(progress);
-            if (!wasCompleted && saved.isCompleted()) {
-                if (activityLogService != null) {
-                    activityLogService.logUserActivity(
-                            userId,
-                            ActivityType.COURSE_COMPLETION,
-                            "Completed course",
-                            "COURSE",
-                            courseId,
-                            Map.of("courseId", courseId)
-                    );
-                }
+            if (!wasCompleted && saved.isCompleted() && activityLogService != null) {
+                activityLogService.logUserActivity(
+                        userId,
+                        ActivityType.COURSE_COMPLETION,
+                        "Completed course",
+                        TARGET_TYPE_COURSE,
+                        courseId,
+                        Map.of(META_COURSE_ID, courseId)
+                );
             }
             return saved;
         }
@@ -210,17 +211,15 @@ public class CourseProgressService {
             }
             
             CourseProgress saved = courseProgressRepository.save(progress);
-            if (!wasCompleted) {
-                if (activityLogService != null) {
-                    activityLogService.logUserActivity(
-                            userId,
-                            ActivityType.COURSE_COMPLETION,
-                            "Completed course",
-                            "COURSE",
-                            courseId,
-                            Map.of("courseId", courseId)
-                    );
-                }
+            if (!wasCompleted && activityLogService != null) {
+                activityLogService.logUserActivity(
+                        userId,
+                        ActivityType.COURSE_COMPLETION,
+                        "Completed course",
+                        TARGET_TYPE_COURSE,
+                        courseId,
+                        Map.of(META_COURSE_ID, courseId)
+                );
             }
             return saved;
         }

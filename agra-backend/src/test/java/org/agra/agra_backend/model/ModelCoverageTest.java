@@ -452,6 +452,21 @@ class ModelCoverageTest {
     }
 
     @Test
+    void adminAuditLogStoresFields() {
+        AdminAuditLog log = new AdminAuditLog();
+        log.setId("audit-1");
+        log.setAdminUserId("admin-1");
+        log.setAction("ACTIVITY_LOG_QUERY");
+        log.setMetadata(Map.of("userId", "u1"));
+        log.setCreatedAt(LocalDateTime.now());
+
+        assertThat(log.getId()).isEqualTo("audit-1");
+        assertThat(log.getAdminUserId()).isEqualTo("admin-1");
+        assertThat(log.getAction()).isEqualTo("ACTIVITY_LOG_QUERY");
+        assertThat(log.getMetadata()).containsEntry("userId", "u1");
+    }
+
+    @Test
     void newsArticleStoresFields() {
         NewsArticle article = new NewsArticle();
         article.setTitle("Title");

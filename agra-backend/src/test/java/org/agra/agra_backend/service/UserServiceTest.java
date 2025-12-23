@@ -6,6 +6,7 @@ import org.agra.agra_backend.model.User;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -20,12 +21,15 @@ import org.springframework.web.server.ResponseStatusException;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -108,14 +112,18 @@ class UserServiceTest {
         assertThat(saved.getRegisteredAt()).isEqualTo(existing.getRegisteredAt());
         assertThat(saved.getVerified()).isTrue();
         assertThat(saved.getPassword()).isEqualTo("encoded-new");
+        ArgumentCaptor<Map<String, Object>> metadataCaptor = ArgumentCaptor.forClass(Map.class);
         verify(activityLogService).logUserActivity(
-                saved,
-                ActivityType.PROFILE_UPDATE,
-                "Updated profile",
-                "USER",
-                "user-1",
-                anyMap()
+                eq(saved),
+                eq(ActivityType.PROFILE_UPDATE),
+                eq("Updated profile"),
+                eq("USER"),
+                eq("user-1"),
+                metadataCaptor.capture()
         );
+        Object fields = metadataCaptor.getValue().get("updatedFields");
+        assertThat(fields).isInstanceOf(List.class);
+        assertThat((List<?>) fields).contains("password");
     }
 
     @Test
@@ -161,14 +169,19 @@ class UserServiceTest {
 
         assertThat(saved.getPicture()).isEqualTo("https://img/new");
         assertThat(saved.getPassword()).isEqualTo("encoded-new");
+        ArgumentCaptor<Map<String, Object>> metadataCaptor = ArgumentCaptor.forClass(Map.class);
         verify(activityLogService).logUserActivity(
                 saved,
                 ActivityType.PROFILE_UPDATE,
                 "Updated profile",
                 "USER",
                 "user-1",
-                anyMap()
+                metadataCaptor.capture()
         );
+        assertThat(metadataCaptor.getValue()).containsEntry("profilePictureProvided", true);
+        Object fields = metadataCaptor.getValue().get("updatedFields");
+        assertThat(fields).isInstanceOf(List.class);
+        assertThat((List<?>) fields).contains("picture");
     }
 
     @Test
