@@ -39,14 +39,16 @@ public class CourseLikeService {
         like.setTargetType(TARGET_TYPE_COURSE);
         like.setTargetId(courseId);
         likeRepository.save(like);
-        activityLogService.logUserActivity(
-                userId,
-                ActivityType.LIKE,
-                "Liked course",
-                TARGET_TYPE_COURSE,
-                courseId,
-                Map.of("courseId", courseId)
-        );
+        if (activityLogService != null) {
+            activityLogService.logUserActivity(
+                    userId,
+                    ActivityType.LIKE,
+                    "Liked course",
+                    TARGET_TYPE_COURSE,
+                    courseId,
+                    Map.of("courseId", courseId)
+            );
+        }
         return true;
     }
 

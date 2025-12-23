@@ -88,14 +88,16 @@ public class TicketService {
         ticket.setUpdatedAt(now);
 
         Ticket savedTicket = ticketRepository.save(ticket);
-        activityLogService.logUserActivity(
-                requester,
-                ActivityType.TICKET_SUBMISSION,
-                "Submitted ticket",
-                "TICKET",
-                savedTicket.getId(),
-                Map.of("subject", savedTicket.getSubject())
-        );
+        if (activityLogService != null) {
+            activityLogService.logUserActivity(
+                    requester,
+                    ActivityType.TICKET_SUBMISSION,
+                    "Submitted ticket",
+                    "TICKET",
+                    savedTicket.getId(),
+                    Map.of("subject", savedTicket.getSubject())
+            );
+        }
 
         String attachmentUrl = resolveAttachment(savedTicket, attachment);
         if (attachmentUrl != null && !attachmentUrl.equals(ticket.getAttachmentUrl())) {

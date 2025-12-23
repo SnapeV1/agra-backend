@@ -275,7 +275,7 @@ public class PostService {
             postRepository.save(post);
         });
 
-        if (isLiked) {
+        if (isLiked && activityLogService != null) {
             activityLogService.logUserActivity(
                     userInfo,
                     ActivityType.LIKE,
@@ -327,7 +327,7 @@ public class PostService {
             commentRepository.save(comment);
         });
 
-        if (isLiked) {
+        if (isLiked && activityLogService != null) {
             activityLogService.logUserActivity(
                     userInfo,
                     ActivityType.LIKE,

@@ -123,14 +123,16 @@ public class UserService implements IUserService {
         }
 
         User saved = userRepository.save(user);
-        activityLogService.logUserActivity(
-                saved,
-                ActivityType.PROFILE_UPDATE,
-                "Updated profile",
-                "USER",
-                saved.getId(),
-                buildProfileUpdateMetadata(existingUser, user, false)
-        );
+        if (activityLogService != null) {
+            activityLogService.logUserActivity(
+                    saved,
+                    ActivityType.PROFILE_UPDATE,
+                    "Updated profile",
+                    "USER",
+                    saved.getId(),
+                    buildProfileUpdateMetadata(existingUser, user, false)
+            );
+        }
         return saved;
     }
 
@@ -193,14 +195,16 @@ public class UserService implements IUserService {
         }
 
         User saved = userRepository.save(user);
-        activityLogService.logUserActivity(
-                saved,
-                ActivityType.PROFILE_UPDATE,
-                "Updated profile",
-                "USER",
-                saved.getId(),
-                buildProfileUpdateMetadata(existingUser, user, profilePicProvided)
-        );
+        if (activityLogService != null) {
+            activityLogService.logUserActivity(
+                    saved,
+                    ActivityType.PROFILE_UPDATE,
+                    "Updated profile",
+                    "USER",
+                    saved.getId(),
+                    buildProfileUpdateMetadata(existingUser, user, profilePicProvided)
+            );
+        }
         return saved;
     }
 
