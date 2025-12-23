@@ -1,17 +1,17 @@
-package org.agra.apigateway;
+package org.agra.agra_backend;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class ApiGatewayApplicationTest {
+class AgraBackendApplicationTest {
 
     @Test
     void createApplicationBuilds() {
-        SpringApplication app = ApiGatewayApplication.createApplication();
+        SpringApplication app = AgraBackendApplication.createApplication();
 
         assertThat(app).isNotNull();
-        assertThat(app.getAllSources()).contains(ApiGatewayApplication.class);
+        assertThat(app.getAllSources()).contains(AgraBackendApplication.class);
     }
 }

@@ -66,21 +66,23 @@ public class AdminActivityLogController {
         if (userId == null || userId.isBlank()) {
             throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "userId is required");
         }
-        if (start == null || end == null) {
-            throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "start and end are required");
-        }
         if (reason == null || reason.isBlank()) {
             throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "reason is required");
         }
-        if (end.isBefore(start)) {
-            throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "end must be after start");
+        if ((start == null) != (end == null)) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "start and end must both be provided");
         }
-        long windowDays = ChronoUnit.DAYS.between(start, end);
-        if (windowDays > maxWindowDays) {
-            throw new ResponseStatusException(
-                    org.springframework.http.HttpStatus.BAD_REQUEST,
-                    "date window exceeds " + maxWindowDays + " days"
-            );
+        if (start != null && end != null) {
+            if (end.isBefore(start)) {
+                throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "end must be after start");
+            }
+            long windowDays = ChronoUnit.DAYS.between(start, end);
+            if (windowDays > maxWindowDays) {
+                throw new ResponseStatusException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST,
+                        "date window exceeds " + maxWindowDays + " days"
+                );
+            }
         }
     }
 }

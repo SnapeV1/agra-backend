@@ -86,7 +86,7 @@ class AdminActivityLogControllerTest {
     }
 
     @Test
-    void listActivityLogsRequiresDateRange() {
+    void listActivityLogsRequiresBothStartAndEnd() {
         assertThatThrownBy(() -> controller.listActivityLogs(
                 "u1",
                 ActivityType.LIKE,
@@ -94,7 +94,28 @@ class AdminActivityLogControllerTest {
                 LocalDateTime.of(2025, 1, 2, 0, 0),
                 "audit-check",
                 50
-        )).hasMessageContaining("start and end are required");
+        )).hasMessageContaining("start and end must both be provided");
+    }
+
+    @Test
+    void listActivityLogsAllowsMissingDateRange() {
+        when(activityLogService.searchForAdmin("u1", ActivityType.LIKE, null, null, 50))
+                .thenReturn(List.of());
+        User admin = new User();
+        admin.setId("admin-1");
+        when(userService.getCurrentUserOrThrow()).thenReturn(admin);
+
+        List<ActivityLog> result = controller.listActivityLogs(
+                "u1",
+                ActivityType.LIKE,
+                null,
+                null,
+                "audit-check",
+                50
+        );
+
+        assertThat(result).isEmpty();
+        verify(activityLogService).searchForAdmin("u1", ActivityType.LIKE, null, null, 50);
     }
 
     @Test

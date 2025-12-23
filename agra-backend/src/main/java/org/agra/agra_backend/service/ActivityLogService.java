@@ -127,7 +127,7 @@ public class ActivityLogService {
 
     private Map<String, Object> sanitizeMetadata(Map<String, Object> metadata) {
         if (metadata == null) {
-            return null;
+            return Map.of();
         }
         Map<String, Object> out = new HashMap<>(metadata);
         redactedKeys.forEach(out::remove);

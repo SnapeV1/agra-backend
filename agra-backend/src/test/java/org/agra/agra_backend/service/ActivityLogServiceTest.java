@@ -158,6 +158,30 @@ class ActivityLogServiceTest {
     }
 
     @Test
+    void searchForAdminReturnsEmptyMetadataWhenMissing() {
+        ActivityLog log = new ActivityLog();
+        log.setId("a1");
+        log.setUserId("u1");
+        log.setActivityType(ActivityType.LIKE);
+        log.setCreatedAt(LocalDateTime.of(2025, 1, 1, 10, 0));
+        log.setMetadata(null);
+
+        when(activityLogRepository.findAll()).thenReturn(List.of(log));
+
+        List<ActivityLog> result = service.searchForAdmin(
+                "u1",
+                ActivityType.LIKE,
+                LocalDateTime.of(2025, 1, 1, 0, 0),
+                LocalDateTime.of(2025, 1, 2, 0, 0),
+                10
+        );
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getMetadata()).isNotNull();
+        assertThat(result.get(0).getMetadata()).isEmpty();
+    }
+
+    @Test
     void cleanupOldLogsDeletesBeforeCutoff() {
         service.cleanupOldLogs();
 

@@ -467,6 +467,42 @@ class ModelCoverageTest {
     }
 
     @Test
+    void activityLogAllArgsConstructorStoresFields() {
+        ActivityLog log = new ActivityLog(
+                "log-2",
+                "user-1",
+                new UserInfo("u1", "User", "u@example.com", "pic", new Date()),
+                ActivityType.LIKE,
+                "Liked post",
+                "POST",
+                "post-1",
+                Map.of("postId", "post-1"),
+                LocalDateTime.now()
+        );
+
+        assertThat(log.getId()).isEqualTo("log-2");
+        assertThat(log.getAction()).isEqualTo("Liked post");
+        assertThat(log.getTargetType()).isEqualTo("POST");
+        assertThat(log.getUserInfo().getEmail()).isEqualTo("u@example.com");
+    }
+
+    @Test
+    void adminAuditLogAllArgsConstructorStoresFields() {
+        AdminAuditLog log = new AdminAuditLog(
+                "audit-2",
+                "admin-1",
+                new UserInfo("admin-1", "Admin", "admin@example.com", "pic", new Date()),
+                "ACTIVITY_LOG_QUERY",
+                Map.of("reason", "audit"),
+                LocalDateTime.now()
+        );
+
+        assertThat(log.getId()).isEqualTo("audit-2");
+        assertThat(log.getAction()).isEqualTo("ACTIVITY_LOG_QUERY");
+        assertThat(log.getAdminInfo().getName()).isEqualTo("Admin");
+    }
+
+    @Test
     void newsArticleStoresFields() {
         NewsArticle article = new NewsArticle();
         article.setTitle("Title");
