@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 
 class AgraBackendApplicationTest {
 
@@ -31,10 +30,12 @@ class AgraBackendApplicationTest {
     void mainRunsWithAutoClose() {
         System.setProperty(AgraBackendApplication.AUTO_CLOSE_PROPERTY, "true");
         try {
+            assertThat(Boolean.getBoolean(AgraBackendApplication.AUTO_CLOSE_PROPERTY)).isTrue();
             SpringApplication app = AgraBackendApplication.createApplication();
             assertThat(app).isNotNull();
         } finally {
             System.clearProperty(AgraBackendApplication.AUTO_CLOSE_PROPERTY);
+            assertThat(Boolean.getBoolean(AgraBackendApplication.AUTO_CLOSE_PROPERTY)).isFalse();
         }
     }
 }

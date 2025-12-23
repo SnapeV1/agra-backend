@@ -73,6 +73,7 @@ class AdminActivityLogControllerTest {
         ArgumentCaptor<Map<String, Object>> metadataCaptor = ArgumentCaptor.forClass((Class) Map.class);
         verify(adminAuditLogService).logAccess(eq(admin), eq("ACTIVITY_LOG_QUERY"), metadataCaptor.capture());
         assertThat(metadataCaptor.getValue()).containsEntry("reason", "audit-check");
+        assertThat(metadataCaptor.getValue()).containsEntry("activityType", "LIKE");
     }
 
     @Test
@@ -185,6 +186,34 @@ class AdminActivityLogControllerTest {
 
         assertThat(result).isEmpty();
         verify(activityLogService).searchForAdmin("u1", null, null, null, 10);
+    }
+
+    @Test
+    void listActivityLogsStoresEmailInAuditMetadata() {
+        when(activityLogService.searchForAdmin("u1", null, null, null, 10))
+                .thenReturn(List.of());
+        User admin = new User();
+        admin.setId("admin-1");
+        when(userService.getCurrentUserOrThrow()).thenReturn(admin);
+        User user = new User();
+        user.setId("u1");
+        when(userService.findByEmailIgnoreCase("user@example.com")).thenReturn(java.util.Optional.of(user));
+
+        controller.listActivityLogs(
+                null,
+                "user@example.com",
+                null,
+                null,
+                null,
+                "audit-check",
+                10
+        );
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> metadataCaptor = ArgumentCaptor.forClass((Class) Map.class);
+        verify(adminAuditLogService).logAccess(eq(admin), eq("ACTIVITY_LOG_QUERY"), metadataCaptor.capture());
+        assertThat(metadataCaptor.getValue()).containsEntry("email", "user@example.com");
+        assertThat(metadataCaptor.getValue()).containsEntry("userId", "u1");
     }
 
     @Test

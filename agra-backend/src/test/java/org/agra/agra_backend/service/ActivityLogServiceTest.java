@@ -197,6 +197,32 @@ class ActivityLogServiceTest {
     }
 
     @Test
+    void searchForAdminTrimsRedactionKeys() {
+        ActivityLog log = new ActivityLog();
+        log.setId("a1");
+        log.setUserId("u1");
+        log.setActivityType(ActivityType.LIKE);
+        log.setCreatedAt(LocalDateTime.of(2025, 1, 1, 10, 0));
+        log.setMetadata(Map.of("content", "secret", "message", "m", "safe", "ok"));
+
+        when(activityLogRepository.findAll()).thenReturn(List.of(log));
+        ActivityLogService trimmed = new ActivityLogService(activityLogRepository, userRepository, 180, " content , message ");
+
+        List<ActivityLog> result = trimmed.searchForAdmin(
+                "u1",
+                ActivityType.LIKE,
+                LocalDateTime.of(2025, 1, 1, 0, 0),
+                LocalDateTime.of(2025, 1, 2, 0, 0),
+                10
+        );
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getMetadata()).doesNotContainKey("content");
+        assertThat(result.get(0).getMetadata()).doesNotContainKey("message");
+        assertThat(result.get(0).getMetadata()).containsEntry("safe", "ok");
+    }
+
+    @Test
     void searchForAdminReturnsEmptyMetadataWhenMissing() {
         ActivityLog log = new ActivityLog();
         log.setId("a1");

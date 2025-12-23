@@ -503,6 +503,40 @@ class ModelCoverageTest {
     }
 
     @Test
+    void activityLogEqualsAndToString() {
+        ActivityLog first = new ActivityLog();
+        first.setId("log-1");
+        first.setUserId("user-1");
+        first.setActivityType(ActivityType.LIKE);
+
+        ActivityLog second = new ActivityLog();
+        second.setId("log-1");
+        second.setUserId("user-1");
+        second.setActivityType(ActivityType.LIKE);
+
+        assertThat(first).isEqualTo(second);
+        assertThat(first.hashCode()).isEqualTo(second.hashCode());
+        assertThat(first.toString()).contains("log-1");
+    }
+
+    @Test
+    void adminAuditLogEqualsAndToString() {
+        AdminAuditLog first = new AdminAuditLog();
+        first.setId("audit-1");
+        first.setAdminUserId("admin-1");
+        first.setAction("ACTIVITY_LOG_QUERY");
+
+        AdminAuditLog second = new AdminAuditLog();
+        second.setId("audit-1");
+        second.setAdminUserId("admin-1");
+        second.setAction("ACTIVITY_LOG_QUERY");
+
+        assertThat(first).isEqualTo(second);
+        assertThat(first.hashCode()).isEqualTo(second.hashCode());
+        assertThat(first.toString()).contains("audit-1");
+    }
+
+    @Test
     void newsArticleStoresFields() {
         NewsArticle article = new NewsArticle();
         article.setTitle("Title");
