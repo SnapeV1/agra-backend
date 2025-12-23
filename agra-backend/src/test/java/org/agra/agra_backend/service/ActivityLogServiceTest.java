@@ -76,7 +76,7 @@ class ActivityLogServiceTest {
 
     @Test
     void logUserActivityWithNullUserSkipsUserInfo() {
-        service.logUserActivity(null, ActivityType.LIKE, "Liked post", "POST", "post-1", null);
+        service.logUserActivity((User) null, ActivityType.LIKE, "Liked post", "POST", "post-1", null);
 
         ArgumentCaptor<ActivityLog> captor = ArgumentCaptor.forClass(ActivityLog.class);
         verify(activityLogRepository).save(captor.capture());
