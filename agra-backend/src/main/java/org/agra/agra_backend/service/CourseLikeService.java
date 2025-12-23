@@ -2,10 +2,12 @@ package org.agra.agra_backend.service;
 
 import org.agra.agra_backend.dao.CourseRepository;
 import org.agra.agra_backend.dao.LikeRepository;
+import org.agra.agra_backend.model.ActivityType;
 import org.agra.agra_backend.model.Like;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -14,10 +16,14 @@ public class CourseLikeService {
 
     private final LikeRepository likeRepository;
     private final CourseRepository courseRepository;
+    private final ActivityLogService activityLogService;
 
-    public CourseLikeService(LikeRepository likeRepository, CourseRepository courseRepository) {
+    public CourseLikeService(LikeRepository likeRepository,
+                             CourseRepository courseRepository,
+                             ActivityLogService activityLogService) {
         this.likeRepository = likeRepository;
         this.courseRepository = courseRepository;
+        this.activityLogService = activityLogService;
     }
 
     public boolean likeCourse(String userId, String courseId) {
@@ -33,6 +39,14 @@ public class CourseLikeService {
         like.setTargetType(TARGET_TYPE_COURSE);
         like.setTargetId(courseId);
         likeRepository.save(like);
+        activityLogService.logUserActivity(
+                userId,
+                ActivityType.LIKE,
+                "Liked course",
+                TARGET_TYPE_COURSE,
+                courseId,
+                Map.of("courseId", courseId)
+        );
         return true;
     }
 

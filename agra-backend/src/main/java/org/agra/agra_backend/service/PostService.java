@@ -28,6 +28,7 @@ public class PostService {
     private final PostLikeRepository postLikeRepository;
     private final CommentLikeRepository commentLikeRepository;
     private final UserRepository userRepository;
+    private final ActivityLogService activityLogService;
 
     public static final String TARGET_TYPE_POST = "POST";
     public static final String TARGET_TYPE_COMMENT = "COMMENT";
@@ -38,7 +39,8 @@ public class PostService {
                        LikeRepository likeRepository,
                        PostLikeRepository postLikeRepository,
                        CommentLikeRepository commentLikeRepository,
-                       UserRepository userRepository) {
+                       UserRepository userRepository,
+                       ActivityLogService activityLogService) {
         this.postRepository = postRepository;
         this.cloudinaryService = cloudinaryService;
         this.commentRepository = commentRepository;
@@ -46,6 +48,7 @@ public class PostService {
         this.postLikeRepository = postLikeRepository;
         this.commentLikeRepository = commentLikeRepository;
         this.userRepository = userRepository;
+        this.activityLogService = activityLogService;
     }
 
     /* ============================================================
@@ -272,6 +275,16 @@ public class PostService {
             postRepository.save(post);
         });
 
+        if (isLiked) {
+            activityLogService.logUserActivity(
+                    userInfo,
+                    ActivityType.LIKE,
+                    "Liked post",
+                    TARGET_TYPE_POST,
+                    postId,
+                    Map.of("postId", postId)
+            );
+        }
         return new ToggleLikeResult(isLiked, shouldNotify);
     }
 
@@ -314,6 +327,16 @@ public class PostService {
             commentRepository.save(comment);
         });
 
+        if (isLiked) {
+            activityLogService.logUserActivity(
+                    userInfo,
+                    ActivityType.LIKE,
+                    "Liked comment",
+                    TARGET_TYPE_COMMENT,
+                    commentId,
+                    Map.of("commentId", commentId)
+            );
+        }
         return isLiked;
     }
 

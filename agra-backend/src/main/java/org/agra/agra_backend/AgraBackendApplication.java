@@ -5,10 +5,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.data.mongodb.config.EnableMongoAuditing;
 
 @SpringBootApplication
 @EnableScheduling
 @EnableDiscoveryClient
+@EnableMongoAuditing
 public class AgraBackendApplication {
 
     static final String AUTO_CLOSE_PROPERTY = "app.test.auto-close";

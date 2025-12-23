@@ -59,7 +59,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/sessions/**").authenticated()
                         .requestMatchers("/api/certificates/**").permitAll()
                         .requestMatchers("/api/progress/**").authenticated()
-
+			.requestMatchers("/actuator/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
