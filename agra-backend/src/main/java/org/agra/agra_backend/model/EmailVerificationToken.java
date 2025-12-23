@@ -21,7 +21,7 @@ public class EmailVerificationToken {
     @Indexed
     private String userId;
 
-    @Indexed(expireAfterSeconds = 0)
+    @Indexed(expireAfter = "PT0S")
     private Date expirationDate;
 
     private Date createdAt;

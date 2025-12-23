@@ -21,7 +21,7 @@ public class RefreshToken {
     @Indexed
     private String userId;
 
-    @Indexed(expireAfterSeconds = 0)
+    @Indexed(expireAfter = "PT0S")
     private Date expiresAt;
 
     private Date createdAt;

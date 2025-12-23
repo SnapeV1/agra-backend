@@ -27,7 +27,6 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.InstanceOfAssertFactories.list;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -124,7 +123,9 @@ class UserServiceTest {
         );
         Object fields = metadataCaptor.getValue().get("updatedFields");
         assertThat(fields).isInstanceOf(List.class);
-        assertThat(fields).asInstanceOf(list(String.class)).contains("password");
+        @SuppressWarnings("unchecked")
+        List<String> fieldsList = (List<String>) fields;
+        assertThat(fieldsList).contains("password");
     }
 
     @Test
@@ -182,7 +183,9 @@ class UserServiceTest {
         assertThat(metadataCaptor.getValue()).containsEntry("profilePictureProvided", true);
         Object fields = metadataCaptor.getValue().get("updatedFields");
         assertThat(fields).isInstanceOf(List.class);
-        assertThat(fields).asInstanceOf(list(String.class)).contains("picture");
+        @SuppressWarnings("unchecked")
+        List<String> fieldsList = (List<String>) fields;
+        assertThat(fieldsList).contains("picture");
     }
 
     @Test
