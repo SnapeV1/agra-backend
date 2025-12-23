@@ -1,6 +1,7 @@
 package org.agra.agra_backend.service;
 
 import org.agra.agra_backend.dao.CourseProgressRepository;
+import org.agra.agra_backend.model.ActivityType;
 import org.agra.agra_backend.model.CourseProgress;
 import org.springframework.stereotype.Service;
 
@@ -8,15 +9,19 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
 public class CourseProgressService {
 
     private final CourseProgressRepository courseProgressRepository;
+    private final ActivityLogService activityLogService;
 
-    public CourseProgressService(CourseProgressRepository courseProgressRepository) {
+    public CourseProgressService(CourseProgressRepository courseProgressRepository,
+                                 ActivityLogService activityLogService) {
         this.courseProgressRepository = courseProgressRepository;
+        this.activityLogService = activityLogService;
     }
 
     public boolean isUserEnrolledInCourse(String userId, String courseId) {
@@ -55,7 +60,16 @@ public class CourseProgressService {
         progress.setCompleted(false);
         progress.setProgressPercentage(0);
 
-        return courseProgressRepository.save(progress);
+        CourseProgress saved = courseProgressRepository.save(progress);
+        activityLogService.logUserActivity(
+                userId,
+                ActivityType.COURSE_ENROLLMENT,
+                "Enrolled in course",
+                "COURSE",
+                courseId,
+                Map.of("courseId", courseId)
+        );
+        return saved;
     }
 
     public List<CourseProgress> getUserEnrollments(String userId) {
@@ -71,13 +85,25 @@ public class CourseProgressService {
         
         if (progressOpt.isPresent()) {
             CourseProgress progress = progressOpt.get();
+            boolean wasCompleted = progress.isCompleted();
             progress.setProgressPercentage(progressPercentage);
-            
+
             if (progressPercentage >= 100) {
                 progress.setCompleted(true);
             }
-            
-            return courseProgressRepository.save(progress);
+
+            CourseProgress saved = courseProgressRepository.save(progress);
+            if (!wasCompleted && saved.isCompleted()) {
+                activityLogService.logUserActivity(
+                        userId,
+                        ActivityType.COURSE_COMPLETION,
+                        "Completed course",
+                        "COURSE",
+                        courseId,
+                        Map.of("courseId", courseId)
+                );
+            }
+            return saved;
         }
         
         throw new RuntimeException("User is not enrolled in this course");
@@ -165,6 +191,7 @@ public class CourseProgressService {
         
         if (progressOpt.isPresent()) {
             CourseProgress progress = progressOpt.get();
+            boolean wasCompleted = progress.isCompleted();
             progress.setCompleted(true);
             progress.setProgressPercentage(100);
             
@@ -178,7 +205,18 @@ public class CourseProgressService {
                 progress.setCertificateUrl("https://certificates.agra.com/course/" + courseId + "/user/" + userId);
             }
             
-            return courseProgressRepository.save(progress);
+            CourseProgress saved = courseProgressRepository.save(progress);
+            if (!wasCompleted) {
+                activityLogService.logUserActivity(
+                        userId,
+                        ActivityType.COURSE_COMPLETION,
+                        "Completed course",
+                        "COURSE",
+                        courseId,
+                        Map.of("courseId", courseId)
+                );
+            }
+            return saved;
         }
         
         throw new RuntimeException("User is not enrolled in this course");

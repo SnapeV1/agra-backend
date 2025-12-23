@@ -4,6 +4,7 @@ import org.agra.agra_backend.dao.NotificationRepository;
 import org.agra.agra_backend.dao.TicketMessageRepository;
 import org.agra.agra_backend.dao.TicketRepository;
 import org.agra.agra_backend.dao.UserRepository;
+import org.agra.agra_backend.model.ActivityType;
 import org.agra.agra_backend.model.Notification;
 import org.agra.agra_backend.model.NotificationType;
 import org.agra.agra_backend.model.Ticket;
@@ -41,6 +42,7 @@ public class TicketService {
     private final NotificationRepository notificationRepository;
     private final NotificationService notificationService;
     private final CloudinaryService cloudinaryService;
+    private final ActivityLogService activityLogService;
 
     public TicketService(TicketRepository ticketRepository,
                          TicketMessageRepository ticketMessageRepository,
@@ -48,7 +50,8 @@ public class TicketService {
                          UserRepository userRepository,
                          NotificationRepository notificationRepository,
                          NotificationService notificationService,
-                         CloudinaryService cloudinaryService) {
+                         CloudinaryService cloudinaryService,
+                         ActivityLogService activityLogService) {
         this.ticketRepository = ticketRepository;
         this.ticketMessageRepository = ticketMessageRepository;
         this.messagingTemplate = messagingTemplate;
@@ -56,6 +59,7 @@ public class TicketService {
         this.notificationRepository = notificationRepository;
         this.notificationService = notificationService;
         this.cloudinaryService = cloudinaryService;
+        this.activityLogService = activityLogService;
     }
 
     public TicketThreadResponse createTicket(User requester, CreateTicketRequest request) {
@@ -84,6 +88,14 @@ public class TicketService {
         ticket.setUpdatedAt(now);
 
         Ticket savedTicket = ticketRepository.save(ticket);
+        activityLogService.logUserActivity(
+                requester,
+                ActivityType.TICKET_SUBMISSION,
+                "Submitted ticket",
+                "TICKET",
+                savedTicket.getId(),
+                Map.of("subject", savedTicket.getSubject())
+        );
 
         String attachmentUrl = resolveAttachment(savedTicket, attachment);
         if (attachmentUrl != null && !attachmentUrl.equals(ticket.getAttachmentUrl())) {

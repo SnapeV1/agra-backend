@@ -1,5 +1,6 @@
 package org.agra.agra_backend.service;
 
+import org.agra.agra_backend.model.ActivityType;
 import org.agra.agra_backend.model.User;
 import org.agra.agra_backend.dao.UserRepository;
 
@@ -17,8 +18,11 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.util.Date;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 public class UserService implements IUserService {
@@ -26,12 +30,16 @@ public class UserService implements IUserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final CloudinaryService cloudinaryService;
+    private final ActivityLogService activityLogService;
 
     public UserService(UserRepository userRepository,
-                       PasswordEncoder passwordEncoder, CloudinaryService cloudinaryService) {
+                       PasswordEncoder passwordEncoder,
+                       CloudinaryService cloudinaryService,
+                       ActivityLogService activityLogService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.cloudinaryService = cloudinaryService;
+        this.activityLogService = activityLogService;
     }
 
 
@@ -114,7 +122,16 @@ public class UserService implements IUserService {
             user.setVerified(existingUser.getVerified());
         }
 
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        activityLogService.logUserActivity(
+                saved,
+                ActivityType.PROFILE_UPDATE,
+                "Updated profile",
+                "USER",
+                saved.getId(),
+                buildProfileUpdateMetadata(existingUser, user, false)
+        );
+        return saved;
     }
 
     @Caching(evict = {
@@ -175,7 +192,16 @@ public class UserService implements IUserService {
             user.setVerified(existingUser.getVerified());
         }
 
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        activityLogService.logUserActivity(
+                saved,
+                ActivityType.PROFILE_UPDATE,
+                "Updated profile",
+                "USER",
+                saved.getId(),
+                buildProfileUpdateMetadata(existingUser, user, profilePicProvided)
+        );
+        return saved;
     }
 
     private void logUserUpdateRequested(User oldUser, User newUser, boolean profilePicProvided) {
@@ -212,6 +238,26 @@ public class UserService implements IUserService {
             sb.append(" - ").append(field).append(": ")
               .append(oldDisplay).append(" -> ").append(newDisplay).append("\n");
         }
+    }
+
+    private Map<String, Object> buildProfileUpdateMetadata(User oldUser, User newUser, boolean profilePicProvided) {
+        List<String> updatedFields = new ArrayList<>();
+        if (newUser.getName() != null && !Objects.equals(oldUser.getName(), newUser.getName())) updatedFields.add("name");
+        if (newUser.getEmail() != null && !Objects.equals(oldUser.getEmail(), newUser.getEmail())) updatedFields.add("email");
+        if (newUser.getPhone() != null && !Objects.equals(oldUser.getPhone(), newUser.getPhone())) updatedFields.add("phone");
+        if (newUser.getCountry() != null && !Objects.equals(oldUser.getCountry(), newUser.getCountry())) updatedFields.add("country");
+        if (newUser.getLanguage() != null && !Objects.equals(oldUser.getLanguage(), newUser.getLanguage())) updatedFields.add("language");
+        if (newUser.getDomain() != null && !Objects.equals(oldUser.getDomain(), newUser.getDomain())) updatedFields.add("domain");
+        if (newUser.getRole() != null && !Objects.equals(oldUser.getRole(), newUser.getRole())) updatedFields.add("role");
+        if (newUser.getPicture() != null && !Objects.equals(oldUser.getPicture(), newUser.getPicture())) updatedFields.add("picture");
+        if (newUser.getBirthdate() != null && !Objects.equals(oldUser.getBirthdate(), newUser.getBirthdate())) updatedFields.add("birthdate");
+        if (newUser.getPassword() != null && !newUser.getPassword().isBlank()) updatedFields.add("password");
+        if (profilePicProvided && !updatedFields.contains("picture")) updatedFields.add("profilePicture");
+
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("updatedFields", updatedFields);
+        metadata.put("profilePictureProvided", profilePicProvided);
+        return metadata;
     }
 
     private boolean isBcrypt(String value) {
