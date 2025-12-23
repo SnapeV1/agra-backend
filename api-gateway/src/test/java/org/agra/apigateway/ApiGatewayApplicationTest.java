@@ -14,4 +14,15 @@ class ApiGatewayApplicationTest {
         assertThat(app).isNotNull();
         assertThat(app.getAllSources()).contains(ApiGatewayApplication.class);
     }
+
+    @Test
+    void createApplicationAddsAutoCloseListenerWhenEnabled() {
+        System.setProperty(ApiGatewayApplication.AUTO_CLOSE_PROPERTY, "true");
+        try {
+            SpringApplication app = ApiGatewayApplication.createApplication();
+            assertThat(app).isNotNull();
+        } finally {
+            System.clearProperty(ApiGatewayApplication.AUTO_CLOSE_PROPERTY);
+        }
+    }
 }

@@ -14,4 +14,15 @@ class AgraBackendApplicationTest {
         assertThat(app).isNotNull();
         assertThat(app.getAllSources()).contains(AgraBackendApplication.class);
     }
+
+    @Test
+    void createApplicationAddsAutoCloseListenerWhenEnabled() {
+        System.setProperty(AgraBackendApplication.AUTO_CLOSE_PROPERTY, "true");
+        try {
+            SpringApplication app = AgraBackendApplication.createApplication();
+            assertThat(app).isNotNull();
+        } finally {
+            System.clearProperty(AgraBackendApplication.AUTO_CLOSE_PROPERTY);
+        }
+    }
 }

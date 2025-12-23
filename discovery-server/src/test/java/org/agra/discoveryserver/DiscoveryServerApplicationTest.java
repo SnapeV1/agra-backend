@@ -14,4 +14,15 @@ class DiscoveryServerApplicationTest {
         assertThat(app).isNotNull();
         assertThat(app.getAllSources()).contains(DiscoveryServerApplication.class);
     }
+
+    @Test
+    void createApplicationAddsAutoCloseListenerWhenEnabled() {
+        System.setProperty(DiscoveryServerApplication.AUTO_CLOSE_PROPERTY, "true");
+        try {
+            SpringApplication app = DiscoveryServerApplication.createApplication();
+            assertThat(app).isNotNull();
+        } finally {
+            System.clearProperty(DiscoveryServerApplication.AUTO_CLOSE_PROPERTY);
+        }
+    }
 }

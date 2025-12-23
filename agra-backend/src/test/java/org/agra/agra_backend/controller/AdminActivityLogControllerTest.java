@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class AdminActivityLogControllerTest {
@@ -54,6 +55,7 @@ class AdminActivityLogControllerTest {
 
         List<ActivityLog> result = controller.listActivityLogs(
                 "u1",
+                null,
                 ActivityType.LIKE,
                 LocalDateTime.of(2025, 1, 1, 0, 0),
                 LocalDateTime.of(2025, 1, 2, 0, 0),
@@ -77,6 +79,7 @@ class AdminActivityLogControllerTest {
     void listActivityLogsRequiresUserId() {
         assertThatThrownBy(() -> controller.listActivityLogs(
                 " ",
+                null,
                 ActivityType.LIKE,
                 LocalDateTime.of(2025, 1, 1, 0, 0),
                 LocalDateTime.of(2025, 1, 2, 0, 0),
@@ -89,6 +92,7 @@ class AdminActivityLogControllerTest {
     void listActivityLogsRequiresBothStartAndEnd() {
         assertThatThrownBy(() -> controller.listActivityLogs(
                 "u1",
+                null,
                 ActivityType.LIKE,
                 null,
                 LocalDateTime.of(2025, 1, 2, 0, 0),
@@ -107,6 +111,7 @@ class AdminActivityLogControllerTest {
 
         List<ActivityLog> result = controller.listActivityLogs(
                 "u1",
+                null,
                 ActivityType.LIKE,
                 null,
                 null,
@@ -122,6 +127,7 @@ class AdminActivityLogControllerTest {
     void listActivityLogsRequiresReason() {
         assertThatThrownBy(() -> controller.listActivityLogs(
                 "u1",
+                null,
                 ActivityType.LIKE,
                 LocalDateTime.of(2025, 1, 1, 0, 0),
                 LocalDateTime.of(2025, 1, 2, 0, 0),
@@ -134,6 +140,7 @@ class AdminActivityLogControllerTest {
     void listActivityLogsRejectsInvalidWindow() {
         assertThatThrownBy(() -> controller.listActivityLogs(
                 "u1",
+                null,
                 ActivityType.LIKE,
                 LocalDateTime.of(2025, 1, 2, 0, 0),
                 LocalDateTime.of(2025, 1, 1, 0, 0),
@@ -146,11 +153,75 @@ class AdminActivityLogControllerTest {
     void listActivityLogsRejectsTooLargeWindow() {
         assertThatThrownBy(() -> controller.listActivityLogs(
                 "u1",
+                null,
                 ActivityType.LIKE,
                 LocalDateTime.of(2025, 1, 1, 0, 0),
                 LocalDateTime.of(2025, 2, 15, 0, 0),
                 "audit-check",
                 50
         )).hasMessageContaining("date window exceeds");
+    }
+
+    @Test
+    void listActivityLogsResolvesEmailToUserId() {
+        when(activityLogService.searchForAdmin("u1", null, null, null, 10))
+                .thenReturn(List.of());
+        User admin = new User();
+        admin.setId("admin-1");
+        when(userService.getCurrentUserOrThrow()).thenReturn(admin);
+        User user = new User();
+        user.setId("u1");
+        when(userService.findByEmailIgnoreCase("user@example.com")).thenReturn(java.util.Optional.of(user));
+
+        List<ActivityLog> result = controller.listActivityLogs(
+                null,
+                "user@example.com",
+                null,
+                null,
+                null,
+                "audit-check",
+                10
+        );
+
+        assertThat(result).isEmpty();
+        verify(activityLogService).searchForAdmin("u1", null, null, null, 10);
+    }
+
+    @Test
+    void listActivityLogsPrefersUserIdOverEmail() {
+        when(activityLogService.searchForAdmin("u1", null, null, null, 10))
+                .thenReturn(List.of());
+        User admin = new User();
+        admin.setId("admin-1");
+        when(userService.getCurrentUserOrThrow()).thenReturn(admin);
+
+        List<ActivityLog> result = controller.listActivityLogs(
+                "u1",
+                "user@example.com",
+                null,
+                null,
+                null,
+                "audit-check",
+                10
+        );
+
+        assertThat(result).isEmpty();
+        verify(activityLogService).searchForAdmin("u1", null, null, null, 10);
+        verify(userService, never()).findByEmailIgnoreCase("user@example.com");
+    }
+
+    @Test
+    void listActivityLogsRejectsUnknownEmail() {
+        when(userService.findByEmailIgnoreCase("missing@example.com")).thenReturn(java.util.Optional.empty());
+
+        assertThatThrownBy(() -> controller.listActivityLogs(
+                null,
+                "missing@example.com",
+                null,
+                null,
+                null,
+                "audit-check",
+                10
+        )).hasMessageContaining("No user found for email");
     }
 }

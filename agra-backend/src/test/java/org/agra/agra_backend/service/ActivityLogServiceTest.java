@@ -75,6 +75,17 @@ class ActivityLogServiceTest {
     }
 
     @Test
+    void logUserActivityWithNullUserSkipsUserInfo() {
+        service.logUserActivity(null, ActivityType.LIKE, "Liked post", "POST", "post-1", null);
+
+        ArgumentCaptor<ActivityLog> captor = ArgumentCaptor.forClass(ActivityLog.class);
+        verify(activityLogRepository).save(captor.capture());
+        ActivityLog saved = captor.getValue();
+        assertThat(saved.getUserId()).isNull();
+        assertThat(saved.getUserInfo()).isNull();
+    }
+
+    @Test
     void searchFiltersAndSortsByCreatedAtDesc() {
         ActivityLog first = new ActivityLog();
         first.setId("a1");

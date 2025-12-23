@@ -43,28 +43,31 @@ public class AdminActivityLogController {
     @PreAuthorize("hasRole('ADMIN')")
     public List<ActivityLog> listActivityLogs(
             @RequestParam(required = false) String userId,
+            @RequestParam(required = false) String email,
             @RequestParam(required = false) ActivityType activityType,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end,
             @RequestParam String reason,
             @RequestParam(required = false, defaultValue = "200") Integer limit
     ) {
-        validateFilters(userId, start, end, reason);
+        String resolvedUserId = resolveUserId(userId, email);
+        validateFilters(resolvedUserId, start, end, reason);
         User admin = userService.getCurrentUserOrThrow();
         Map<String, Object> auditMetadata = new java.util.HashMap<>();
-        auditMetadata.put("userId", userId);
+        auditMetadata.put("userId", resolvedUserId);
+        auditMetadata.put("email", email);
         auditMetadata.put("activityType", activityType != null ? activityType.name() : null);
         auditMetadata.put("start", start);
         auditMetadata.put("end", end);
         auditMetadata.put("limit", limit);
         auditMetadata.put("reason", reason);
         adminAuditLogService.logAccess(admin, "ACTIVITY_LOG_QUERY", auditMetadata);
-        return activityLogService.searchForAdmin(userId, activityType, start, end, limit);
+        return activityLogService.searchForAdmin(resolvedUserId, activityType, start, end, limit);
     }
 
     private void validateFilters(String userId, LocalDateTime start, LocalDateTime end, String reason) {
         if (userId == null || userId.isBlank()) {
-            throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "userId is required");
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "userId or email is required");
         }
         if (reason == null || reason.isBlank()) {
             throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "reason is required");
@@ -84,5 +87,20 @@ public class AdminActivityLogController {
                 );
             }
         }
+    }
+
+    private String resolveUserId(String userId, String email) {
+        if (userId != null && !userId.isBlank()) {
+            return userId;
+        }
+        if (email == null || email.isBlank()) {
+            return null;
+        }
+        return userService.findByEmailIgnoreCase(email)
+                .map(User::getId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST,
+                        "No user found for email"
+                ));
     }
 }

@@ -238,6 +238,17 @@ class UserServiceTest {
     }
 
     @Test
+    void findByEmailIgnoreCaseDelegates() {
+        User user = new User();
+        user.setId("user-1");
+        when(userRepository.findByEmailIgnoreCase("user@example.com")).thenReturn(Optional.of(user));
+
+        Optional<User> result = service.findByEmailIgnoreCase("user@example.com");
+
+        assertThat(result).contains(user);
+    }
+
+    @Test
     void changePasswordThrowsWhenNewPasswordBlank() {
         assertThatThrownBy(() -> service.changePassword("user-1", "old", " "))
                 .isInstanceOf(ResponseStatusException.class)
