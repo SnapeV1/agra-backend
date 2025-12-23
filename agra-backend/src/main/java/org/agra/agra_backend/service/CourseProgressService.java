@@ -61,14 +61,16 @@ public class CourseProgressService {
         progress.setProgressPercentage(0);
 
         CourseProgress saved = courseProgressRepository.save(progress);
-        activityLogService.logUserActivity(
-                userId,
-                ActivityType.COURSE_ENROLLMENT,
-                "Enrolled in course",
-                "COURSE",
-                courseId,
-                Map.of("courseId", courseId)
-        );
+        if (activityLogService != null) {
+            activityLogService.logUserActivity(
+                    userId,
+                    ActivityType.COURSE_ENROLLMENT,
+                    "Enrolled in course",
+                    "COURSE",
+                    courseId,
+                    Map.of("courseId", courseId)
+            );
+        }
         return saved;
     }
 
@@ -94,14 +96,16 @@ public class CourseProgressService {
 
             CourseProgress saved = courseProgressRepository.save(progress);
             if (!wasCompleted && saved.isCompleted()) {
-                activityLogService.logUserActivity(
-                        userId,
-                        ActivityType.COURSE_COMPLETION,
-                        "Completed course",
-                        "COURSE",
-                        courseId,
-                        Map.of("courseId", courseId)
-                );
+                if (activityLogService != null) {
+                    activityLogService.logUserActivity(
+                            userId,
+                            ActivityType.COURSE_COMPLETION,
+                            "Completed course",
+                            "COURSE",
+                            courseId,
+                            Map.of("courseId", courseId)
+                    );
+                }
             }
             return saved;
         }
@@ -207,14 +211,16 @@ public class CourseProgressService {
             
             CourseProgress saved = courseProgressRepository.save(progress);
             if (!wasCompleted) {
-                activityLogService.logUserActivity(
-                        userId,
-                        ActivityType.COURSE_COMPLETION,
-                        "Completed course",
-                        "COURSE",
-                        courseId,
-                        Map.of("courseId", courseId)
-                );
+                if (activityLogService != null) {
+                    activityLogService.logUserActivity(
+                            userId,
+                            ActivityType.COURSE_COMPLETION,
+                            "Completed course",
+                            "COURSE",
+                            courseId,
+                            Map.of("courseId", courseId)
+                    );
+                }
             }
             return saved;
         }
