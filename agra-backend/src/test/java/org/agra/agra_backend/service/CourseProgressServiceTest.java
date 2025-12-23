@@ -1,6 +1,7 @@
 package org.agra.agra_backend.service;
 
 import org.agra.agra_backend.dao.CourseProgressRepository;
+import org.agra.agra_backend.model.ActivityType;
 import org.agra.agra_backend.model.CourseProgress;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,6 +11,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,6 +24,9 @@ class CourseProgressServiceTest {
 
     @Mock
     private CourseProgressRepository courseProgressRepository;
+
+    @Mock
+    private ActivityLogService activityLogService;
 
     @InjectMocks
     private CourseProgressService service;
@@ -54,6 +59,14 @@ class CourseProgressServiceTest {
         assertThat(created.isCompleted()).isFalse();
         assertThat(created.getProgressPercentage()).isZero();
         assertThat(created.getEnrolledAt()).isNotNull();
+        verify(activityLogService).logUserActivity(
+                "user-1",
+                ActivityType.COURSE_ENROLLMENT,
+                "Enrolled in course",
+                "COURSE",
+                "course-1",
+                Map.of("courseId", "course-1")
+        );
     }
 
     @Test
@@ -98,6 +111,14 @@ class CourseProgressServiceTest {
 
         assertThat(updated.getProgressPercentage()).isEqualTo(100);
         assertThat(updated.isCompleted()).isTrue();
+        verify(activityLogService).logUserActivity(
+                "user-1",
+                ActivityType.COURSE_COMPLETION,
+                "Completed course",
+                "COURSE",
+                "course-1",
+                Map.of("courseId", "course-1")
+        );
     }
 
     @Test
@@ -206,6 +227,14 @@ class CourseProgressServiceTest {
         assertThat(updated.getProgressPercentage()).isEqualTo(100);
         assertThat(updated.getCertificateUrl()).contains("course-1").contains("user-1");
         assertThat(updated.getStartedAt()).isNotNull();
+        verify(activityLogService).logUserActivity(
+                "user-1",
+                ActivityType.COURSE_COMPLETION,
+                "Completed course",
+                "COURSE",
+                "course-1",
+                Map.of("courseId", "course-1")
+        );
     }
 
     @Test

@@ -2,6 +2,7 @@ package org.agra.agra_backend.service;
 
 import org.agra.agra_backend.dao.CourseRepository;
 import org.agra.agra_backend.dao.LikeRepository;
+import org.agra.agra_backend.model.ActivityType;
 import org.agra.agra_backend.model.Course;
 import org.agra.agra_backend.model.Like;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,6 +30,9 @@ class CourseLikeServiceTest {
 
     @Mock
     private CourseRepository courseRepository;
+
+    @Mock
+    private ActivityLogService activityLogService;
 
     @InjectMocks
     private CourseLikeService service;
@@ -66,6 +71,14 @@ class CourseLikeServiceTest {
         ArgumentCaptor<Like> captor = ArgumentCaptor.forClass(Like.class);
         verify(likeRepository).save(captor.capture());
         assertThat(captor.getValue().getTargetId()).isEqualTo("c1");
+        verify(activityLogService).logUserActivity(
+                "u1",
+                ActivityType.LIKE,
+                "Liked course",
+                CourseLikeService.TARGET_TYPE_COURSE,
+                "c1",
+                Map.of("courseId", "c1")
+        );
     }
 
     @Test

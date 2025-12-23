@@ -429,6 +429,29 @@ class ModelCoverageTest {
     }
 
     @Test
+    void activityLogStoresFields() {
+        ActivityLog log = new ActivityLog();
+        log.setId("log-1");
+        log.setUserId("user-1");
+        log.setActivityType(ActivityType.LIKE);
+        log.setAction("Liked post");
+        log.setTargetType("POST");
+        log.setTargetId("post-1");
+        log.setMetadata(Map.of("postId", "post-1"));
+        log.setCreatedAt(LocalDateTime.now());
+
+        assertThat(log.getId()).isEqualTo("log-1");
+        assertThat(log.getActivityType()).isEqualTo(ActivityType.LIKE);
+        assertThat(log.getTargetType()).isEqualTo("POST");
+        assertThat(log.getMetadata()).containsEntry("postId", "post-1");
+    }
+
+    @Test
+    void activityTypeIncludesCourseCompletion() {
+        assertThat(ActivityType.valueOf("COURSE_COMPLETION")).isEqualTo(ActivityType.COURSE_COMPLETION);
+    }
+
+    @Test
     void newsArticleStoresFields() {
         NewsArticle article = new NewsArticle();
         article.setTitle("Title");

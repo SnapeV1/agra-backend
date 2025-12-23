@@ -6,6 +6,7 @@ import org.agra.agra_backend.dao.LikeRepository;
 import org.agra.agra_backend.dao.PostLikeRepository;
 import org.agra.agra_backend.dao.PostRepository;
 import org.agra.agra_backend.dao.UserRepository;
+import org.agra.agra_backend.model.ActivityType;
 import org.agra.agra_backend.model.Comment;
 import org.agra.agra_backend.model.CommentLike;
 import org.agra.agra_backend.model.Like;
@@ -52,6 +53,8 @@ class PostServiceTest {
     private CommentLikeRepository commentLikeRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private ActivityLogService activityLogService;
 
     @InjectMocks
     private PostService service;
@@ -339,11 +342,21 @@ class PostServiceTest {
         when(postLikeRepository.countActiveByPostId("post-1")).thenReturn(1L);
         when(postRepository.findById("post-1")).thenReturn(Optional.of(new Post()));
 
-        PostService.ToggleLikeResult result = service.togglePostLike("post-1", "user-1", new User());
+        User user = new User();
+        user.setId("user-1");
+        PostService.ToggleLikeResult result = service.togglePostLike("post-1", "user-1", user);
 
         assertThat(result.isLiked).isTrue();
         assertThat(result.shouldNotify).isTrue();
         verify(postLikeRepository).save(any(PostLike.class));
+        verify(activityLogService).logUserActivity(
+                user,
+                ActivityType.LIKE,
+                "Liked post",
+                PostService.TARGET_TYPE_POST,
+                "post-1",
+                Map.of("postId", "post-1")
+        );
     }
 
     @Test
@@ -390,10 +403,20 @@ class PostServiceTest {
         when(likeRepository.countByTargetTypeAndTargetId(PostService.TARGET_TYPE_COMMENT, "c1")).thenReturn(0L);
         when(commentRepository.findById("c1")).thenReturn(Optional.of(new Comment()));
 
-        boolean liked = service.toggleCommentLike("c1", "user-1", new User());
+        User user = new User();
+        user.setId("user-1");
+        boolean liked = service.toggleCommentLike("c1", "user-1", user);
 
         assertThat(liked).isTrue();
         verify(commentLikeRepository).save(any(CommentLike.class));
+        verify(activityLogService).logUserActivity(
+                user,
+                ActivityType.LIKE,
+                "Liked comment",
+                PostService.TARGET_TYPE_COMMENT,
+                "c1",
+                Map.of("commentId", "c1")
+        );
     }
 
     @Test

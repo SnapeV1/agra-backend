@@ -4,6 +4,7 @@ import org.agra.agra_backend.dao.NotificationRepository;
 import org.agra.agra_backend.dao.TicketMessageRepository;
 import org.agra.agra_backend.dao.TicketRepository;
 import org.agra.agra_backend.dao.UserRepository;
+import org.agra.agra_backend.model.ActivityType;
 import org.agra.agra_backend.model.Notification;
 import org.agra.agra_backend.model.Ticket;
 import org.agra.agra_backend.model.TicketMessage;
@@ -51,6 +52,8 @@ class TicketServiceTest {
     private NotificationService notificationService;
     @Mock
     private CloudinaryService cloudinaryService;
+    @Mock
+    private ActivityLogService activityLogService;
 
     @InjectMocks
     private TicketService service;
@@ -221,6 +224,14 @@ class TicketServiceTest {
         verify(notificationRepository).save(any(Notification.class));
         verify(notificationService).createStatusForUser(eq("admin-1"), any(Notification.class));
         verify(messagingTemplate).convertAndSendToUser(eq("admin-1"), eq("/queue/notifications"), any(Notification.class));
+        verify(activityLogService).logUserActivity(
+                requester,
+                ActivityType.TICKET_SUBMISSION,
+                "Submitted ticket",
+                "TICKET",
+                "ticket-1",
+                Map.of("subject", "Need help")
+        );
     }
 
     @Test

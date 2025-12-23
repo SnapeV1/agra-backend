@@ -1,6 +1,7 @@
 package org.agra.agra_backend.service;
 
 import org.agra.agra_backend.dao.UserRepository;
+import org.agra.agra_backend.model.ActivityType;
 import org.agra.agra_backend.model.User;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,6 +37,8 @@ class UserServiceTest {
     private PasswordEncoder passwordEncoder;
     @Mock
     private CloudinaryService cloudinaryService;
+    @Mock
+    private ActivityLogService activityLogService;
 
     @InjectMocks
     private UserService service;
@@ -104,6 +108,14 @@ class UserServiceTest {
         assertThat(saved.getRegisteredAt()).isEqualTo(existing.getRegisteredAt());
         assertThat(saved.getVerified()).isTrue();
         assertThat(saved.getPassword()).isEqualTo("encoded-new");
+        verify(activityLogService).logUserActivity(
+                saved,
+                ActivityType.PROFILE_UPDATE,
+                "Updated profile",
+                "USER",
+                "user-1",
+                anyMap()
+        );
     }
 
     @Test
@@ -149,6 +161,14 @@ class UserServiceTest {
 
         assertThat(saved.getPicture()).isEqualTo("https://img/new");
         assertThat(saved.getPassword()).isEqualTo("encoded-new");
+        verify(activityLogService).logUserActivity(
+                saved,
+                ActivityType.PROFILE_UPDATE,
+                "Updated profile",
+                "USER",
+                "user-1",
+                anyMap()
+        );
     }
 
     @Test
