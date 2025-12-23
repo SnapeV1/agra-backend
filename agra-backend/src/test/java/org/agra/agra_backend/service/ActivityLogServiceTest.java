@@ -75,6 +75,19 @@ class ActivityLogServiceTest {
     }
 
     @Test
+    void logUserActivityWithUnknownUserIdKeepsNullUserInfo() {
+        when(userRepository.findById("missing")).thenReturn(Optional.empty());
+
+        service.logUserActivity("missing", ActivityType.LIKE, "Liked post", "POST", "post-1", Map.of());
+
+        ArgumentCaptor<ActivityLog> captor = ArgumentCaptor.forClass(ActivityLog.class);
+        verify(activityLogRepository).save(captor.capture());
+        ActivityLog saved = captor.getValue();
+        assertThat(saved.getUserId()).isEqualTo("missing");
+        assertThat(saved.getUserInfo()).isNull();
+    }
+
+    @Test
     void logUserActivityWithNullUserSkipsUserInfo() {
         service.logUserActivity((User) null, ActivityType.LIKE, "Liked post", "POST", "post-1", null);
 
@@ -117,6 +130,21 @@ class ActivityLogServiceTest {
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getId()).isEqualTo("a1");
+    }
+
+    @Test
+    void searchHandlesZeroLimitAsUnlimited() {
+        ActivityLog log = new ActivityLog();
+        log.setId("a1");
+        log.setUserId("u1");
+        log.setActivityType(ActivityType.LIKE);
+        log.setCreatedAt(LocalDateTime.of(2025, 1, 1, 10, 0));
+
+        when(activityLogRepository.findAll()).thenReturn(List.of(log));
+
+        List<ActivityLog> result = service.search("u1", ActivityType.LIKE, null, null, 0);
+
+        assertThat(result).hasSize(1);
     }
 
     @Test

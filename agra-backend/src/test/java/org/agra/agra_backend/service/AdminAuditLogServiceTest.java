@@ -48,6 +48,17 @@ class AdminAuditLogServiceTest {
     }
 
     @Test
+    void logAccessHandlesNullAdmin() {
+        service.logAccess(null, "ACTIVITY_LOG_QUERY", Map.of());
+
+        ArgumentCaptor<AdminAuditLog> captor = ArgumentCaptor.forClass(AdminAuditLog.class);
+        verify(adminAuditLogRepository).save(captor.capture());
+        AdminAuditLog saved = captor.getValue();
+        assertThat(saved.getAdminUserId()).isNull();
+        assertThat(saved.getAdminInfo()).isNull();
+    }
+
+    @Test
     void cleanupOldAuditLogsDeletesBeforeCutoff() {
         service.cleanupOldAuditLogs();
         verify(adminAuditLogRepository).deleteByCreatedAtBefore(org.mockito.ArgumentMatchers.any(LocalDateTime.class));
