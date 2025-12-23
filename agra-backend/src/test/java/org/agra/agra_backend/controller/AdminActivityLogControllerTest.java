@@ -76,7 +76,7 @@ class AdminActivityLogControllerTest {
     }
 
     @Test
-    void listActivityLogsRequiresUserId() {
+    void listActivityLogsRequiresUserIdOrEmail() {
         assertThatThrownBy(() -> controller.listActivityLogs(
                 " ",
                 null,
@@ -85,7 +85,7 @@ class AdminActivityLogControllerTest {
                 LocalDateTime.of(2025, 1, 2, 0, 0),
                 "audit-check",
                 50
-        )).hasMessageContaining("userId is required");
+        )).hasMessageContaining("userId or email is required");
     }
 
     @Test
