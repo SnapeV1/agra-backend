@@ -18,7 +18,7 @@ import static org.mockito.Mockito.when;
 class GoogleAuthServiceTest {
 
     @Test
-    void verifyGoogleTokenRejectsMissingEmail() throws Exception {
+    void verifyGoogleTokenRejectsMissingEmail() {
         GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
         GoogleAuthService service = buildService(payload);
 
@@ -28,7 +28,7 @@ class GoogleAuthServiceTest {
     }
 
     @Test
-    void verifyGoogleTokenCreatesUserWithDefaults() throws Exception {
+    void verifyGoogleTokenCreatesUserWithDefaults() {
         GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
         payload.setEmail("Test@Example.com");
         payload.setEmailVerified(true);
