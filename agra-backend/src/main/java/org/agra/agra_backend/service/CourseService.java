@@ -9,7 +9,6 @@ import org.agra.agra_backend.model.CourseTranslation;
 import org.agra.agra_backend.model.QuizAnswer;
 import org.agra.agra_backend.model.QuizQuestion;
 import org.agra.agra_backend.model.TextContent;
-import org.agra.agra_backend.misc.I18nResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
@@ -310,47 +309,9 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
         Map<String, String> content = new HashMap<>(normalizeMap(textContent.getContent()));
         Map<String, org.agra.agra_backend.model.TextContentTranslation> translations =
                 textContent.getTranslations() != null ? new HashMap<>(textContent.getTranslations()) : new HashMap<>();
-        if (translations != null) {
-            for (Map.Entry<String, org.agra.agra_backend.model.TextContentTranslation> entry : translations.entrySet()) {
-                String lang = entry.getKey();
-                org.agra.agra_backend.model.TextContentTranslation tr = entry.getValue();
-                if (lang == null || lang.isBlank() || tr == null) {
-                    continue;
-                }
-                if (tr.getTitle() != null && !title.containsKey(lang)) {
-                    title.put(lang, tr.getTitle());
-                }
-                if (tr.getContent() != null && !content.containsKey(lang)) {
-                    content.put(lang, tr.getContent());
-                }
-            }
-        }
-        for (Map.Entry<String, String> entry : title.entrySet()) {
-            String lang = entry.getKey();
-            String value = entry.getValue();
-            if (lang == null || lang.isBlank()) {
-                continue;
-            }
-            org.agra.agra_backend.model.TextContentTranslation tr = translations.getOrDefault(
-                    lang, new org.agra.agra_backend.model.TextContentTranslation());
-            if (tr.getTitle() == null) {
-                tr.setTitle(value);
-            }
-            translations.put(lang, tr);
-        }
-        for (Map.Entry<String, String> entry : content.entrySet()) {
-            String lang = entry.getKey();
-            String value = entry.getValue();
-            if (lang == null || lang.isBlank()) {
-                continue;
-            }
-            org.agra.agra_backend.model.TextContentTranslation tr = translations.getOrDefault(
-                    lang, new org.agra.agra_backend.model.TextContentTranslation());
-            if (tr.getContent() == null) {
-                tr.setContent(value);
-            }
-            translations.put(lang, tr);
-        }
+        mergeTranslationMapsIntoFields(translations, title, content);
+        backfillTranslationsFromMap(translations, title, true);
+        backfillTranslationsFromMap(translations, content, false);
         textContent.setTitle(title);
         textContent.setContent(content);
         textContent.setTranslations(translations.isEmpty() ? null : translations);
@@ -477,46 +438,49 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
         return resolveTranslation(course.getTranslations(), locale, course.getDefaultLanguage());
     }
 
-    private List<TextContent> localizeTextContents(List<TextContent> contents, Locale locale, String defaultLanguage) {
-        if (contents == null || contents.isEmpty()) return contents;
-        List<TextContent> localized = new java.util.ArrayList<>(contents.size());
-        for (TextContent content : contents) {
-            if (content == null) continue;
-            TextContent localizedContent = new TextContent();
-            BeanUtils.copyProperties(content, localizedContent);
-            localizedContent.setTitle(localizeMap(content.getTitle(), locale, defaultLanguage));
-            localizedContent.setContent(localizeMap(content.getContent(), locale, defaultLanguage));
-            localizedContent.setQuizQuestions(localizeQuizQuestions(content.getQuizQuestions(), locale, defaultLanguage));
-            localized.add(localizedContent);
+    private void mergeTranslationMapsIntoFields(
+            Map<String, org.agra.agra_backend.model.TextContentTranslation> translations,
+            Map<String, String> title,
+            Map<String, String> content) {
+        if (translations == null || translations.isEmpty()) {
+            return;
         }
-        return localized;
+        for (Map.Entry<String, org.agra.agra_backend.model.TextContentTranslation> entry : translations.entrySet()) {
+            String lang = entry.getKey();
+            org.agra.agra_backend.model.TextContentTranslation tr = entry.getValue();
+            if (lang == null || lang.isBlank() || tr == null) {
+                continue;
+            }
+            if (tr.getTitle() != null && !title.containsKey(lang)) {
+                title.put(lang, tr.getTitle());
+            }
+            if (tr.getContent() != null && !content.containsKey(lang)) {
+                content.put(lang, tr.getContent());
+            }
+        }
     }
 
-    private List<QuizQuestion> localizeQuizQuestions(List<QuizQuestion> questions, Locale locale, String defaultLanguage) {
-        if (questions == null || questions.isEmpty()) return questions;
-        List<QuizQuestion> localized = new java.util.ArrayList<>(questions.size());
-        for (QuizQuestion question : questions) {
-            if (question == null) continue;
-            QuizQuestion localizedQuestion = new QuizQuestion();
-            BeanUtils.copyProperties(question, localizedQuestion);
-            localizedQuestion.setQuestion(localizeMap(question.getQuestion(), locale, defaultLanguage));
-            localizedQuestion.setAnswers(localizeQuizAnswers(question.getAnswers(), locale, defaultLanguage));
-            localized.add(localizedQuestion);
+    private void backfillTranslationsFromMap(
+            Map<String, org.agra.agra_backend.model.TextContentTranslation> translations,
+            Map<String, String> source,
+            boolean isTitle) {
+        for (Map.Entry<String, String> entry : source.entrySet()) {
+            String lang = entry.getKey();
+            if (lang == null || lang.isBlank()) {
+                continue;
+            }
+            String value = entry.getValue();
+            org.agra.agra_backend.model.TextContentTranslation tr = translations.getOrDefault(
+                    lang, new org.agra.agra_backend.model.TextContentTranslation());
+            if (isTitle) {
+                if (tr.getTitle() == null) {
+                    tr.setTitle(value);
+                }
+            } else if (tr.getContent() == null) {
+                tr.setContent(value);
+            }
+            translations.put(lang, tr);
         }
-        return localized;
-    }
-
-    private List<QuizAnswer> localizeQuizAnswers(List<QuizAnswer> answers, Locale locale, String defaultLanguage) {
-        if (answers == null || answers.isEmpty()) return answers;
-        List<QuizAnswer> localized = new java.util.ArrayList<>(answers.size());
-        for (QuizAnswer answer : answers) {
-            if (answer == null) continue;
-            QuizAnswer localizedAnswer = new QuizAnswer();
-            BeanUtils.copyProperties(answer, localizedAnswer);
-            localizedAnswer.setText(localizeMap(answer.getText(), locale, defaultLanguage));
-            localized.add(localizedAnswer);
-        }
-        return localized;
     }
 
     private Map<String, String> normalizeMap(Map<String, String> translations) {
@@ -524,19 +488,6 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
             return Collections.emptyMap();
         }
         return translations;
-    }
-
-    private Map<String, String> localizeMap(Map<String, String> translations, Locale locale, String defaultLanguage) {
-        if (translations == null || translations.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        String lang = locale != null ? locale.getLanguage() : null;
-        String resolved = I18nResolver.resolve(translations, lang, defaultLanguage);
-        String resolvedKey = I18nResolver.resolveKey(translations, lang, defaultLanguage);
-        if (resolved == null || resolvedKey == null) {
-            return Collections.emptyMap();
-        }
-        return Map.of(resolvedKey, resolved);
     }
 
     private <T> T resolveTranslation(Map<String, T> translations, Locale locale, String defaultLanguage) {

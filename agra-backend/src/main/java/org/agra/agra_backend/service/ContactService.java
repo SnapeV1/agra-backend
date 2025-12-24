@@ -7,8 +7,6 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
-import java.sql.SQLOutput;
-
 @Service
 @RequiredArgsConstructor
 public class ContactService {

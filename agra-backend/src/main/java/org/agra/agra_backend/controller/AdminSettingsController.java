@@ -32,6 +32,7 @@ public class AdminSettingsController {
     private static final String KEY_STATUS = "status";
     private static final String KEY_EMAIL = "email";
     private static final String KEY_CURRENT_PASSWORD = "currentPassword";
+    private static final String KEY_COOLDOWN_SECONDS = "cooldownSeconds";
     private static final String MSG_CURRENT_PASSWORD_INCORRECT = "Current password incorrect";
 
     private final AdminSettingsService adminSettingsService;
@@ -66,7 +67,7 @@ public class AdminSettingsController {
         AdminSettings settings = newsService.getAdminSettings();
         Map<String, Object> resp = new HashMap<>();
         resp.put("cron", settings.getNewsCron());
-        resp.put("cooldownSeconds", settings.getNewsFetchCooldownSeconds());
+        resp.put(KEY_COOLDOWN_SECONDS, settings.getNewsFetchCooldownSeconds());
         resp.put("lastFetchAt", settings.getLastNewsFetchAt());
         return resp;
     }
@@ -90,7 +91,7 @@ public class AdminSettingsController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> fetchNow(@RequestBody(required = false) Map<String, Object> body) {
         Duration cooldownOverride = null;
-        if (body != null && body.get("cooldownSeconds") instanceof Number n) {
+        if (body != null && body.get(KEY_COOLDOWN_SECONDS) instanceof Number n) {
             cooldownOverride = Duration.ofSeconds(n.longValue());
         }
         try {
@@ -101,7 +102,7 @@ public class AdminSettingsController {
         var articles = newsService.fetchNorthAfricaAgricultureNow();
         User admin = requireAdmin();
         Map<String, Object> auditMetadata = new HashMap<>();
-        auditMetadata.put("cooldownSeconds", cooldownOverride != null ? cooldownOverride.getSeconds() : null);
+        auditMetadata.put(KEY_COOLDOWN_SECONDS, cooldownOverride != null ? cooldownOverride.getSeconds() : null);
         auditMetadata.put("count", articles.size());
         adminAuditLogService.logAccess(admin, "ADMIN_FETCH_NEWS_NOW", auditMetadata);
         Map<String, Object> resp = new HashMap<>();
