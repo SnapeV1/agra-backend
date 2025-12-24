@@ -306,8 +306,54 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
     }
 
     private void normalizeTextContentTranslations(TextContent textContent) {
-        textContent.setTitle(normalizeMap(textContent.getTitle()));
-        textContent.setContent(normalizeMap(textContent.getContent()));
+        Map<String, String> title = new HashMap<>(normalizeMap(textContent.getTitle()));
+        Map<String, String> content = new HashMap<>(normalizeMap(textContent.getContent()));
+        Map<String, org.agra.agra_backend.model.TextContentTranslation> translations =
+                textContent.getTranslations() != null ? new HashMap<>(textContent.getTranslations()) : new HashMap<>();
+        if (translations != null) {
+            for (Map.Entry<String, org.agra.agra_backend.model.TextContentTranslation> entry : translations.entrySet()) {
+                String lang = entry.getKey();
+                org.agra.agra_backend.model.TextContentTranslation tr = entry.getValue();
+                if (lang == null || lang.isBlank() || tr == null) {
+                    continue;
+                }
+                if (tr.getTitle() != null && !title.containsKey(lang)) {
+                    title.put(lang, tr.getTitle());
+                }
+                if (tr.getContent() != null && !content.containsKey(lang)) {
+                    content.put(lang, tr.getContent());
+                }
+            }
+        }
+        for (Map.Entry<String, String> entry : title.entrySet()) {
+            String lang = entry.getKey();
+            String value = entry.getValue();
+            if (lang == null || lang.isBlank()) {
+                continue;
+            }
+            org.agra.agra_backend.model.TextContentTranslation tr = translations.getOrDefault(
+                    lang, new org.agra.agra_backend.model.TextContentTranslation());
+            if (tr.getTitle() == null) {
+                tr.setTitle(value);
+            }
+            translations.put(lang, tr);
+        }
+        for (Map.Entry<String, String> entry : content.entrySet()) {
+            String lang = entry.getKey();
+            String value = entry.getValue();
+            if (lang == null || lang.isBlank()) {
+                continue;
+            }
+            org.agra.agra_backend.model.TextContentTranslation tr = translations.getOrDefault(
+                    lang, new org.agra.agra_backend.model.TextContentTranslation());
+            if (tr.getContent() == null) {
+                tr.setContent(value);
+            }
+            translations.put(lang, tr);
+        }
+        textContent.setTitle(title);
+        textContent.setContent(content);
+        textContent.setTranslations(translations.isEmpty() ? null : translations);
     }
 
     private void normalizeQuizTranslations(TextContent textContent) {
@@ -342,8 +388,8 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
         if (course == null) return null;
         Course localized = new Course();
         BeanUtils.copyProperties(course, localized);
+        ensureTextContentTranslations(localized);
         if (course.getTranslations() == null || course.getTranslations().isEmpty()) {
-            localized.setTextContent(localizeTextContents(course.getTextContent(), locale, course.getDefaultLanguage()));
             return localized;
         }
 
@@ -355,7 +401,6 @@ public CourseService(CourseRepository courseRepository, CloudinaryService cloudi
             if (translation.getGoals() != null) localized.setGoals(translation.getGoals());
         }
 
-        localized.setTextContent(localizeTextContents(course.getTextContent(), locale, course.getDefaultLanguage()));
         return localized;
     }
 

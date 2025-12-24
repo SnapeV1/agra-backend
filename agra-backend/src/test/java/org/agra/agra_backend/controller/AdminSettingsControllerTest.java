@@ -2,6 +2,7 @@ package org.agra.agra_backend.controller;
 
 import org.agra.agra_backend.model.AdminSettings;
 import org.agra.agra_backend.model.User;
+import org.agra.agra_backend.service.AdminAuditLogService;
 import org.agra.agra_backend.service.AdminSettingsService;
 import org.agra.agra_backend.service.NewsService;
 import org.agra.agra_backend.service.TwoFactorService;
@@ -41,6 +42,8 @@ class AdminSettingsControllerTest {
     private UserRepository userRepository;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private AdminAuditLogService adminAuditLogService;
 
     @InjectMocks
     private AdminSettingsController controller;
@@ -80,6 +83,7 @@ class AdminSettingsControllerTest {
 
     @Test
     void fetchNowReturnsCountOnSuccess() {
+        when(userService.getCurrentUserOrThrow()).thenReturn(adminUser());
         when(newsService.fetchNorthAfricaAgricultureNow()).thenReturn(List.of(new org.agra.agra_backend.model.NewsArticle()));
 
         ResponseEntity<Map<String, Object>> response = controller.fetchNow(Map.of("cooldownSeconds", 30));
@@ -102,6 +106,7 @@ class AdminSettingsControllerTest {
     void updateNewsScheduleUpdatesCron() {
         AdminSettings settings = new AdminSettings("global");
         settings.setNewsCron("0 0 9 ? * MON");
+        when(userService.getCurrentUserOrThrow()).thenReturn(adminUser());
         when(newsService.updateNewsCron("0 0 9 ? * MON")).thenReturn(settings);
 
         Map<String, Object> response = controller.updateNewsSchedule(Map.of("cron", "0 0 9 ? * MON"));

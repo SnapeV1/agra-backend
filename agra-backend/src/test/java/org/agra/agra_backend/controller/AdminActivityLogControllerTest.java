@@ -167,6 +167,8 @@ class AdminActivityLogControllerTest {
     void listActivityLogsResolvesEmailToUserId() {
         when(activityLogService.searchForAdmin("u1", null, null, null, 10))
                 .thenReturn(List.of());
+        when(adminAuditLogService.searchAsActivityLogs("u1", null, null, 10))
+                .thenReturn(List.of());
         User admin = new User();
         admin.setId("admin-1");
         when(userService.getCurrentUserOrThrow()).thenReturn(admin);
@@ -191,6 +193,8 @@ class AdminActivityLogControllerTest {
     @Test
     void listActivityLogsStoresEmailInAuditMetadata() {
         when(activityLogService.searchForAdmin("u1", null, null, null, 10))
+                .thenReturn(List.of());
+        when(adminAuditLogService.searchAsActivityLogs("u1", null, null, 10))
                 .thenReturn(List.of());
         User admin = new User();
         admin.setId("admin-1");
@@ -220,6 +224,8 @@ class AdminActivityLogControllerTest {
     void listActivityLogsPrefersUserIdOverEmail() {
         when(activityLogService.searchForAdmin("u1", null, null, null, 10))
                 .thenReturn(List.of());
+        when(adminAuditLogService.searchAsActivityLogs("u1", null, null, 10))
+                .thenReturn(List.of());
         User admin = new User();
         admin.setId("admin-1");
         when(userService.getCurrentUserOrThrow()).thenReturn(admin);
@@ -237,6 +243,37 @@ class AdminActivityLogControllerTest {
         assertThat(result).isEmpty();
         verify(activityLogService).searchForAdmin("u1", null, null, null, 10);
         verify(userService, never()).findByEmailIgnoreCase("user@example.com");
+    }
+
+    @Test
+    void listActivityLogsIncludesAdminActions() {
+        ActivityLog userLog = new ActivityLog();
+        userLog.setId("u1");
+        userLog.setCreatedAt(LocalDateTime.of(2025, 1, 1, 0, 0));
+        ActivityLog adminLog = new ActivityLog();
+        adminLog.setId("a1");
+        adminLog.setCreatedAt(LocalDateTime.of(2025, 1, 2, 0, 0));
+        when(activityLogService.searchForAdmin("u1", null, null, null, 10))
+                .thenReturn(List.of(userLog));
+        when(adminAuditLogService.searchAsActivityLogs("u1", null, null, 10))
+                .thenReturn(List.of(adminLog));
+        User admin = new User();
+        admin.setId("admin-1");
+        when(userService.getCurrentUserOrThrow()).thenReturn(admin);
+
+        List<ActivityLog> result = controller.listActivityLogs(
+                "u1",
+                null,
+                null,
+                null,
+                null,
+                "audit-check",
+                10
+        );
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getId()).isEqualTo("a1");
+        assertThat(result.get(1).getId()).isEqualTo("u1");
     }
 
     @Test

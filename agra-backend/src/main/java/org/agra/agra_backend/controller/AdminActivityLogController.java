@@ -62,7 +62,16 @@ public class AdminActivityLogController {
         auditMetadata.put("limit", limit);
         auditMetadata.put("reason", reason);
         adminAuditLogService.logAccess(admin, "ACTIVITY_LOG_QUERY", auditMetadata);
-        return activityLogService.searchForAdmin(resolvedUserId, activityType, start, end, limit);
+        List<ActivityLog> userLogs = activityLogService.searchForAdmin(resolvedUserId, activityType, start, end, limit);
+        List<ActivityLog> adminLogs = List.of();
+        if (activityType == null || activityType == ActivityType.ADMIN_ACTION) {
+            adminLogs = adminAuditLogService.searchAsActivityLogs(resolvedUserId, start, end, limit);
+        }
+        return java.util.stream.Stream.concat(userLogs.stream(), adminLogs.stream())
+                .sorted(java.util.Comparator.comparing(ActivityLog::getCreatedAt,
+                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())).reversed())
+                .limit(limit == null || limit < 1 ? Long.MAX_VALUE : limit)
+                .toList();
     }
 
     private void validateFilters(String userId, LocalDateTime start, LocalDateTime end, String reason) {

@@ -8,6 +8,7 @@ import org.agra.agra_backend.model.CourseTranslation;
 import org.agra.agra_backend.model.QuizAnswer;
 import org.agra.agra_backend.model.QuizQuestion;
 import org.agra.agra_backend.model.TextContent;
+import org.agra.agra_backend.model.TextContentTranslation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -129,6 +130,8 @@ class CourseServiceTest {
             TextContent savedContent = saved.getTextContent().get(0);
             assertThat(savedContent.getTitle()).containsKey("en");
             assertThat(savedContent.getTitle()).containsEntry("en", "Lesson");
+            assertThat(savedContent.getTranslations()).containsKey("en");
+            assertThat(savedContent.getTranslations().get("en").getTitle()).isEqualTo("Lesson");
             QuizQuestion savedQuestion = savedContent.getQuizQuestions().get(0);
             assertThat(savedQuestion.getQuestion()).containsKey("en");
             assertThat(savedQuestion.getQuestion()).containsEntry("en", "Question?");
@@ -139,7 +142,42 @@ class CourseServiceTest {
     }
 
     @Test
-    void localizeCourseTranslatesNestedContent() {
+    void createCourseMergesTextContentTranslationsIntoMaps() throws IOException {
+        Course course = new Course();
+        course.setDefaultLanguage("en");
+
+        TextContent content = new TextContent();
+        content.setTitle(Map.of());
+        content.setContent(Map.of());
+        content.setTranslations(Map.of(
+                "fr", new TextContentTranslation("Titre", "Corps"),
+                "en", new TextContentTranslation("Title", "Body")
+        ));
+        course.setTextContent(List.of(content));
+
+        when(courseRepository.save(any(Course.class))).thenAnswer(invocation -> {
+            Course saved = invocation.getArgument(0);
+            if (saved.getId() == null) {
+                saved.setId("course-1");
+            }
+            return saved;
+        });
+
+        service.createCourse(course, null);
+
+        ArgumentCaptor<Course> captor = ArgumentCaptor.forClass(Course.class);
+        verify(courseRepository, atLeastOnce()).save(captor.capture());
+        assertThat(captor.getAllValues()).anySatisfy(saved -> {
+            TextContent savedContent = saved.getTextContent().get(0);
+            assertThat(savedContent.getTitle()).containsEntry("fr", "Titre");
+            assertThat(savedContent.getContent()).containsEntry("fr", "Corps");
+            assertThat(savedContent.getTitle()).containsEntry("en", "Title");
+            assertThat(savedContent.getContent()).containsEntry("en", "Body");
+        });
+    }
+
+    @Test
+    void localizeCoursePreservesNestedTranslations() {
         Course course = new Course();
         course.setDefaultLanguage("en");
         CourseTranslation courseFr = new CourseTranslation();
@@ -173,7 +211,7 @@ class CourseServiceTest {
     }
 
     @Test
-    void localizeCourseFallsBackToEnglishForLessons() {
+    void localizeCourseKeepsEnglishLessonsWhenLocaleMissing() {
         Course course = new Course();
 
         TextContent content = new TextContent();

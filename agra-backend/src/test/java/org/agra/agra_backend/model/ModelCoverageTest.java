@@ -99,8 +99,15 @@ class ModelCoverageTest {
 
     @Test
     void textContentAllArgsConstructorStoresFields() {
-        TextContent content = new TextContent("t1", 1, "QUIZ", Map.of("en", "Lesson"), Map.of("en", "Body"),
-                List.of(new QuizQuestion()));
+        TextContent content = new TextContent(
+                "t1",
+                1,
+                "QUIZ",
+                Map.of("en", "Lesson"),
+                Map.of("en", "Body"),
+                null,
+                List.of(new QuizQuestion())
+        );
 
         assertThat(content.getId()).isEqualTo("t1");
         assertThat(content.getOrder()).isEqualTo(1);
@@ -341,6 +348,23 @@ class ModelCoverageTest {
     }
 
     @Test
+    void textContentTranslationStoresFields() {
+        TextContentTranslation translation = new TextContentTranslation("Title", "Body");
+
+        assertThat(translation.getTitle()).isEqualTo("Title");
+        assertThat(translation.getContent()).isEqualTo("Body");
+    }
+
+    @Test
+    void textContentSupportsTranslationsMap() {
+        TextContent content = new TextContent();
+        content.setTranslations(Map.of("en", new TextContentTranslation("Title", "Body")));
+
+        assertThat(content.getTranslations()).containsKey("en");
+        assertThat(content.getTranslations().get("en").getContent()).isEqualTo("Body");
+    }
+
+    @Test
     void adminSettingsConstructorsAndFields() {
         AdminSettings settings = new AdminSettings("id");
         settings.setNewsCron("0 0 9 ? * MON");
@@ -449,6 +473,11 @@ class ModelCoverageTest {
     @Test
     void activityTypeIncludesCourseCompletion() {
         assertThat(ActivityType.valueOf("COURSE_COMPLETION")).isEqualTo(ActivityType.COURSE_COMPLETION);
+    }
+
+    @Test
+    void activityTypeIncludesAdminAction() {
+        assertThat(ActivityType.valueOf("ADMIN_ACTION")).isEqualTo(ActivityType.ADMIN_ACTION);
     }
 
     @Test

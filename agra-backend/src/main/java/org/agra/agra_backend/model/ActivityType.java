@@ -7,5 +7,6 @@ public enum ActivityType {
     COURSE_COMPLETION,
     TICKET_SUBMISSION,
     CHATBOT_USAGE,
+    ADMIN_ACTION,
     OTHER
 }

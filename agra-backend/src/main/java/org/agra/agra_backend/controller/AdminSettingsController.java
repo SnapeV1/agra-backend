@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import org.agra.agra_backend.model.AdminSettings;
 import org.agra.agra_backend.model.User;
+import org.agra.agra_backend.service.AdminAuditLogService;
 import org.agra.agra_backend.service.AdminSettingsService;
 import org.agra.agra_backend.service.NewsService;
 import org.agra.agra_backend.service.TwoFactorService;
@@ -39,19 +40,22 @@ public class AdminSettingsController {
     private final UserService userService;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AdminAuditLogService adminAuditLogService;
 
     public AdminSettingsController(AdminSettingsService adminSettingsService,
                                    NewsService newsService,
                                    TwoFactorService twoFactorService,
                                    UserService userService,
                                    UserRepository userRepository,
-                                   PasswordEncoder passwordEncoder) {
+                                   PasswordEncoder passwordEncoder,
+                                   AdminAuditLogService adminAuditLogService) {
         this.adminSettingsService = adminSettingsService;
         this.newsService = newsService;
         this.twoFactorService = twoFactorService;
         this.userService = userService;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.adminAuditLogService = adminAuditLogService;
     }
 
     /* ===================== News schedule + fetch-now ===================== */
@@ -75,6 +79,8 @@ public class AdminSettingsController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "cron is required");
         }
         AdminSettings updated = newsService.updateNewsCron(cron);
+        User admin = requireAdmin();
+        adminAuditLogService.logAccess(admin, "ADMIN_UPDATE_NEWS_CRON", Map.of("cron", cron));
         Map<String, Object> resp = new HashMap<>();
         resp.put("cron", updated.getNewsCron());
         return resp;
@@ -93,6 +99,11 @@ public class AdminSettingsController {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of(KEY_ERROR, ex.getMessage()));
         }
         var articles = newsService.fetchNorthAfricaAgricultureNow();
+        User admin = requireAdmin();
+        Map<String, Object> auditMetadata = new HashMap<>();
+        auditMetadata.put("cooldownSeconds", cooldownOverride != null ? cooldownOverride.getSeconds() : null);
+        auditMetadata.put("count", articles.size());
+        adminAuditLogService.logAccess(admin, "ADMIN_FETCH_NEWS_NOW", auditMetadata);
         Map<String, Object> resp = new HashMap<>();
         resp.put("count", articles.size());
         resp.put(KEY_STATUS, "ok");
@@ -122,6 +133,7 @@ public class AdminSettingsController {
         admin.setTwoFactorRecoveryCodes(hashCodes(recoveryCodes));
         admin.setTwoFactorVerifiedAt(null);
         userRepository.save(admin);
+        adminAuditLogService.logAccess(admin, "ADMIN_2FA_ENROLL", Map.of());
 
         Map<String, Object> resp = new HashMap<>();
         resp.put("secret", secret);
@@ -141,6 +153,7 @@ public class AdminSettingsController {
         admin.setTwoFactorEnabled(true);
         admin.setTwoFactorVerifiedAt(new java.util.Date());
         userRepository.save(admin);
+        adminAuditLogService.logAccess(admin, "ADMIN_2FA_VERIFY", Map.of());
         return ResponseEntity.ok(Map.of(KEY_STATUS, "2fa_enabled"));
     }
 
@@ -165,6 +178,7 @@ public class AdminSettingsController {
         admin.setTwoFactorRecoveryCodes(null);
         admin.setTwoFactorVerifiedAt(null);
         userRepository.save(admin);
+        adminAuditLogService.logAccess(admin, "ADMIN_2FA_DISABLE", Map.of());
         return ResponseEntity.ok(Map.of(KEY_STATUS, "2fa_disabled"));
     }
 
@@ -186,6 +200,7 @@ public class AdminSettingsController {
         admin.setEmail(newEmail);
         userRepository.save(admin);
         adminSettingsService.updateAdminEmail(newEmail);
+        adminAuditLogService.logAccess(admin, "ADMIN_EMAIL_UPDATE", Map.of("email", newEmail));
         return ResponseEntity.ok(Map.of(KEY_STATUS, "email_updated", KEY_EMAIL, newEmail));
     }
 
@@ -203,6 +218,7 @@ public class AdminSettingsController {
                     .body(Map.of(KEY_ERROR, "Password must be at least 8 characters with upper, lower, digit and symbol"));
         }
         userService.changePassword(admin.getId(), currentPassword, newPassword);
+        adminAuditLogService.logAccess(admin, "ADMIN_PASSWORD_UPDATE", Map.of());
         return ResponseEntity.ok(Map.of(KEY_STATUS, "password_updated"));
     }
 

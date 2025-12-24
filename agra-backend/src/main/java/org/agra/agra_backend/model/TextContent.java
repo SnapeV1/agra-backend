@@ -23,6 +23,7 @@ public class TextContent {
     private String type;
     private Map<String, String> title;
     private Map<String, String> content;
+    private Map<String, TextContentTranslation> translations;
 
     /**
      * Populated when type == "QUIZ". Contains questions with answer options,
